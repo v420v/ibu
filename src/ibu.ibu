@@ -1,0 +1,2204 @@
+
+func strndup(str *i8, n i32) *i8 {
+	var r *i8;
+	r = alloc(n+1);
+	if r == nil {
+		println("NULL");
+		exit(1);
+	}
+	var idx i32;
+	idx = 0;
+	while idx < n {
+		r[idx] = str[idx];
+		idx++;
+	}
+	r[n] = 0;
+	return r;
+}
+
+func strcmp(a *i8, b *i8) i32 {
+	var idx i32;
+	idx = 0;
+	while 1 {
+		if a[idx] == b[idx] {
+			if a[idx] == 0 {
+				return 1;
+			}
+			goto ok_next;
+		} else {
+			return 0;
+		}
+		ok_next:
+		idx++;
+	}
+}
+
+func reverse(str *i8, length i32) i32 {
+	var start i32;
+	start = 0;
+	var end i32;
+	end = length - 1;
+
+    while start < end {
+		var temp i8;
+		temp = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+        end--;
+        start++;
+    }
+}
+
+func itoa(num i32, str *i8, base i32) *i8 {
+	var i i32;
+	i = 0;
+
+    if (num == 0) {
+        str[i++] = 48;
+        str[i] = 0;
+        return str;
+    }
+ 
+    while num != 0 {
+		var rem i32;
+        rem = num % base;
+		if (rem > 9) {
+			str[i++] = (rem - 10) + 97;
+		} else {
+			str[i++] = rem + 48;
+		}
+        num = num / base;
+    }
+ 
+    str[i] = 0;
+
+    reverse(str, i);
+ 
+    return str;
+}
+
+struct Tokenizer {
+	program *i8
+}
+
+struct Token;
+
+struct Token {
+	kind *i8
+	start *i8
+	len i32
+	lit *i8
+	next *Token
+}
+
+func print_error(tok *Token, msg *i8) i32 {
+	var start *i8;
+	var idx i32;
+	idx = 0;
+	start = tok.start;
+	while *(start-1) != 10 {
+		idx++;
+		start--;
+	}
+	while *start != 10 {
+		write(1, start, 1);
+		start++;
+	}
+	println("");
+	while idx > 0 {
+		print(" ");
+		idx--;
+	}
+	print("^ ");
+	println(msg);
+	exit(1);
+}
+
+func is_two_c_punct(a *i8) i32 {
+	var idx i32;
+	var puncts *i8;
+	puncts = "==<=>=!=++--";
+	idx = 0;
+	while 1 {
+		if idx >= 11 {
+			return 0;
+		}
+		if a[0] == puncts[idx] {
+			if a[1] == puncts[idx+1] {
+				return 1;
+			}
+		}
+		idx++;
+		idx++;
+	}
+}
+
+func isalpha(c i32) i32 {
+	if c >= 65 {
+		if c <= 90 {
+			return 1;
+		}
+	}
+	if c >= 97 {
+		if c <= 122 {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+func isdigit(c i8) i32 {
+	if c >= 48 {
+		if c <= 57 {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+func new_token(kind *i8, start *i8, len i32) *Token {
+	var tok *Token;
+	tok = alloc(typesize(Token));
+	if tok == nil {
+		println("NULL");
+		exit(1);
+	}
+
+	tok.kind = kind;
+	tok.lit = strndup(start, len);
+	tok.start = start;
+	tok.len = len;
+
+	return tok;
+}
+
+func ispunct(c i8) i32 {
+	var punct_list *i8;
+	punct_list = "+-<>;:{}=,()[].*!%&/";
+
+	while *punct_list != nil {
+		if *punct_list == c {
+			return 1;
+		}
+		punct_list++;
+	}
+
+	return 0;
+}
+
+func new_tokenizer(program *i8) *Tokenizer {
+	var tokenizer *Tokenizer;
+	tokenizer = alloc(typesize(Tokenizer));
+	if tokenizer == nil {
+		println("NULL");
+		exit(1);
+	}
+	tokenizer.program = program;
+	return tokenizer;
+}
+
+func tokenize(tokenizer *Tokenizer) *Token {
+	var head Token;
+	var cur *Token;
+
+	cur = &head;
+
+	var program *i8;
+	program = tokenizer.program;
+
+	while *program != nil {
+		if isdigit(*program) {
+			var digit_start *i8;
+			digit_start = program;
+			while isdigit(*program) {
+				program++;
+			}
+			cur = cur.next = new_token("TK_NUM", digit_start, program-digit_start);
+			goto again;
+		} else if isalpha(*program) {
+			var ident_start *i8;
+			ident_start = program;
+			while 1 {
+				if !isalpha(*program) {
+					if !isdigit(*program) {
+						if *program != 95 {
+							goto ident_end;
+						}
+					}
+				}
+				program++;
+			}
+			ident_end:
+			cur = cur.next = new_token("TK_IDENT", ident_start, program-ident_start);
+			goto again;
+		} else if *program == 34 {
+			var string_start *i8;
+			string_start = program;
+			program++;
+			while *program != 34 {
+				program++;
+			}
+			program++;
+			cur = cur.next = new_token("TK_STR", string_start, program-string_start);
+			goto again;
+		} else if is_two_c_punct(program) {
+			cur = cur.next = new_token("TK_PUNCT", program, 2);
+			program = program + 2;
+			goto again;
+		} else if ispunct(*program) {
+			cur = cur.next = new_token("TK_PUNCT", program, 1);
+			program++;
+			goto again;
+		} else if *program == 32 {
+			program++;
+			goto again;
+		} else if *program == 10 {
+			program++;
+			goto again;
+		} else if *program == 9 {
+			program++;
+			goto again;
+		} else {
+			print_error(new_token("TK_UNKOWN", program, 1), "unkown character found");
+		}
+		again:
+	}
+
+	cur = cur.next = new_token("TK_EOF", program, 1);
+	cur.lit = "EOF";
+
+	return head.next;
+}
+
+func print_all_tokens(tok *Token) i32;
+
+func print_all_tokens(tok *Token) i32 {
+	if tok == nil {
+		return 1;
+	}
+
+	print(tok.kind);
+	print(" : ");
+	println(tok.lit);
+
+	if tok.next != nil {
+		print_all_tokens(tok.next);
+	}
+
+	return 0;
+}
+
+struct Member;
+struct Type;
+
+struct Member {
+	ty *Type
+	name *i8
+	offset i32
+	next *Member
+}
+
+struct Type {
+	kind *i8
+	size i32
+	name *i8
+	members *Member
+	return_type *Type
+	pointer_to *Type
+	is_declaration i8
+	next *Type
+}
+
+struct Object;
+struct Node;
+
+struct Object {
+	name *i8
+	kind *i8
+	offset i32
+	body *Node
+	params *Object
+	locals *Object
+	stack_size i32
+	ty *Type
+	is_declaration i8
+	is_builtin i8
+	next *Object
+	next_param *Object
+}
+
+struct Node {
+	kind *i8
+	lhs *Node
+	rhs *Node
+	body *Node
+	cond *Node
+	then_block *Node
+	else_block *Node
+	label_name *i8
+	int_val *i8
+	str_val *i8
+	obj *Object
+	ty *Type
+	func_name *i8
+	offset i32
+	args *Node
+	next *Node
+}
+
+struct Parser {
+	tokens *Token
+	globals *Object
+	locals *Object
+	user_defined_types *Type
+	ty_i8 *Type
+	ty_i16 *Type
+	ty_i32 *Type
+	ty_i64 *Type
+}
+
+func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type) i32 {
+	var obj *Object;
+	obj = alloc(typesize(Object));
+	if obj == nil {
+		println("NIL");
+		exit(1);
+	}
+	obj.kind = kind;
+	obj.name = name;
+	obj.params = params;
+	obj.ty = ty;
+	obj.is_builtin = 1;
+
+	obj.next = p.globals;
+	p.globals = obj;
+
+	return 0;
+}
+
+func print_user_defined_types(p *Parser) i32 {
+	var ty *Type;
+	var member *Member;
+	ty = p.user_defined_types;
+	while ty != nil {
+		if strcmp(ty.kind, "TY_STRUCT") {
+			print("struct ");
+			print(ty.name);
+			println(" {");
+			member = ty.members;
+			while member != nil {
+				print("  ");
+				println(member.name);
+				member = member.next;
+			}
+			println("}");
+		} else {
+			print("unkown userdefined type `");
+			print(ty.name);
+			println("` found");
+			exit(1);
+		}
+		ty = ty.next;
+	}
+	return 0;
+}
+
+func get_user_defined_type(p *Parser, name *i8) *Type {
+	var ty *Type;
+	ty = p.user_defined_types;
+	while ty != nil {
+		if strcmp(ty.name, name) {
+			return ty;
+		}
+		ty = ty.next;
+	}
+	return nil;
+}
+
+func ty_i64() *Type {
+	var ty *Type;
+	ty = alloc(typesize(Type));
+	ty.kind = "i64";
+	ty.size = 8;
+	ty.pointer_to = nil;
+	return ty;
+}
+
+func ty_i32() *Type {
+	var ty *Type;
+	ty = alloc(typesize(Type));
+	ty.kind = "i32";
+	ty.size = 4;
+	ty.pointer_to = nil;
+	return ty;
+}
+
+func ty_i16() *Type {
+	var ty *Type;
+	ty = alloc(typesize(Type));
+	ty.kind = "i16";
+	ty.size = 2;
+	ty.pointer_to = nil;
+	return ty;
+}
+
+func ty_i8() *Type {
+	var ty *Type;
+	ty = alloc(typesize(Type));
+	ty.kind = "i8";
+	ty.size = 1;
+	ty.pointer_to = nil;
+	return ty;
+}
+
+func new_pointer_type(base *Type) *Type;
+func new_func_type(return_type *Type) *Type;
+
+func new_parser(tokens *Token) *Parser {
+	var p *Parser;
+	p = alloc(typesize(Parser));
+	if p == nil {
+		println("NULL");
+		exit(1);
+	}
+	p.tokens = tokens;
+	p.locals = nil;
+	p.ty_i64 = ty_i64();
+	p.ty_i32 = ty_i32();
+	p.ty_i16 = ty_i16();
+	p.ty_i8 = ty_i8();
+
+	add_builtin_object(p, "alloc", "OBJ_FUNC", nil, new_func_type(new_pointer_type(p.ty_i64)));
+	add_builtin_object(p, "println", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "print", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "iprint", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "iprintln", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "open", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "close", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "read", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "write", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "exit", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	
+	return p;
+}
+
+func parser_next(p *Parser) i32 {
+	if p.tokens.next == nil {
+		println("parser_next got nil!!!!!");
+		exit(1);
+	}
+	p.tokens = p.tokens.next;
+	return 0;
+}
+
+func new_node(kind *i8) *Node {
+	var node *Node;
+	node = alloc(typesize(Node));
+	if node == nil {
+		println("NULL");
+		exit(1);
+	}
+	node.kind = kind;
+	return node;
+}
+
+func parser_skip(p *Parser, str *i8) i32 {
+	if strcmp(p.tokens.lit, str) {
+		parser_next(p);
+		return 0;
+	}
+	print_error(p.tokens, "unexpected token");
+}
+
+func find_locals(p *Parser, name *i8) *Object {
+	var obj *Object;
+	obj = p.locals;
+
+	while obj != nil {
+		if strcmp(obj.name, name) {
+			return obj;
+		}
+		obj = obj.next;
+	}
+
+	return nil;
+}
+
+func find_globals(p *Parser, name *i8) *Object {
+	var object *Object;
+	object = p.globals;
+
+	while object != nil {
+		if strcmp(object.name, name) {
+			return object;
+		}
+		object = object.next;
+	}
+
+	return nil;
+}
+
+func check_local_object_already_exist(p *Parser, name *i8, tok *Token) i32 {
+	var locals *Object;
+	locals = p.locals;
+	while locals != nil {
+		if strcmp(locals.name, name) {
+			print_error(tok, "name already exist");
+		}
+		locals = locals.next;
+	}
+	return 0;
+}
+
+func new_local_object(p *Parser, kind *i8, name *i8, ty *Type, tok *Token) *Object {
+	check_local_object_already_exist(p, name, tok);
+
+	var obj *Object;
+	obj = alloc(typesize(Object));
+	if obj == nil {
+		println("NULL");
+		exit(1);
+	}
+
+	obj.kind = kind;
+	obj.name = name;
+	obj.ty = ty;
+	obj.next = p.locals;
+	p.locals = obj;
+
+	return obj;
+}
+
+func add_user_defined_type(p *Parser, ty *Type) i32 {
+	ty.next = p.user_defined_types;
+	p.user_defined_types = ty;
+	return 0;
+}
+
+func new_pointer_type(base *Type) *Type {
+	var ty *Type;
+	ty = alloc(typesize(Type));
+	ty.kind = "TY_PTR";
+	ty.size = 8;
+	ty.pointer_to = base;
+	return ty;
+}
+
+func add_type(p *Parser, node *Node) i32;
+
+func add_type(p *Parser, node *Node) i32 {
+	if node == nil {
+		return 0;
+	}
+	if node.ty != nil {
+		return 0;
+	}
+
+	add_type(p, node.lhs);
+	add_type(p, node.rhs);
+	add_type(p, node.cond);
+	add_type(p, node.then_block);
+	add_type(p, node.else_block);
+
+	var node_block *Node;
+	node_block = node.body;
+	while node_block != nil {
+		add_type(p, node_block);
+		node_block = node_block.next;
+		return 0;
+	}
+
+	var node_args *Node;
+	node_args = node.args;
+	while node_args != nil {
+		add_type(p, node_args);
+		node_args = node_args.next;
+	}
+
+	if strcmp(node.kind, "ND_STR") {
+		node.ty = new_pointer_type(p.ty_i8);
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_GOTO") {
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_LABEL") {
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_FUNC_CALL") {
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_IF") {
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_WHILE") {
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_RETURN") {
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_ADD") {
+		node.ty = node.lhs.ty;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_SUB") {
+		node.ty = node.lhs.ty;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_MUL") {
+		node.ty = node.lhs.ty;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_DIV") {
+		node.ty = node.lhs.ty;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_MOD") {
+		node.ty = node.lhs.ty;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_ASSIGN") {
+		node.ty = node.lhs.ty;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_ADD") {
+		node.ty = node.lhs.ty;
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_NOT") {
+		node.ty = p.ty_i32;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_EQ") {
+		node.ty = p.ty_i32;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_NE") {
+		node.ty = p.ty_i32;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_LE") {
+		node.ty = p.ty_i32;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_LT") {
+		node.ty = p.ty_i32;
+		return 0;
+	}
+	if strcmp(node.kind, "ND_NUM") {
+		node.ty = p.ty_i32;
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_VAR") {
+		node.ty = node.obj.ty;
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_REF") {
+		node.ty = new_pointer_type(node.lhs.ty);
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_DEREF") {
+		node.ty = node.lhs.ty.pointer_to;
+		return 0;
+	}
+
+	if strcmp(node.kind, "ND_EXPR_STMT") {
+		node.ty = node.lhs.ty;
+		return 0;
+	}
+
+	println(node.kind);
+	println("add_type() unreachable");
+	exit(1);
+
+	return 0;
+}
+
+func parse_ty(p *Parser) *Type;
+
+func parse_ty(p *Parser) *Type {
+	var name *i8;
+	var ty_token *Token;
+
+	name = p.tokens.lit;
+	ty_token = p.tokens;
+
+	parser_next(p);
+	var ty *Type;
+	if strcmp(name, "i64") {
+		ty = p.ty_i64;
+	} else if strcmp(name, "i32") {
+		ty = p.ty_i32;
+	} else if strcmp(name, "i16") {
+		ty = p.ty_i16;
+	} else if strcmp(name, "i8") {
+		ty = p.ty_i8;
+	} else if strcmp(name, "*") {
+		ty = new_pointer_type(parse_ty(p));
+	} else {
+		ty = get_user_defined_type(p, name);
+		if ty == nil {
+			print_error(ty_token, "unkown type found");
+		}
+	}
+	return ty;
+}
+
+func eprint_onkown_object(name *i8) i32 {
+	print("unkown object `");
+	print(name);
+	println("`");
+	exit(1);
+}
+
+func parse_expr(p *Parser) *Node;
+
+func parse_args(p *Parser) *Node {
+	var head Node;
+	var cur *Node;
+	cur = &head;
+
+	if strcmp(p.tokens.lit, ")") {
+		return nil;
+	}
+
+	loop:
+	cur = cur.next = parse_expr(p);
+	add_type(p, cur);
+	if strcmp(p.tokens.lit, ",") {
+		parser_skip(p, ",");
+		goto loop;
+	}
+	return head.next;
+}
+
+func parse_unary(p *Parser) *Node;
+
+func parse_number(p *Parser) *Node {
+	var node *Node;
+	if strcmp(p.tokens.kind, "TK_NUM") {
+		node = new_node("ND_NUM");
+		node.int_val = p.tokens.lit;
+		parser_next(p);
+	} else if strcmp(p.tokens.kind, "TK_STR") {
+		node = new_node("ND_STR");
+		node.str_val = p.tokens.lit;
+		parser_next(p);
+	} else if strcmp(p.tokens.lit, "nil") {
+		parser_next(p);
+		node = new_node("ND_NUM");
+		node.ty = p.ty_i32;
+		node.int_val = "0";
+	} else if strcmp(p.tokens.lit, "typesize") {
+		node = new_node("ND_NUM");
+		parser_next(p);
+		parser_skip(p, "(");
+		node.int_val = itoa(parse_ty(p).size, alloc(32), 10);
+		node.ty = p.ty_i32;
+		parser_skip(p, ")");
+	} else if strcmp(p.tokens.lit, "sizeof") {
+		parser_next(p);
+		parser_skip(p, "(");
+		node = parse_unary(p);
+		parser_skip(p, ")");
+		add_type(p, node);
+		var size i32;
+		size = node.ty.size;
+		node = new_node("ND_NUM");
+		node.int_val = itoa(size, alloc(32), 10);
+		node.ty = p.ty_i32;
+	} else if strcmp(p.tokens.kind, "TK_IDENT") {
+		var name *i8;
+		var ident_tok *Token;
+		name = p.tokens.lit;
+		ident_tok = p.tokens;
+		parser_next(p);
+		if strcmp(p.tokens.lit, "(") {
+			node = new_node("ND_FUNC_CALL");
+			parser_skip(p, "(");
+			node.func_name = name;
+			node.args = parse_args(p);
+			parser_skip(p, ")");
+
+			var func_obj *Object;
+			func_obj = find_globals(p, node.func_name);
+			if func_obj == nil {
+				print_error(ident_tok, "unkown function");
+			}
+			node.ty = func_obj.ty.return_type;
+		} else {
+			var obj *Object;
+			node = new_node("ND_VAR");
+			obj = find_locals(p, name);
+			if obj == nil {
+				print_error(ident_tok, "unkown object");
+			}
+			node.obj = obj;
+		}
+	} else if strcmp(p.tokens.lit, "(") {
+		parser_next(p);
+		node = parse_expr(p);
+		parser_skip(p, ")");
+	} else {
+		print_error(p.tokens, "expected number or identifier");
+		exit(1);
+	}
+	return node;
+}
+
+func search_struct_member(members *Member, exp_member_name *i8) *Member {
+	var member *Member;
+	member = members;
+	while member != nil {
+		if strcmp(member.name, exp_member_name) {
+			return member;
+		}
+		member = member.next;
+	}
+	return nil;
+}
+
+func new_struct_access_node(kind *i8, lhs *Node, offset i32, obj *Object, ty *Type) *Node {
+	var node *Node;
+	node = alloc(typesize(Node));
+
+	node.kind = kind;
+	node.lhs = lhs;
+	node.offset = offset;
+	node.obj = obj;
+	node.ty = ty;
+
+	return node;
+}
+
+func parse_deref(p *Parser) *Node {
+	var node *Node;
+	var tok *Token;
+
+	tok = p.tokens;
+	parser_next(p);
+	node = new_node("ND_DEREF");
+	node.lhs = parse_unary(p);
+
+	add_type(p, node.lhs);
+	if !strcmp(node.lhs.ty.kind, "TY_PTR") {
+		print_error(tok, "invalid pointer dereference");
+	}
+
+	return node;
+}
+
+func new_binop(kind *i8, lhs *Node, rhs *Node) *Node {
+	var node *Node;
+	node = new_node(kind);
+	node.lhs = lhs;
+	node.rhs = rhs;
+	return node;
+}
+
+func node_num_one(p *Parser) *Node {
+	var node *Node;
+	node = new_node("ND_NUM");
+	node.int_val = "1";
+	node.ty = p.ty_i32;
+	return node;
+}
+
+func parse_unary(p *Parser) *Node {
+	var node *Node;
+	if strcmp(p.tokens.lit, "*") {
+		return parse_deref(p);
+	}
+	if strcmp(p.tokens.lit, "&") {
+		parser_next(p);
+		node = new_node("ND_REF");
+		node.lhs = parse_unary(p);
+		return node;
+	}
+	if strcmp(p.tokens.lit, "!") {
+		parser_next(p);
+		node = new_node("ND_NOT");
+		node.lhs = parse_unary(p);
+		return node;
+	}
+
+	node = parse_number(p);
+
+	var access_tok *Token;
+
+	var member_tok *Token;
+	var member *Member;
+	var member_name *i8;
+	var offset i32;
+	var member_ty *Type;
+	offset = 0;
+
+	var idx *Node;
+	var idx_pointer_arith *Node;
+
+	while 1 {
+		if strcmp(p.tokens.lit, "++") {
+			access_tok = p.tokens;
+			if !strcmp(node.kind, "ND_VAR") {
+				print_error(access_tok, "`++` left node must be a variable");
+			}
+			parser_next(p);
+			node = new_binop("ND_SUB", new_binop("ND_ASSIGN", node, new_binop("ND_ADD", node, node_num_one(p))), node_num_one(p));
+			goto again;
+		}
+		if strcmp(p.tokens.lit, "--") {
+			access_tok = p.tokens;
+			if !strcmp(node.kind, "ND_VAR") {
+				print_error(access_tok, "`--` left node must be a variable");
+			}
+			parser_next(p);
+			node = new_binop("ND_ADD", new_binop("ND_ASSIGN", node, new_binop("ND_SUB", node, node_num_one(p))), node_num_one(p));
+			goto again;
+		}
+		if strcmp(p.tokens.lit, "[") {
+			access_tok = p.tokens;
+			add_type(p, node);
+			parser_next(p);
+			idx = parse_expr(p);
+			parser_skip(p, "]");
+
+			if !strcmp(node.ty.kind, "TY_PTR") {
+				print_error(access_tok, "`[]` cannot access to none pointer type.");
+			}
+
+			var base_number_node *Node;
+			base_number_node = new_node("ND_NUM");
+			base_number_node.int_val = itoa(node.ty.pointer_to.size, alloc(32), 10);
+			base_number_node.ty = p.ty_i32;
+
+			idx_pointer_arith = new_binop("ND_MUL", idx, base_number_node);
+			node = new_binop("ND_ADD", node, idx_pointer_arith);
+
+			node = new_struct_access_node("ND_DEREF", node, 0, nil, nil);
+			goto again;
+		}
+		if strcmp(p.tokens.lit, ".") {
+			access_tok = p.tokens;
+			parser_next(p);
+
+			member_name = p.tokens.lit;
+			member_tok = p.tokens;
+			parser_next(p);
+
+			add_type(p, node);
+
+			if strcmp(node.ty.kind, "TY_PTR") {
+				if !strcmp(node.ty.pointer_to.kind, "TY_STRUCT") {
+					print_error(access_tok, "cannot access from none struct type");
+				}
+				member = search_struct_member(node.ty.pointer_to.members, member_name);
+				if member == nil {
+					print_error(member_tok, "member name not found");
+				}
+				offset = member.offset;
+				member_ty = member.ty;
+				node = new_struct_access_node("ND_DEREF", node, 0, node.obj, node.ty.pointer_to);
+				node = new_struct_access_node("ND_MEMBER_ACCESS", node, offset, node.obj, member_ty);
+			} else {
+				if !strcmp(node.ty.kind, "TY_STRUCT") {
+					print_error(access_tok, "cannot access from none struct type");
+				}
+				member = search_struct_member(node.ty.members, member_name);
+				if member == nil {
+					print_error(member_tok, "member name not found");
+				}
+				offset = member.offset;
+				member_ty = member.ty;
+				node = new_struct_access_node("ND_MEMBER_ACCESS", node, offset, node.obj, member_ty);
+			}
+			goto again;
+		}
+		goto end;
+		again:
+	}
+	end:
+
+	return node;
+}
+
+func parse_mul(p *Parser) *Node {
+	var node *Node;
+	node = parse_unary(p);
+
+	while 1 {
+		if strcmp(p.tokens.lit, "*") {
+			parser_next(p);
+			node = new_binop("ND_MUL", node, parse_unary(p));
+			goto again;
+		}
+		if strcmp(p.tokens.lit, "/") {
+			parser_next(p);
+			node = new_binop("ND_DIV", node, parse_unary(p));
+			goto again;
+		}
+		if strcmp(p.tokens.lit, "%") {
+			parser_next(p);
+			node = new_binop("ND_MOD", node, parse_unary(p));
+			goto again;
+		}
+		goto end;
+		again:
+	}
+	end:
+
+	return node;
+}
+
+func parse_add(p *Parser) *Node {
+	var node *Node;
+	node = parse_mul(p);
+
+	while 1 {
+		if strcmp(p.tokens.lit, "+") {
+			parser_next(p);
+			node = new_binop("ND_ADD", node, parse_mul(p));
+			goto again;
+		}
+		if strcmp(p.tokens.lit, "-") {
+			parser_next(p);
+			node = new_binop("ND_SUB", node, parse_mul(p));
+			goto again;
+		}
+		goto end;
+		again:
+	}
+	end:
+
+	return node;
+}
+
+func parse_relational(p *Parser) *Node {
+	var node *Node;
+	node = parse_add(p);
+
+	while 1 {
+		if strcmp(p.tokens.lit, "<=") {
+			parser_next(p);
+			node = new_binop("ND_LE", node, parse_add(p));
+			goto again;
+		}
+		if strcmp(p.tokens.lit, ">=") {
+			parser_next(p);
+			node = new_binop("ND_LE", parse_add(p), node);
+			goto again;
+		}
+		if strcmp(p.tokens.lit, "<") {
+			parser_next(p);
+			node = new_binop("ND_LT", node, parse_add(p));
+			goto again;
+		}
+		if strcmp(p.tokens.lit, ">") {
+			parser_next(p);
+			node = new_binop("ND_LT", parse_add(p), node);
+			goto again;
+		}
+		goto end;
+		again:
+	}
+	end:
+
+	return node;
+}
+
+func parse_equality(p *Parser) *Node {
+	var node *Node;
+	node = parse_relational(p);
+
+	while 1 {
+		if strcmp(p.tokens.lit, "==") {
+			parser_next(p);
+			node = new_binop("ND_EQ", node, parse_relational(p));
+			goto again;
+		}
+		if strcmp(p.tokens.lit, "!=") {
+			parser_next(p);
+			node = new_binop("ND_NE", node, parse_relational(p));
+			goto again;
+		}
+		goto end;
+		again:
+	}
+	end:
+
+	return node;
+}
+
+func parse_expr(p *Parser) *Node {
+	var node *Node;
+	node = parse_equality(p);
+	if strcmp(p.tokens.lit, "=") {
+		parser_skip(p);
+		node = new_binop("ND_ASSIGN", node, parse_expr(p));
+	}
+	return node;
+}
+
+func parse_expr_stmt(p *Parser) *Node {
+	var node *Node;
+	node = new_node("ND_EXPR_STMT");
+	node.lhs = parse_expr(p);
+	parser_skip(p, ";");
+	return node;
+}
+
+func parse_stmt(p *Parser) *Node;
+
+func parse_block(p *Parser) *Node {
+	var node *Node;
+	node = new_node("ND_BLOCK");
+
+	var head Node;
+	head.next = nil;
+	var cur *Node;
+	cur = &head;
+
+	parser_skip(p, "{");
+
+	while !strcmp(p.tokens.lit, "}") {
+		var stmt *Node;
+		stmt = parse_stmt(p);
+		add_type(p, stmt);
+		if stmt != nil {
+			cur = cur.next = stmt;
+		}
+	}
+
+	parser_skip(p, "}");
+
+	node.body = head.next;
+
+	return node;
+}
+
+func parse_stmt(p *Parser) *Node {
+
+	var node *Node;
+	if strcmp(p.tokens.lit, "var") {
+		var var_name *i8;
+		var var_ty *Type;
+		var var_name_tok *Token;
+		parser_next(p);
+		var_name = p.tokens.lit;
+		var_name_tok = p.tokens;
+		parser_next(p);
+		var_ty = parse_ty(p);
+		parser_skip(p, ";");
+
+		new_local_object(p, "OBJ_VAR", var_name, var_ty, var_name_tok);
+
+		return nil;
+	}
+
+	var label_name *i8;
+	if strcmp(p.tokens.lit, "goto") {
+		parser_next(p);
+		label_name = p.tokens.lit;
+		parser_next(p);
+		parser_skip(p, ";");
+		node = new_node("ND_GOTO");
+		node.label_name = label_name;
+		return node;
+	}
+
+	if !strcmp(p.tokens.kind, "TK_EOF") {
+		if strcmp(p.tokens.next.lit, ":") {
+			label_name = p.tokens.lit;
+			parser_next(p);
+			parser_skip(p, ":");
+			node = new_node("ND_LABEL");
+			node.label_name = label_name;
+			return node;
+		}
+	}
+
+	if strcmp(p.tokens.lit, "if") {
+		parser_next(p);
+		node = new_node("ND_IF");
+		node.cond = parse_expr(p);
+		node.then_block = parse_block(p);
+		if strcmp(p.tokens.lit, "else") {
+			parser_next(p);
+			node.else_block = parse_stmt(p);
+		} else {
+			node.else_block = nil;
+		}
+		return node;
+	}
+
+	if strcmp(p.tokens.lit, "while") {
+		parser_next(p);
+		node = new_node("ND_WHILE");
+		node.cond = parse_expr(p);
+		node.then_block = parse_block(p);
+		return node;
+	}
+
+	if strcmp(p.tokens.lit, "return") {
+		parser_next(p);
+		node = new_node("ND_RETURN");
+		node.lhs = parse_expr_stmt(p);
+		return node;
+	}
+
+	if strcmp(p.tokens.lit, "{") {
+		return parse_block(p);
+	}
+
+	return parse_expr_stmt(p);
+}
+
+func assign_offset(objects *Object) i32 {
+	var obj *Object;
+	var offset i32;
+	offset = 0;
+	obj = objects;
+	while obj != nil {
+		offset = offset + obj.ty.size;
+		obj.offset = offset;
+		obj = obj.next;
+	}
+	return offset;
+}
+
+func new_func_type(return_type *Type) *Type {
+	var ty *Type;
+	ty = alloc(typesize(Type));
+	ty.kind = "TY_FUNC";
+	ty.size = 8;
+	ty.return_type = return_type;
+	return ty;
+}
+
+func parse_func_params(p *Parser) *Object {
+	var head Object;
+	var cur *Object;
+	var name_tok *Token;
+	cur = &head;
+
+	var name *i8;
+
+	while !strcmp(p.tokens.lit, ")") {
+		name = p.tokens.lit;
+		name_tok = p.tokens;
+		parser_next(p);
+		cur = cur.next_param = new_local_object(p, "OBJ_VAR", name, parse_ty(p), name_tok);
+
+		if strcmp(p.tokens.lit, ",") {
+			parser_skip(p, ",");
+		}
+
+		if strcmp(p.tokens.lit, ")") {
+			goto end;
+		}
+	}
+	end:
+
+	return head.next_param;
+}
+
+func new_member(name *i8, ty *Type) *Member {
+	var member *Member;
+	member = alloc(typesize(Member));
+	member.name = name;
+	member.ty = ty;
+	return member;
+}
+
+func calc_sizof_struct_members(members *Member) i32 {
+	var offset i32;
+	offset = 0;
+
+	var member *Member;
+	member = members;
+
+	while member != nil {
+		member.offset = offset;
+		offset = offset + member.ty.size;
+		member = member.next;
+	}
+
+	return offset;
+}
+
+func parse_struct(p *Parser) i32 {
+	var struct_ty *Type;
+	var name *i8;
+	var head Member; 
+	var cur *Member;
+	var member_name *i8;
+	var name_token *Token;
+
+	struct_ty = alloc(typesize(Type));
+
+	head.next = nil;
+	cur = &head;
+
+	parser_skip(p, "struct");
+	name = p.tokens.lit;
+	name_token = p.tokens;
+	parser_next(p);
+
+	struct_ty.name = name;
+	struct_ty.kind = "TY_STRUCT";
+
+	if strcmp(p.tokens.lit, ";") {
+		struct_ty.is_declaration = 1;
+		struct_ty.members = nil;
+		struct_ty.size = 0;
+		parser_skip(p, ";");
+
+		if get_user_defined_type(p, name) == nil {
+			add_user_defined_type(p, struct_ty);
+		}
+	} else {
+		parser_skip(p, "{");
+
+		while !strcmp(p.tokens.lit, "}") {
+			member_name = p.tokens.lit;
+			parser_next(p);
+			cur = cur.next = new_member(member_name, parse_ty(p));
+		}
+
+		parser_skip(p, "}");
+
+		struct_ty.members = head.next;
+		struct_ty.size = calc_sizof_struct_members(head.next);
+
+		var got_user_defined_struct *Type;
+		got_user_defined_struct = get_user_defined_type(p, name); 
+		if got_user_defined_struct == nil {
+			add_user_defined_type(p, struct_ty);
+		} else {
+			if !got_user_defined_struct.is_declaration {
+				print_error(name_token, "struct is already defined somewhere");
+			}
+			got_user_defined_struct.members = head.next;
+			got_user_defined_struct.size = calc_sizof_struct_members(head.next);
+			got_user_defined_struct.is_declaration = 0;
+		}
+	}
+
+	return 0;
+}
+
+func parse_func(p *Parser) i32 {
+	var obj *Object;
+	var name *i8;
+	var func_return_ty *Type;
+	var name_tok *Token;
+
+	p.locals = nil;
+
+	parser_next(p);
+
+	obj = alloc(typesize(Object));
+	obj.kind = "OBJ_FUNC";
+	name = p.tokens.lit;
+	name_tok = p.tokens;
+	obj.name = name;
+
+	parser_next(p);
+	parser_skip(p, "(");
+
+	if !strcmp(p.tokens.lit, ")") {
+		obj.params = parse_func_params(p);
+	} else {
+		obj.params = nil;
+	}
+
+	parser_skip(p, ")");
+
+	func_return_ty = parse_ty(p);
+
+	if strcmp(p.tokens.lit, ";") {
+		parser_skip(p, ";");
+		if find_globals(p, name) == nil {
+			obj.ty = new_func_type(func_return_ty);
+			obj.locals = nil;
+			obj.is_declaration = 1;
+
+			obj.next = p.globals;
+			p.globals = obj;
+		}
+	} else {
+		var got_user_defined_func *Object;
+		got_user_defined_func = find_globals(p, name);
+		if got_user_defined_func != nil {
+			if !got_user_defined_func.is_declaration {
+				print_error(name_tok, "function is already defined somewhere");
+			}
+			got_user_defined_func.body = parse_block(p);
+			got_user_defined_func.locals = p.locals;
+			got_user_defined_func.is_declaration = 0;
+			got_user_defined_func.params = obj.params;
+		} else {
+			obj.ty = new_func_type(func_return_ty);
+			obj.body = parse_block(p);
+			obj.locals = p.locals;
+			obj.is_declaration = 0;
+	
+			obj.next = p.globals;
+			p.globals = obj;
+		}
+	}
+}
+
+func parse(p *Parser) i32 {
+	while !strcmp(p.tokens.kind, "TK_EOF") {
+		if strcmp(p.tokens.lit, "func") {
+			parse_func(p);
+		} else if strcmp(p.tokens.lit, "struct") {
+			parse_struct(p);
+		} else {
+			print_error(p.tokens, "expected `func` or `struct`");
+		}
+	}
+
+	return 0;
+}
+
+struct Gen {
+	label_count i32
+	str_label_count i32
+	cur_func_name *i8
+	regi64 **i8
+	regi32 **i8
+	regi16 **i8
+	regi8 **i8
+}
+
+func new_gen() *Gen {
+	var g *Gen;
+	g = alloc(typesize(Gen));
+
+	g.regi64 = alloc(typesize(*i8)*6);
+	g.regi64[0] = "%rdi"; g.regi64[1] = "%rsi"; g.regi64[2] = "%rdx"; g.regi64[3] = "%rcx"; g.regi64[4] = "%r8"; g.regi64[5] = "%r9";
+
+	g.regi32 = alloc(typesize(*i8)*6);
+	g.regi32[0] = "%edi"; g.regi32[1] = "%esi"; g.regi32[2] = "%edx"; g.regi32[3] = "%ecx"; g.regi32[4] = "%r8d"; g.regi32[5] = "%r9d";
+
+	g.regi16 = alloc(typesize(*i8)*6);
+	g.regi16[0] = "%di"; g.regi16[1] = "%si"; g.regi16[2] = "%dx"; g.regi16[3] = "%cx"; g.regi16[4] = "%r8w"; g.regi16[5] = "%r9w";
+
+	g.regi8 = alloc(typesize(*i8)*6);
+	g.regi8[0] = "%dil"; g.regi8[1] = "%sil"; g.regi8[2] = "%dl"; g.regi8[3] = "%cl"; g.regi8[4] = "%r8b"; g.regi8[5] = "%r9b";
+
+	g.label_count = 0;
+	g.str_label_count = 0;
+	return g;
+}
+
+func gen_expr(g *Gen, node *Node) i32;
+
+func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32 {
+	gen_expr(g, rhs);
+	println("\tpush %rax");
+	gen_expr(g, lhs);
+	println("\tpop %rdi");
+}
+
+func gen_addr(g *Gen, node *Node) i32;
+
+func gen_addr(g *Gen, node *Node) i32 {
+	if strcmp(node.kind, "ND_MEMBER_ACCESS") {
+		gen_addr(g, node.lhs);
+		print("\taddq $");
+		iprint(node.offset);
+		println(", %rax");
+	} else if strcmp(node.kind, "ND_VAR") {
+		print("	leaq -");
+		iprint(node.obj.offset);
+		println("(%rbp), %rax");
+	} else if strcmp(node.kind, "ND_DEREF") {
+		gen_expr(g, node.lhs);
+	} else {
+		println(node.kind);
+		println("unreachable");
+		exit(1);
+	}
+	return 0;
+}
+
+func gen_store(ty *Type) i32 {
+	if strcmp(ty.kind, "TY_STRUCT") {
+		var idx i32;
+		idx = 0;
+		while idx < ty.size {
+			print("\tmovb ");
+			iprint(idx);
+			println("(%rax), %r8b");
+
+			print("\tmovb %r8b, ");
+			iprint(idx);
+			println("(%rdi)");
+			idx++;
+		}
+		return 0;
+	}
+	if ty.size == 1 {
+		println("\tmovb %al, (%rdi)");
+	} else if ty.size == 2 {
+		println("\tmovw %ax, (%rdi)");
+	} else if ty.size == 4 {
+		println("\tmovl %eax, (%rdi)");
+	} else if ty.size == 8 {
+		println("\tmovq %rax, (%rdi)");
+	} else {
+		println("unreachable");
+		exit(1);
+	}
+	return 0;
+}
+
+func gen_load(ty *Type) i32 {
+	if strcmp(ty.kind, "TY_STRUCT") {
+		return 0;
+	}
+	if ty.size == 8 {
+		println("\tmovq (%rax), %rax");
+	} else if ty.size == 4 {
+		println("\tmovslq (%rax), %rax");
+	} else if ty.size == 2 {
+		println("\tmovswl (%rax), %eax"); 
+	} else if ty.size == 1 {
+		println("\tmovsbl (%rax), %eax");
+	} else {
+		println("unreachale");
+		exit(1);
+	}
+	return 0;
+}
+
+func gen_binop(instr_name *i8, ty *Type) i32 {
+	print("\t");
+	print(instr_name);
+	if strcmp(ty.kind, "TY_PTR") {
+		println("q %rdi, %rax");
+	} else {
+		println("l %edi, %eax");
+	}
+	return 0;
+}
+
+func gen_condition_store(ty *Type) i32 {
+	if strcmp(ty.kind, "TY_PTR") {
+		println("\tmovzbq %al, %rax");
+	} else if strcmp(ty.kind, "TY_I64") {
+		println("\tmovzbq %al, %rax");
+	} else {
+		println("\tmovzbl %al, %eax");
+	}
+}
+
+func gen_expr(g *Gen, node *Node) i32;
+
+func func_call_args_to_regi(g *Gen, arg *Node) i32 {
+	if arg == nil {
+		return 0;
+	}
+	var idx i32;
+	idx = 0;
+	while arg != nil {
+		gen_expr(g, arg);
+		println("\tpush %rax");
+		idx++;
+		arg = arg.next;
+	}
+	idx--;
+	while idx >= 0 {
+		print("\tpop ");
+		println(g.regi64[idx]);
+		idx--;
+	}
+}
+
+func gen_expr(g *Gen, node *Node) i32 {
+	if node == nil {
+		println("node == nil. this shoult not happen!");
+		exit(1);
+	}
+	if strcmp(node.kind, "ND_MEMBER_ACCESS") {
+		gen_addr(g, node);
+		gen_load(node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_STR") {
+		var c i32;
+		c = g.str_label_count;
+		g.str_label_count = g.str_label_count + 1;
+		println(".data");
+		print(".L.str.");
+		iprint(c);
+		println(":");
+		print("\t.string ");
+		println(node.str_val);
+
+		println(".text");
+		print("\tleaq ");
+		print(".L.str.");
+		iprint(c);
+		println("(%rip), %rax");
+		return 0;
+	}
+	if strcmp(node.kind, "ND_NUM") {
+		print("\tmovq $");
+		print(node.int_val);
+		println(", %rax");
+		return 0;
+	}
+	if strcmp(node.kind, "ND_ASSIGN") {
+		gen_addr(g, node.lhs);
+		println("\tpush %rax");
+		gen_expr(g, node.rhs);
+		println("\tpop %rdi");
+		gen_store(node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_VAR") {
+		gen_addr(g, node);
+		gen_load(node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_FUNC_CALL") {
+		func_call_args_to_regi(g, node.args);
+		println("\tmovq $0, %rax");
+		print("\tcall ");
+		println(node.func_name);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_EXPR_STMT") {
+		gen_expr(g, node.lhs);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_REF") {
+		gen_addr(g, node.lhs);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_DEREF") {
+		gen_expr(g, node.lhs);
+		gen_load(node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_NOT") {
+		gen_expr(g, node.lhs);
+		println("\tcmpq $0, %rax");
+		println("\tsete %al");
+		println("\tmovzbq %al, %rax");
+		return 0;
+	}
+	if strcmp(node.kind, "ND_ADD") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		gen_binop("add", node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_SUB") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		gen_binop("sub", node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_MUL") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		gen_binop("imul", node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_DIV") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		if node.lhs.ty.size == 8 {
+			println("\tcqto");
+		} else {
+			println("\tcltd");
+		}
+		if node.ty.size == 8 {
+			println("\tidivq %rdi");
+		} else {
+			println("\tidivl %edi");
+		}
+		return 0;
+	}
+	if strcmp(node.kind, "ND_MOD") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		if node.lhs.ty.size == 8 {
+			println("\tcqto");
+		} else {
+			println("\tcltd");
+		}
+		if node.ty.size == 8 {
+			println("\tidivq %rdi");
+		} else {
+			println("\tidivl %edi");
+		}
+		println("\tmovq %rdx, %rax");
+		return 0;
+	}
+	if strcmp(node.kind, "ND_EQ") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		gen_binop("cmp", node.ty);
+		println("\tsete %al");
+		gen_condition_store(node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_NE") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		gen_binop("cmp", node.ty);
+		println("\tsetne %al");
+		gen_condition_store(node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_LE") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		gen_binop("cmp", node.ty);
+		println("\tsetle %al");
+		gen_condition_store(node.ty);
+		return 0;
+	}
+	if strcmp(node.kind, "ND_LT") {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		gen_binop("cmp", node.ty);
+		println("\tsetl %al");
+		gen_condition_store(node.ty);
+		return 0;
+	}
+	println(node.kind);
+	println("unreachable");
+	exit(1);
+}
+
+func gen_stmt(g *Gen, node *Node) i32;
+
+func gen_node_block(g *Gen, node_block *Node) i32 {
+	var node *Node;
+	node = node_block.body;
+
+	while node != nil {
+		gen_stmt(g, node);
+		node = node.next;
+	}
+
+	return 0;
+}
+
+func gen_stmt(g *Gen, node *Node) i32 {
+	var c i32;
+	if strcmp(node.kind, "ND_BLOCK") {
+		gen_node_block(g, node);
+	} else if strcmp(node.kind, "ND_EXPR_STMT") {
+		gen_expr(g, node.lhs);
+	} else if strcmp(node.kind, "ND_RETURN") {
+		gen_expr(g, node.lhs);
+		println("\tmovq %rbp, %rsp");
+		println("\tpop %rbp");
+		println("\tretq");
+	} else if strcmp(node.kind, "ND_IF") {
+		c = g.label_count;
+		g.label_count = g.label_count + 1;
+		gen_expr(g, node.cond);
+		println("\tcmpq $1, %rax");
+		print("\tjne .L.else.");
+		iprintln(c);
+		gen_stmt(g, node.then_block);
+		print("\tjmp .L.end.");
+		iprintln(c);
+		print(".L.else.");
+		iprint(c);
+		println(":");
+		if node.else_block != nil {
+			gen_stmt(g, node.else_block);
+		}
+		print(".L.end.");
+		iprint(c);
+		println(":");
+	} else if strcmp(node.kind, "ND_GOTO") {
+		print("\tjmp .L.");
+		print(g.cur_func_name);
+		print(".");
+		println(node.label_name);
+	} else if strcmp(node.kind, "ND_LABEL") {
+		print(".L.");
+		print(g.cur_func_name);
+		print(".");
+		print(node.label_name);
+		println(":");
+	} else if strcmp(node.kind, "ND_WHILE") {
+		c = g.label_count;
+		g.label_count = g.label_count + 1;
+		print(".L.while.start.");
+		iprint(c);
+		println(":");
+
+		gen_expr(g, node.cond);
+
+		println("\tcmpq $1, %rax");
+		print("\tjne .L.while.end.");
+		iprintln(c);
+		gen_stmt(g, node.then_block);
+		print("\tjmp .L.while.start.");
+		iprintln(c);
+		print(".L.while.end.");
+		iprint(c);
+		println(":");
+	} else {
+		println(node.kind);
+		println("gen_stmt unreachable");
+	}
+}
+
+func gen_builtin() i32 {
+	println("# builtin start");
+	println(".text");
+	println(".global write");
+	println("write:");
+	println("\tmovq $1, %rax");
+	println("\tsyscall");
+	println("\tret");
+
+	println(".global open");
+	println("open:");
+	println("\tmovq $2, %rax");
+	println("\tsyscall");
+	println("\tret");
+
+	println(".global read");
+	println("read:");
+	println("\tmovq $0, %rax");
+	println("\tsyscall");
+	println("\tret");
+
+	println(".global close");
+	println("close:");
+	println("    movq $3, %rax");
+	println("    syscall");
+	println("    ret");
+
+	println(".global println");
+	println("println:");
+	println("	pushq   %rbp");
+	println("	movq    %rsp, %rbp");
+	println("	subq    $32, %rsp");
+	println("	movq    %rdi, -24(%rbp)");
+	println("	movl    $0, -4(%rbp)");
+	println("	jmp     .L.println.2");
+	println(".L.println.3:");
+	println("	movl    -4(%rbp), %eax");
+	println("	movslq  %eax, %rdx");
+	println("	movq    -24(%rbp), %rsi");
+	println("	addq    %rdx, %rsi");
+	println("	movq    $1, %rdx");
+	println("	movq    $1, %rdi");
+	println("	movq    $1, %rax");
+	println("	syscall");
+	println("	addl    $1, -4(%rbp)");
+	println(".L.println.2:");
+	println("	movl    -4(%rbp), %eax");
+	println("	movslq  %eax, %rdx");
+	println("	movq    -24(%rbp), %rax");
+	println("	addq    %rdx, %rax");
+	println("	movzbl  (%rax), %eax");
+	println("	testb   %al, %al");
+	println("	jne     .L.println.3");
+	println("	movq    $1, %rdx");
+	println("	movq    $.L.str.newline, %rsi");
+	println("	movq    $1, %rdi");
+	println("	movq    $1, %rax");
+	println("	syscall");
+	println("	movl    -4(%rbp), %eax");
+	println("	leave");
+	println("	ret");
+
+	println("	.global print");
+	println("print:");
+	println("	pushq   %rbp");
+	println("	movq    %rsp, %rbp");
+	println("	subq    $32, %rsp");
+	println("	movq    %rdi, -24(%rbp)");
+	println("	movl    $0, -4(%rbp)");
+	println("	jmp     .L.print.2");
+	println(".L.print.3:");
+	println("	movl   -4(%rbp), %eax");
+	println("	movslq %eax, %rdx");
+	println("	movq   -24(%rbp), %rsi");
+	println("	addq   %rdx, %rsi");
+	println("	movq   $1, %rdx");
+	println("	movq   $1, %rdi");
+	println("	movq   $1, %rax");
+	println("	syscall");
+	println("	addl    $1, -4(%rbp)");
+	println(".L.print.2:");
+	println("	movl    -4(%rbp), %eax");
+	println("	movslq  %eax, %rdx");
+	println("	movq    -24(%rbp), %rax");
+	println("	addq    %rdx, %rax");
+	println("	movzbl  (%rax), %eax");
+	println("	testb   %al, %al");
+	println("	jne     .L.print.3");
+	println("	movl    -4(%rbp), %eax");
+	println("	leave");
+	println("	ret");
+
+	println(".global exit");
+	println("exit:");
+	println("	movq $60, %rax");
+	println("	syscall");
+	println(".bss");
+	println("heap:");
+	println("	.zero	5040000");
+	println("heap_size:");
+	println("	.zero	8");
+	println(".text");
+	println(".global	alloc");
+	println("alloc:");
+	println("	pushq	%rbp");
+	println("	movq	%rsp, %rbp");
+	println("	movq	%rdi, -24(%rbp)");
+	println("	movq	heap_size(%rip), %rdx");
+	println("	movq	-24(%rbp), %rax");
+	println("	addq	%rdx, %rax");
+	println("	cmpq	$5039999, %rax");
+	println("	jbe	.L.alloc.2");
+	println("	movl	$0, %eax");
+	println("	jmp	.L.alloc_ret_null");
+	println(".L.alloc.2:");
+	println("	movq	heap_size(%rip), %rax");
+	println("	leaq	heap(%rip), %rdx");
+	println("	addq	%rdx, %rax");
+	println("	movq	%rax, -8(%rbp)");
+	println("	movq	heap_size(%rip), %rdx");
+	println("	movq	-24(%rbp), %rax");
+	println("	addq	%rdx, %rax");
+	println("	movq	%rax, heap_size(%rip)");
+	println("	movq	-8(%rbp), %rax");
+	println(".L.alloc_ret_null:");
+	println("	popq	%rbp");
+	println("	ret");
+	println(".global iprintln");
+	println("iprintln:");
+	println("    pushq   %rbp");
+	println("    movq    %rsp, %rbp");
+	println("    subq    $64, %rsp");
+	println("    movq    %rdi, -56(%rbp)");
+	println("    movq    $1, -8(%rbp)");
+	println("    movl    $32, %eax");
+	println("    subq    -8(%rbp), %rax");
+	println("    movb    $10, -48(%rbp,%rax)");
+	println(".L.iprintln.2:");
+	println("    movq    -56(%rbp), %rcx");
+	println("    movabsq $-3689348814741910323, %rdx");
+	println("    movq    %rcx, %rax");
+	println("    mulq    %rdx");
+	println("    shrq    $3, %rdx");
+	println("    movq    %rdx, %rax");
+	println("    salq    $2, %rax");
+	println("    addq    %rdx, %rax");
+	println("    addq    %rax, %rax");
+	println("    subq    %rax, %rcx");
+	println("    movq    %rcx, %rdx");
+	println("    movl    %edx, %eax");
+	println("    leal    48(%rax), %edx");
+	println("    movl    $31, %eax");
+	println("    subq    -8(%rbp), %rax");
+	println("    movb    %dl, -48(%rbp,%rax)");
+	println("    addq    $1, -8(%rbp)");
+	println("    movq    -56(%rbp), %rax");
+	println("    movabsq $-3689348814741910323, %rdx");
+	println("    mulq    %rdx");
+	println("    movq    %rdx, %rax");
+	println("    shrq    $3, %rax");
+	println("    movq    %rax, -56(%rbp)");
+	println("    cmpq    $0, -56(%rbp)");
+	println("    jne     .L.iprintln.2");
+	println("    movl    $32, %eax");
+	println("    subq    -8(%rbp), %rax");
+	println("    leaq    -48(%rbp), %rdx");
+	println("    leaq    (%rdx,%rax), %rcx");
+	println("    movq    -8(%rbp), %rax");
+	println("    movq    %rax, %rdx");
+	println("    movq    %rcx, %rsi");
+	println("    movl    $1, %edi");
+	println("    movl    $1, %eax");
+	println("	syscall");
+	println("    nop");
+	println("    leave");
+	println("    ret");
+	println(".global iprint");
+	println(".global iprint");
+	println("iprint:");
+	println("    pushq   %rbp");
+	println("    movq    %rsp, %rbp");
+	println("    subq    $64, %rsp");
+	println("    movq    %rdi, -56(%rbp)");
+	println("    movq    $0, -8(%rbp)");
+	println("    movl    $32, %eax");
+	println("    subq    -8(%rbp), %rax");
+	println("    #movb    $0, -48(%rbp,%rax)");
+	println(".L.iprint.2:");
+	println("    movq    -56(%rbp), %rcx");
+	println("    movabsq $-3689348814741910323, %rdx");
+	println("    movq    %rcx, %rax");
+	println("    mulq    %rdx");
+	println("    shrq    $3, %rdx");
+	println("    movq    %rdx, %rax");
+	println("    salq    $2, %rax");
+	println("    addq    %rdx, %rax");
+	println("    addq    %rax, %rax");
+	println("    subq    %rax, %rcx");
+	println("    movq    %rcx, %rdx");
+	println("    movl    %edx, %eax");
+	println("    leal    48(%rax), %edx");
+	println("    movl    $31, %eax");
+	println("    subq    -8(%rbp), %rax");
+	println("    movb    %dl, -48(%rbp,%rax)");
+	println("    addq    $1, -8(%rbp)");
+	println("    movq    -56(%rbp), %rax");
+	println("    movabsq $-3689348814741910323, %rdx");
+	println("    mulq    %rdx");
+	println("    movq    %rdx, %rax");
+	println("    shrq    $3, %rax");
+	println("    movq    %rax, -56(%rbp)");
+	println("    cmpq    $0, -56(%rbp)");
+	println("    jne     .L.iprint.2");
+	println("    movl    $32, %eax");
+	println("    subq    -8(%rbp), %rax");
+	println("    leaq    -48(%rbp), %rdx");
+	println("    leaq    (%rdx,%rax), %rcx");
+	println("    movq    -8(%rbp), %rax");
+	println("    movq    %rax, %rdx");
+	println("    movq    %rcx, %rsi");
+	println("    movl    $1, %edi");
+	println("    movl    $1, %eax");
+	println("    syscall");
+	println("    nop");
+	println("    leave");
+	println("    ret");
+	println(".data");
+	println(".L.str.newline:");
+	println("	.byte 10");
+	println("	.byte 0");
+}
+
+func gen(g *Gen, globals *Object) i32 {
+	println(".text");
+	println(".global _start");
+	println("_start:");
+	println("\tpush %rbp");
+	println("\tmovq %rsp, %rbp");
+	println("\tmovq 8(%rbp), %rdi"); 
+	println("\tleaq 16(%rbp), %rsi"); 
+	println("\tcallq main");
+	println("\tmovq %rax, %rdi");
+	println("\tmovq $60, %rax");
+	println("\tsyscall");
+
+	var object *Object;
+	object = globals;
+
+	while object != nil {
+		if strcmp(object.kind, "OBJ_FUNC") {
+			if object.is_declaration {
+				goto next;
+			}
+			if object.is_builtin {
+				goto next;
+			}
+			object.stack_size = assign_offset(object.locals);
+			g.cur_func_name = object.name;
+			print(".global ");
+			println(object.name);
+			print(object.name);
+			println(":");
+			println("\tpush %rbp");
+			println("\tmovq %rsp, %rbp");
+			print("\tsubq $");
+			iprint(object.stack_size);
+			println(", %rsp");
+
+			var params *Object;
+			params = object.params;
+			var idx i32;
+			idx = 0;
+			while params != nil {
+				if params.ty.size == 1 {
+					print("\tmovb ");
+					print(g.regi8[idx]);
+				} else if params.ty.size == 2 {
+					print("\tmovw ");
+					print(g.regi16[idx]);
+				} else if params.ty.size == 4 {
+					print("\tmovl ");
+					print(g.regi32[idx]);
+				} else if params.ty.size == 8 {
+					print("\tmovq ");
+					print(g.regi64[idx]);
+				} else {
+					println("unreachable");
+					exit(1);
+				}
+				print(", -");
+				iprint(params.offset);
+				println("(%rbp)");
+				params = params.next_param;
+				idx++;
+			}
+
+			gen_node_block(g, object.body);
+			println("\tleave");
+			println("\tret");
+		} else {
+			println("unreachable");
+			exit(1);
+		}
+		next:
+		object = object.next;
+	}
+
+	gen_builtin();
+
+	return 0;
+}
+
+func main(argc i32, argv **i8) i32 {
+	if argc != 2 {
+		println("usage\n\tibu <filename>.ibu");
+		exit(0);
+	}
+
+	var f *i8;
+	var buf *i8;
+	f = open(argv[1], 0, 420);
+	buf = alloc(55000);
+	read(f, buf, 55000);
+	close(f);
+
+	var tokens *Token;
+	var t *Tokenizer;
+	t = new_tokenizer(buf);
+	tokens = tokenize(t);
+
+	var p *Parser;
+	p = new_parser(tokens);
+
+	parse(p);
+
+	var g *Gen;
+	g = new_gen();
+
+	gen(g, p.globals);
+
+	return 0;
+}
+
+

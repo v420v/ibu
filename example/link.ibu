@@ -1,0 +1,44 @@
+
+struct User;
+
+struct User {
+    name *i8
+    next *User
+}
+
+func user_print_names(user *User) i32;
+
+func user_print_names(user *User) i32 {
+    println(user.name);
+
+    if user.next != nil {
+        user_print_names(user.next);
+    }
+    return 0;
+}
+
+func new_user(name *i8) *User {
+    var user *User;
+    user = alloc(typesize(User));
+    user.name = name;
+    return user;
+}
+
+func main(argc i32, argv **i8) i32 {
+    var head User;
+    var cur *User;
+    cur = &head;
+
+    cur = cur.next = new_user("Ibu");
+    cur = cur.next = new_user("Ibuki");
+    cur = cur.next = new_user("Foo");
+    cur = cur.next = new_user("Bar");
+
+    user_print_names(head.next);
+
+    println(head.next.next.next.next.name);
+
+    return 0;
+}
+
+
