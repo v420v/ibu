@@ -1,7 +1,7 @@
 
 # The Ibu programming language
 
-<img src="https://github.com/v420v/ibuki/assets/106643445/d872f002-c601-4cdd-9f28-c6744b466d8a" width=600 align="right">
+<img src="https://github.com/v420v/ibu/assets/106643445/476c1310-4546-4fac-ac59-38f36e3d0716"  width=600 align="right">
 
 - No strict type checker
 - No global variables
