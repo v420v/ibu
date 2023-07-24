@@ -9,6 +9,7 @@
 - No hidden control flow
 - No C-like pointer arithmetic
 - No `break`, `continue` stmt. Use `goto`
+- No block scopes.
 - No bugs, everything is a feature
 
 ```
