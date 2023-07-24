@@ -19,7 +19,7 @@ func strndup(str *i8, n i32) *i8 {
 func strcmp(a *i8, b *i8) i32 {
 	var idx i32;
 	idx = 0;
-	while 1 {
+	while {
 		if a[idx] == b[idx] {
 			if a[idx] == 0 {
 				return 1;
@@ -119,7 +119,7 @@ func is_two_c_punct(a *i8) i32 {
 	var puncts *i8;
 	puncts = "==<=>=!=++--";
 	idx = 0;
-	while 1 {
+	while {
 		if idx >= 11 {
 			return 0;
 		}
@@ -218,7 +218,7 @@ func tokenize(tokenizer *Tokenizer) *Token {
 		} else if isalpha(*program) {
 			var ident_start *i8;
 			ident_start = program;
-			while 1 {
+			while {
 				if !isalpha(*program) {
 					if !isdigit(*program) {
 						if *program != 95 {
@@ -947,7 +947,7 @@ func parse_unary(p *Parser) *Node {
 	var idx *Node;
 	var idx_pointer_arith *Node;
 
-	while 1 {
+	while {
 		if strcmp(p.tokens.lit, "++") {
 			access_tok = p.tokens;
 			if !strcmp(node.kind, "ND_VAR") {
@@ -1036,7 +1036,7 @@ func parse_mul(p *Parser) *Node {
 	var node *Node;
 	node = parse_unary(p);
 
-	while 1 {
+	while {
 		if strcmp(p.tokens.lit, "*") {
 			parser_next(p);
 			node = new_binop("ND_MUL", node, parse_unary(p));
@@ -1064,7 +1064,7 @@ func parse_add(p *Parser) *Node {
 	var node *Node;
 	node = parse_mul(p);
 
-	while 1 {
+	while {
 		if strcmp(p.tokens.lit, "+") {
 			parser_next(p);
 			node = new_binop("ND_ADD", node, parse_mul(p));
@@ -1087,7 +1087,7 @@ func parse_relational(p *Parser) *Node {
 	var node *Node;
 	node = parse_add(p);
 
-	while 1 {
+	while {
 		if strcmp(p.tokens.lit, "<=") {
 			parser_next(p);
 			node = new_binop("ND_LE", node, parse_add(p));
@@ -1120,7 +1120,7 @@ func parse_equality(p *Parser) *Node {
 	var node *Node;
 	node = parse_relational(p);
 
-	while 1 {
+	while {
 		if strcmp(p.tokens.lit, "==") {
 			parser_next(p);
 			node = new_binop("ND_EQ", node, parse_relational(p));
@@ -1186,6 +1186,14 @@ func parse_block(p *Parser) *Node {
 	return node;
 }
 
+func node_true() *Node {
+	var node *Node;
+	node = alloc(typesize(Node));
+	node.kind = "ND_NUM";
+	node.int_val = "1";
+	return node;
+}
+
 func parse_stmt(p *Parser) *Node {
 
 	var node *Node;
@@ -1244,7 +1252,11 @@ func parse_stmt(p *Parser) *Node {
 	if strcmp(p.tokens.lit, "while") {
 		parser_next(p);
 		node = new_node("ND_WHILE");
-		node.cond = parse_expr(p);
+		if !strcmp(p.tokens.lit, "{") {
+			node.cond = parse_expr(p);
+		} else {
+			node.cond = node_true();
+		}
 		node.then_block = parse_block(p);
 		return node;
 	}
