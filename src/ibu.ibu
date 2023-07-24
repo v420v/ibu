@@ -586,6 +586,16 @@ func new_pointer_type(base *Type) *Type {
 
 func add_type(p *Parser, node *Node) i32;
 
+func add_type_block(p *Parser, block *Node) i32 {
+	var node_block *Node;
+	node_block = block;
+	while node_block != nil {
+		add_type(p, node_block);
+		node_block = node_block.next;
+		return 0;
+	}
+}
+
 func add_type(p *Parser, node *Node) i32 {
 	if node == nil {
 		return 0;
@@ -597,16 +607,10 @@ func add_type(p *Parser, node *Node) i32 {
 	add_type(p, node.lhs);
 	add_type(p, node.rhs);
 	add_type(p, node.cond);
-	add_type(p, node.then_block);
-	add_type(p, node.else_block);
 
-	var node_block *Node;
-	node_block = node.body;
-	while node_block != nil {
-		add_type(p, node_block);
-		node_block = node_block.next;
-		return 0;
-	}
+	add_type_block(p, node.body);
+	add_type_block(p, node.then_block);
+	add_type_block(p, node.else_block);
 
 	var node_args *Node;
 	node_args = node.args;
@@ -717,10 +721,6 @@ func add_type(p *Parser, node *Node) i32 {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
-
-	println(node.kind);
-	println("add_type() unreachable");
-	exit(1);
 
 	return 0;
 }
