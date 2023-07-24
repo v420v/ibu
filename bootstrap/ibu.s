@@ -14389,7 +14389,7 @@ tokenize:
 	jmp .L.end.194
 .L.else.194:
 .L.end.194:
-	movq $34, %rax
+	movq $47, %rax
 	push %rax
 	leaq -76(%rbp), %rax
 	movq (%rax), %rax
@@ -14402,6 +14402,144 @@ tokenize:
 	movzbl %al, %eax
 	cmpq $1, %rax
 	jne .L.else.199
+	movq $1, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	push %rax
+	movq $1, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
+	pop %rdi
+	movq %rax, (%rdi)
+	pop %rdi
+	subq %rdi, %rax
+	movq $47, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	movsbl (%rax), %eax
+	pop %rdi
+	cmpl %edi, %eax
+	sete %al
+	movzbl %al, %eax
+	cmpq $1, %rax
+	jne .L.else.200
+	movq $1, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	push %rax
+	movq $1, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
+	pop %rdi
+	movq %rax, (%rdi)
+	pop %rdi
+	subq %rdi, %rax
+.L.while.start.201:
+	movq $10, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	movsbl (%rax), %eax
+	pop %rdi
+	cmpl %edi, %eax
+	setne %al
+	movzbl %al, %eax
+	cmpq $1, %rax
+	jne .L.while.end.201
+	movq $0, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	movsbl (%rax), %eax
+	pop %rdi
+	cmpl %edi, %eax
+	sete %al
+	movzbl %al, %eax
+	cmpq $1, %rax
+	jne .L.else.202
+	jmp .L.tokenize.again
+	jmp .L.end.202
+.L.else.202:
+.L.end.202:
+	movq $1, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	push %rax
+	movq $1, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
+	pop %rdi
+	movq %rax, (%rdi)
+	pop %rdi
+	subq %rdi, %rax
+	jmp .L.while.start.201
+.L.while.end.201:
+	jmp .L.tokenize.again
+	jmp .L.end.200
+.L.else.200:
+	movq $1, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	push %rax
+	movq $1, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	pop %rdi
+	subq %rdi, %rax
+	pop %rdi
+	movq %rax, (%rdi)
+	pop %rdi
+	addq %rdi, %rax
+.L.end.200:
+	jmp .L.end.199
+.L.else.199:
+.L.end.199:
+	movq $34, %rax
+	push %rax
+	leaq -76(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	movsbl (%rax), %eax
+	pop %rdi
+	cmpl %edi, %eax
+	sete %al
+	movzbl %al, %eax
+	cmpq $1, %rax
+	jne .L.else.203
 	leaq -8(%rbp), %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14428,7 +14566,7 @@ tokenize:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-.L.while.start.200:
+.L.while.start.204:
 	movq $34, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14441,7 +14579,7 @@ tokenize:
 	setne %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.200
+	jne .L.while.end.204
 	movq $1, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14460,8 +14598,8 @@ tokenize:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	jmp .L.while.start.200
-.L.while.end.200:
+	jmp .L.while.start.204
+.L.while.end.204:
 	movq $1, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14515,9 +14653,9 @@ tokenize:
 	pop %rdi
 	movq %rax, (%rdi)
 	jmp .L.tokenize.again
-	jmp .L.end.199
-.L.else.199:
-.L.end.199:
+	jmp .L.end.203
+.L.else.203:
+.L.end.203:
 	leaq -76(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -14527,7 +14665,7 @@ tokenize:
 	movq $0, %rax
 	call is_two_c_punct
 	cmpq $1, %rax
-	jne .L.else.201
+	jne .L.else.205
 	leaq -32(%rbp), %rax
 	push %rax
 	leaq -32(%rbp), %rax
@@ -14571,9 +14709,9 @@ tokenize:
 	pop %rdi
 	movq %rax, (%rdi)
 	jmp .L.tokenize.again
-	jmp .L.end.201
-.L.else.201:
-.L.end.201:
+	jmp .L.end.205
+.L.else.205:
+.L.end.205:
 	leaq -76(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -14584,7 +14722,7 @@ tokenize:
 	movq $0, %rax
 	call ispunct
 	cmpq $1, %rax
-	jne .L.else.202
+	jne .L.else.206
 	leaq -32(%rbp), %rax
 	push %rax
 	leaq -32(%rbp), %rax
@@ -14632,9 +14770,9 @@ tokenize:
 	pop %rdi
 	subq %rdi, %rax
 	jmp .L.tokenize.again
-	jmp .L.end.202
-.L.else.202:
-.L.end.202:
+	jmp .L.end.206
+.L.else.206:
+.L.end.206:
 	movq $32, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14647,7 +14785,7 @@ tokenize:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.203
+	jne .L.else.207
 	movq $1, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14667,9 +14805,9 @@ tokenize:
 	pop %rdi
 	subq %rdi, %rax
 	jmp .L.tokenize.again
-	jmp .L.end.203
-.L.else.203:
-.L.end.203:
+	jmp .L.end.207
+.L.else.207:
+.L.end.207:
 	movq $10, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14682,7 +14820,7 @@ tokenize:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.204
+	jne .L.else.208
 	movq $1, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14702,9 +14840,9 @@ tokenize:
 	pop %rdi
 	subq %rdi, %rax
 	jmp .L.tokenize.again
-	jmp .L.end.204
-.L.else.204:
-.L.end.204:
+	jmp .L.end.208
+.L.else.208:
+.L.end.208:
 	movq $9, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14717,7 +14855,7 @@ tokenize:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.205
+	jne .L.else.209
 	movq $1, %rax
 	push %rax
 	leaq -76(%rbp), %rax
@@ -14737,9 +14875,9 @@ tokenize:
 	pop %rdi
 	subq %rdi, %rax
 	jmp .L.tokenize.again
-	jmp .L.end.205
-.L.else.205:
-.L.end.205:
+	jmp .L.end.209
+.L.else.209:
+.L.end.209:
 .data
 .L.str.620:
 	.string "TK_UNKOWN"
@@ -14843,7 +14981,7 @@ new_tokenizer:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.206
+	jne .L.else.210
 .data
 .L.str.624:
 	.string "NULL"
@@ -14858,9 +14996,9 @@ new_tokenizer:
 	pop %rdi
 	movq $0, %rax
 	call exit
-	jmp .L.end.206
-.L.else.206:
-.L.end.206:
+	jmp .L.end.210
+.L.else.210:
+.L.end.210:
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -14891,7 +15029,7 @@ ispunct:
 	leaq .L.str.625(%rip), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-.L.while.start.207:
+.L.while.start.211:
 	movq $0, %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -14902,7 +15040,7 @@ ispunct:
 	setne %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.207
+	jne .L.while.end.211
 	leaq -9(%rbp), %rax
 	movsbl (%rax), %eax
 	push %rax
@@ -14914,14 +15052,14 @@ ispunct:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.208
+	jne .L.else.212
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.208
-.L.else.208:
-.L.end.208:
+	jmp .L.end.212
+.L.else.212:
+.L.end.212:
 	movq $1, %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -14936,8 +15074,8 @@ ispunct:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	jmp .L.while.start.207
-.L.while.end.207:
+	jmp .L.while.start.211
+.L.while.end.211:
 	movq $0, %rax
 	movq %rbp, %rsp
 	pop %rbp
@@ -14970,7 +15108,7 @@ new_token:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.209
+	jne .L.else.213
 .data
 .L.str.626:
 	.string "NULL"
@@ -14985,9 +15123,9 @@ new_token:
 	pop %rdi
 	movq $0, %rax
 	call exit
-	jmp .L.end.209
-.L.else.209:
-.L.end.209:
+	jmp .L.end.213
+.L.else.213:
+.L.end.213:
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -15050,7 +15188,7 @@ isdigit:
 	setle %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.210
+	jne .L.else.214
 	movq $57, %rax
 	push %rax
 	leaq -1(%rbp), %rax
@@ -15060,17 +15198,17 @@ isdigit:
 	setle %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.211
+	jne .L.else.215
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.211
-.L.else.211:
-.L.end.211:
-	jmp .L.end.210
-.L.else.210:
-.L.end.210:
+	jmp .L.end.215
+.L.else.215:
+.L.end.215:
+	jmp .L.end.214
+.L.else.214:
+.L.end.214:
 	movq $0, %rax
 	movq %rbp, %rsp
 	pop %rbp
@@ -15092,7 +15230,7 @@ isalpha:
 	setle %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.212
+	jne .L.else.216
 	movq $90, %rax
 	push %rax
 	leaq -4(%rbp), %rax
@@ -15102,17 +15240,17 @@ isalpha:
 	setle %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.213
+	jne .L.else.217
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.213
-.L.else.213:
-.L.end.213:
-	jmp .L.end.212
-.L.else.212:
-.L.end.212:
+	jmp .L.end.217
+.L.else.217:
+.L.end.217:
+	jmp .L.end.216
+.L.else.216:
+.L.end.216:
 	leaq -4(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
@@ -15122,7 +15260,7 @@ isalpha:
 	setle %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.214
+	jne .L.else.218
 	movq $122, %rax
 	push %rax
 	leaq -4(%rbp), %rax
@@ -15132,17 +15270,17 @@ isalpha:
 	setle %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.215
+	jne .L.else.219
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.215
-.L.else.215:
-.L.end.215:
-	jmp .L.end.214
-.L.else.214:
-.L.end.214:
+	jmp .L.end.219
+.L.else.219:
+.L.end.219:
+	jmp .L.end.218
+.L.else.218:
+.L.end.218:
 	movq $0, %rax
 	movq %rbp, %rsp
 	pop %rbp
@@ -15169,10 +15307,10 @@ is_two_c_punct:
 	movq $0, %rax
 	pop %rdi
 	movl %eax, (%rdi)
-.L.while.start.216:
+.L.while.start.220:
 	movq $1, %rax
 	cmpq $1, %rax
-	jne .L.while.end.216
+	jne .L.while.end.220
 	leaq -12(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
@@ -15182,14 +15320,14 @@ is_two_c_punct:
 	setle %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.217
+	jne .L.else.221
 	movq $0, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.217
-.L.else.217:
-.L.end.217:
+	jmp .L.end.221
+.L.else.221:
+.L.end.221:
 	movq $1, %rax
 	push %rax
 	leaq -12(%rbp), %rax
@@ -15219,7 +15357,7 @@ is_two_c_punct:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.218
+	jne .L.else.222
 	movq $1, %rax
 	push %rax
 	movq $1, %rax
@@ -15253,17 +15391,17 @@ is_two_c_punct:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.219
+	jne .L.else.223
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.219
-.L.else.219:
-.L.end.219:
-	jmp .L.end.218
-.L.else.218:
-.L.end.218:
+	jmp .L.end.223
+.L.else.223:
+.L.end.223:
+	jmp .L.end.222
+.L.else.222:
+.L.end.222:
 	movq $1, %rax
 	push %rax
 	leaq -12(%rbp), %rax
@@ -15292,8 +15430,8 @@ is_two_c_punct:
 	movl %eax, (%rdi)
 	pop %rdi
 	subl %edi, %eax
-	jmp .L.while.start.216
-.L.while.end.216:
+	jmp .L.while.start.220
+.L.while.end.220:
 	leave
 	ret
 .global print_error
@@ -15316,7 +15454,7 @@ print_error:
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-.L.while.start.220:
+.L.while.start.224:
 	movq $10, %rax
 	push %rax
 	movq $1, %rax
@@ -15331,7 +15469,7 @@ print_error:
 	setne %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.220
+	jne .L.while.end.224
 	movq $1, %rax
 	push %rax
 	leaq -4(%rbp), %rax
@@ -15360,9 +15498,9 @@ print_error:
 	movq %rax, (%rdi)
 	pop %rdi
 	addq %rdi, %rax
-	jmp .L.while.start.220
-.L.while.end.220:
-.L.while.start.221:
+	jmp .L.while.start.224
+.L.while.end.224:
+.L.while.start.225:
 	movq $10, %rax
 	push %rax
 	leaq -12(%rbp), %rax
@@ -15373,7 +15511,7 @@ print_error:
 	setne %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.221
+	jne .L.while.end.225
 	movq $1, %rax
 	push %rax
 	leaq -12(%rbp), %rax
@@ -15400,8 +15538,8 @@ print_error:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	jmp .L.while.start.221
-.L.while.end.221:
+	jmp .L.while.start.225
+.L.while.end.225:
 .data
 .L.str.628:
 	.string ""
@@ -15411,7 +15549,7 @@ print_error:
 	pop %rdi
 	movq $0, %rax
 	call println
-.L.while.start.222:
+.L.while.start.226:
 	leaq -4(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
@@ -15421,7 +15559,7 @@ print_error:
 	setl %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.222
+	jne .L.while.end.226
 .data
 .L.str.629:
 	.string " "
@@ -15445,8 +15583,8 @@ print_error:
 	movl %eax, (%rdi)
 	pop %rdi
 	addl %edi, %eax
-	jmp .L.while.start.222
-.L.while.end.222:
+	jmp .L.while.start.226
+.L.while.end.226:
 .data
 .L.str.630:
 	.string "^ "
@@ -15491,7 +15629,7 @@ itoa:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.223
+	jne .L.else.227
 	movq $1, %rax
 	push %rax
 	movq $1, %rax
@@ -15539,10 +15677,10 @@ itoa:
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.223
-.L.else.223:
-.L.end.223:
-.L.while.start.224:
+	jmp .L.end.227
+.L.else.227:
+.L.end.227:
+.L.while.start.228:
 	movq $0, %rax
 	push %rax
 	leaq -24(%rbp), %rax
@@ -15552,7 +15690,7 @@ itoa:
 	setne %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.224
+	jne .L.while.end.228
 	leaq -4(%rbp), %rax
 	push %rax
 	leaq -12(%rbp), %rax
@@ -15575,7 +15713,7 @@ itoa:
 	setl %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.225
+	jne .L.else.229
 	movq $1, %rax
 	push %rax
 	movq $1, %rax
@@ -15612,8 +15750,8 @@ itoa:
 	addl %edi, %eax
 	pop %rdi
 	movb %al, (%rdi)
-	jmp .L.end.225
-.L.else.225:
+	jmp .L.end.229
+.L.else.229:
 	movq $1, %rax
 	push %rax
 	movq $1, %rax
@@ -15646,7 +15784,7 @@ itoa:
 	addl %edi, %eax
 	pop %rdi
 	movb %al, (%rdi)
-.L.end.225:
+.L.end.229:
 	leaq -24(%rbp), %rax
 	push %rax
 	leaq -12(%rbp), %rax
@@ -15659,8 +15797,8 @@ itoa:
 	idivl %edi
 	pop %rdi
 	movl %eax, (%rdi)
-	jmp .L.while.start.224
-.L.while.end.224:
+	jmp .L.while.start.228
+.L.while.end.228:
 	movq $1, %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -15715,7 +15853,7 @@ reverse:
 	subl %edi, %eax
 	pop %rdi
 	movl %eax, (%rdi)
-.L.while.start.226:
+.L.while.start.230:
 	leaq -5(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
@@ -15726,7 +15864,7 @@ reverse:
 	setl %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.226
+	jne .L.while.end.230
 	leaq -1(%rbp), %rax
 	push %rax
 	movq $1, %rax
@@ -15813,8 +15951,8 @@ reverse:
 	movl %eax, (%rdi)
 	pop %rdi
 	subl %edi, %eax
-	jmp .L.while.start.226
-.L.while.end.226:
+	jmp .L.while.start.230
+.L.while.end.230:
 	leave
 	ret
 .global strcmp
@@ -15829,10 +15967,10 @@ strcmp:
 	movq $0, %rax
 	pop %rdi
 	movl %eax, (%rdi)
-.L.while.start.227:
+.L.while.start.231:
 	movq $1, %rax
 	cmpq $1, %rax
-	jne .L.while.end.227
+	jne .L.while.end.231
 	movq $1, %rax
 	push %rax
 	leaq -4(%rbp), %rax
@@ -15863,7 +16001,7 @@ strcmp:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.228
+	jne .L.else.232
 	movq $0, %rax
 	push %rax
 	movq $1, %rax
@@ -15883,22 +16021,22 @@ strcmp:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.229
+	jne .L.else.233
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.229
-.L.else.229:
-.L.end.229:
+	jmp .L.end.233
+.L.else.233:
+.L.end.233:
 	jmp .L.strcmp.ok_next
-	jmp .L.end.228
-.L.else.228:
+	jmp .L.end.232
+.L.else.232:
 	movq $0, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-.L.end.228:
+.L.end.232:
 .L.strcmp.ok_next:
 	movq $1, %rax
 	push %rax
@@ -15914,8 +16052,8 @@ strcmp:
 	movl %eax, (%rdi)
 	pop %rdi
 	subl %edi, %eax
-	jmp .L.while.start.227
-.L.while.end.227:
+	jmp .L.while.start.231
+.L.while.end.231:
 	leave
 	ret
 .global strndup
@@ -15948,7 +16086,7 @@ strndup:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.230
+	jne .L.else.234
 .data
 .L.str.631:
 	.string "NULL"
@@ -15963,15 +16101,15 @@ strndup:
 	pop %rdi
 	movq $0, %rax
 	call exit
-	jmp .L.end.230
-.L.else.230:
-.L.end.230:
+	jmp .L.end.234
+.L.else.234:
+.L.end.234:
 	leaq -4(%rbp), %rax
 	push %rax
 	movq $0, %rax
 	pop %rdi
 	movl %eax, (%rdi)
-.L.while.start.231:
+.L.while.start.235:
 	leaq -16(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
@@ -15982,7 +16120,7 @@ strndup:
 	setl %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.231
+	jne .L.while.end.235
 	movq $1, %rax
 	push %rax
 	leaq -4(%rbp), %rax
@@ -16023,8 +16161,8 @@ strndup:
 	movl %eax, (%rdi)
 	pop %rdi
 	subl %edi, %eax
-	jmp .L.while.start.231
-.L.while.end.231:
+	jmp .L.while.start.235
+.L.while.end.235:
 	movq $1, %rax
 	push %rax
 	leaq -16(%rbp), %rax

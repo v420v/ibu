@@ -230,6 +230,23 @@ func tokenize(t *Tokenizer) *Token {
 			cur = cur.next = new_token("TK_IDENT", ident_start, t.program-ident_start);
 			goto again;
 		}
+		if *t.program == 47 {
+			t.program++;
+			if *t.program == 47 {
+				t.program++;
+
+				while *t.program != 10 {
+					if *t.program == 0 {
+						goto again;
+					}
+					t.program++;
+				}
+
+				goto again;
+			} else {
+				t.program--;
+			}
+		}
 		if *t.program == 34 {
 			var string_start *i8;
 			string_start = t.program;
