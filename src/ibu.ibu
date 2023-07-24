@@ -197,74 +197,77 @@ func new_tokenizer(program *i8) *Tokenizer {
 	return tokenizer;
 }
 
-func tokenize(tokenizer *Tokenizer) *Token {
+func tokenize(t *Tokenizer) *Token {
 	var head Token;
 	var cur *Token;
 
 	cur = &head;
 
-	var program *i8;
-	program = tokenizer.program;
-
-	while *program != nil {
-		if isdigit(*program) {
+	while *t.program != nil {
+		if isdigit(*t.program) {
 			var digit_start *i8;
-			digit_start = program;
-			while isdigit(*program) {
-				program++;
+			digit_start = t.program;
+			while isdigit(*t.program) {
+				t.program++;
 			}
-			cur = cur.next = new_token("TK_NUM", digit_start, program-digit_start);
+			cur = cur.next = new_token("TK_NUM", digit_start, t.program-digit_start);
 			goto again;
-		} else if isalpha(*program) {
+		}
+		if isalpha(*t.program) {
 			var ident_start *i8;
-			ident_start = program;
+			ident_start = t.program;
 			while {
-				if !isalpha(*program) {
-					if !isdigit(*program) {
-						if *program != 95 {
+				if !isalpha(*t.program) {
+					if !isdigit(*t.program) {
+						if *t.program != 95 {
 							goto ident_end;
 						}
 					}
 				}
-				program++;
+				t.program++;
 			}
 			ident_end:
-			cur = cur.next = new_token("TK_IDENT", ident_start, program-ident_start);
+			cur = cur.next = new_token("TK_IDENT", ident_start, t.program-ident_start);
 			goto again;
-		} else if *program == 34 {
-			var string_start *i8;
-			string_start = program;
-			program++;
-			while *program != 34 {
-				program++;
-			}
-			program++;
-			cur = cur.next = new_token("TK_STR", string_start, program-string_start);
-			goto again;
-		} else if is_two_c_punct(program) {
-			cur = cur.next = new_token("TK_PUNCT", program, 2);
-			program = program + 2;
-			goto again;
-		} else if ispunct(*program) {
-			cur = cur.next = new_token("TK_PUNCT", program, 1);
-			program++;
-			goto again;
-		} else if *program == 32 {
-			program++;
-			goto again;
-		} else if *program == 10 {
-			program++;
-			goto again;
-		} else if *program == 9 {
-			program++;
-			goto again;
-		} else {
-			print_error(new_token("TK_UNKOWN", program, 1), "unkown character found");
 		}
+		if *t.program == 34 {
+			var string_start *i8;
+			string_start = t.program;
+			t.program++;
+			while *t.program != 34 {
+				t.program++;
+			}
+			t.program++;
+			cur = cur.next = new_token("TK_STR", string_start, t.program-string_start);
+			goto again;
+		}
+		if is_two_c_punct(t.program) {
+			cur = cur.next = new_token("TK_PUNCT", t.program, 2);
+			t.program = t.program + 2;
+			goto again;
+		}
+		if ispunct(*t.program) {
+			cur = cur.next = new_token("TK_PUNCT", t.program, 1);
+			t.program++;
+			goto again;
+		}
+		if *t.program == 32 {
+			t.program++;
+			goto again;
+		}
+		if *t.program == 10 {
+			t.program++;
+			goto again;
+		}
+		if *t.program == 9 {
+			t.program++;
+			goto again;
+		}
+		print_error(new_token("TK_UNKOWN", t.program, 1), "unkown character found");
 		again:
 	}
 
-	cur = cur.next = new_token("TK_EOF", program, 1);
+	cur = cur.next = new_token("TK_EOF", t.program, 1);
 	cur.lit = "EOF";
 
 	return head.next;
@@ -950,18 +953,12 @@ func parse_unary(p *Parser) *Node {
 	while {
 		if strcmp(p.tokens.lit, "++") {
 			access_tok = p.tokens;
-			if !strcmp(node.kind, "ND_VAR") {
-				print_error(access_tok, "`++` left node must be a variable");
-			}
 			parser_next(p);
 			node = new_binop("ND_SUB", new_binop("ND_ASSIGN", node, new_binop("ND_ADD", node, node_num_one(p))), node_num_one(p));
 			goto again;
 		}
 		if strcmp(p.tokens.lit, "--") {
 			access_tok = p.tokens;
-			if !strcmp(node.kind, "ND_VAR") {
-				print_error(access_tok, "`--` left node must be a variable");
-			}
 			parser_next(p);
 			node = new_binop("ND_ADD", new_binop("ND_ASSIGN", node, new_binop("ND_SUB", node, node_num_one(p))), node_num_one(p));
 			goto again;
