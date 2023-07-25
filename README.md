@@ -39,7 +39,7 @@ Welcome!
 
 ```go
 
-func print_user_defined_types(p *Parser);
+func print_user_defined_types(p *Parser) i32;
 
 func print_all_tokens(tok *Token) i32;
 
