@@ -1,81 +1,7 @@
 
-func strndup(str *i8, n i32) *i8 {
-	var r *i8;
-	r = alloc(n+1);
-	if r == nil {
-		println("NULL");
-		exit(1);
-	}
-	var idx i32;
-	idx = 0;
-	while idx < n {
-		r[idx] = str[idx];
-		idx++;
-	}
-	r[n] = 0;
-	return r;
-}
-
-func strcmp(a *i8, b *i8) i32 {
-	var idx i32;
-	idx = 0;
-	while {
-		if a[idx] == b[idx] {
-			if a[idx] == 0 {
-				return 1;
-			}
-			goto ok_next;
-		} else {
-			return 0;
-		}
-		ok_next:
-		idx++;
-	}
-}
-
-func reverse(str *i8, length i32) i32 {
-	var start i32;
-	start = 0;
-	var end i32;
-	end = length - 1;
-
-    while start < end {
-		var temp i8;
-		temp = str[start];
-        str[start] = str[end];
-        str[end] = temp;
-        end--;
-        start++;
-    }
-}
-
-func itoa(num i32, str *i8, base i32) *i8 {
-	var i i32;
-	i = 0;
-
-    if (num == 0) {
-        str[i++] = 48;
-        str[i] = 0;
-        return str;
-    }
- 
-    while num != 0 {
-		var rem i32;
-        rem = num % base;
-		if (rem > 9) {
-			str[i++] = (rem - 10) + 97;
-		} else {
-			str[i++] = rem + 48;
-		}
-        num = num / base;
-    }
- 
-    str[i] = 0;
-
-    reverse(str, i);
- 
-    return str;
-}
+// ----------------------------------
+// Tokenizer
+// ----------------------------------
 
 struct Tokenizer {
 	program *i8
@@ -91,26 +17,47 @@ struct Token {
 	next *Token
 }
 
-func print_error(tok *Token, msg *i8) i32 {
+func strlen(s *i8) i32 {
 	var start *i8;
-	var idx i32;
-	idx = 0;
-	start = tok.start;
-	while *(start-1) != 10 {
-		idx++;
+	start = s;
+	while *s != nil {
+		s++;
+	}
+	return s - start;
+}
+
+func get_line_number(program *i8, start *i8) i32 {
+	var line i32;
+	line = 1;
+
+	while program != start {
 		start--;
+		if *start == 10 {
+			line++;
+		}
 	}
+
+	return line;
+}
+
+func get_column_number(program *i8, start *i8) i32 {
+	var col i32;
+	col = 0;
+
 	while *start != 10 {
-		write(1, start, 1);
-		start++;
+		if program == start {
+			goto end;
+		}
+		start--;
+		col++;
 	}
-	println("");
-	while idx > 0 {
-		print(" ");
-		idx--;
-	}
-	print("^ ");
-	println(msg);
+	end:
+
+	return col;
+}
+
+func print_error(program *i8, tok *Token, msg *i8) i32 {
+	printf("error:%d:%d: %s\n", get_line_number(program, tok.start), get_column_number(program, tok.start), msg);
 	exit(1);
 }
 
@@ -156,11 +103,28 @@ func isdigit(c i8) i32 {
 	return 0;
 }
 
+func strndup(str *i8, n i32) *i8 {
+	var r *i8;
+	r = alloc(n+1);
+	if r == nil {
+		printf("nil");
+		exit(1);
+	}
+	var idx i32;
+	idx = 0;
+	while idx < n {
+		r[idx] = str[idx];
+		idx++;
+	}
+	r[n] = 0;
+	return r;
+}
+
 func new_token(kind *i8, start *i8, len i32) *Token {
 	var tok *Token;
 	tok = alloc(typesize(Token));
 	if tok == nil {
-		println("NULL");
+		printf("nil");
 		exit(1);
 	}
 
@@ -190,72 +154,89 @@ func new_tokenizer(program *i8) *Tokenizer {
 	var tokenizer *Tokenizer;
 	tokenizer = alloc(typesize(Tokenizer));
 	if tokenizer == nil {
-		println("NULL");
+		printf("nil");
 		exit(1);
 	}
 	tokenizer.program = program;
 	return tokenizer;
 }
 
+func tokenize_number(t *Tokenizer) *Token {
+	var digit_start *i8;
+	digit_start = t.program;
+	while isdigit(*t.program) {
+		t.program++;
+	}
+	return new_token("TK_NUM", digit_start, t.program-digit_start);
+}
+
+func skip_comment(t *Tokenizer) i32 {
+	t.program++;
+	if *t.program == 47 {
+		t.program++;
+		while *t.program != 10 {
+			if *t.program == 0 {
+				goto end;
+			}
+			t.program++;
+		}
+	} else {
+		t.program--;
+	}
+	end:
+	return 0;
+}
+
+func tokenize_string(t *Tokenizer) *Token {
+	var string_start *i8;
+	string_start = t.program;
+	t.program++;
+	while *t.program != 34 {
+		t.program++;
+	}
+	t.program++;
+	return new_token("TK_STR", string_start, t.program-string_start);
+}
+
+func tokenize_ident(t *Tokenizer) *Token {
+	var ident_start *i8;
+	ident_start = t.program;
+	while {
+		if !isalpha(*t.program) {
+			if !isdigit(*t.program) {
+				if *t.program != 95 {
+					goto ident_end;
+				}
+			}
+		}
+		t.program++;
+	}
+	ident_end:
+	return new_token("TK_IDENT", ident_start, t.program-ident_start);
+}
+
 func tokenize(t *Tokenizer) *Token {
 	var head Token;
 	var cur *Token;
+	var save *i8;
 
+	save = t.program;
 	cur = &head;
 
 	while *t.program != nil {
 		if isdigit(*t.program) {
-			var digit_start *i8;
-			digit_start = t.program;
-			while isdigit(*t.program) {
-				t.program++;
-			}
-			cur = cur.next = new_token("TK_NUM", digit_start, t.program-digit_start);
+			cur = cur.next = tokenize_number(t);
 			goto again;
 		}
 		if isalpha(*t.program) {
-			var ident_start *i8;
-			ident_start = t.program;
-			while {
-				if !isalpha(*t.program) {
-					if !isdigit(*t.program) {
-						if *t.program != 95 {
-							goto ident_end;
-						}
-					}
-				}
-				t.program++;
-			}
-			ident_end:
-			cur = cur.next = new_token("TK_IDENT", ident_start, t.program-ident_start);
+			cur = cur.next = tokenize_ident(t);
 			goto again;
 		}
 		if *t.program == 47 {
-			t.program++;
-			if *t.program == 47 {
-				t.program++;
-
-				while *t.program != 10 {
-					if *t.program == 0 {
-						goto again;
-					}
-					t.program++;
-				}
-
-				goto again;
-			} else {
-				t.program--;
-			}
+			skip_comment(t);
 		}
 		if *t.program == 34 {
-			var string_start *i8;
-			string_start = t.program;
-			t.program++;
-			while *t.program != 34 {
-				t.program++;
-			}
-			t.program++;
-			cur = cur.next = new_token("TK_STR", string_start, t.program-string_start);
+			cur = cur.next = tokenize_string(t);
 			goto again;
 		}
 		if is_two_c_punct(t.program) {
@@ -280,7 +261,7 @@ func tokenize(t *Tokenizer) *Token {
 			t.program++;
 			goto again;
 		}
-		print_error(new_token("TK_UNKOWN", t.program, 1), "unkown character found");
+		print_error(save, new_token("TK_UNKOWN", t.program, 1), "unkown character found");
 		again:
 	}
 
@@ -297,9 +278,7 @@ func print_all_tokens(tok *Token) i32 {
 		return 1;
 	}
 
-	print(tok.kind);
-	print(" : ");
-	println(tok.lit);
+	printf("%s : %s\n", tok.kind, tok.lit);
 
 	if tok.next != nil {
 		print_all_tokens(tok.next);
@@ -307,6 +286,10 @@ func print_all_tokens(tok *Token) i32 {
 
 	return 0;
 }
+
+// ----------------------------------
+// Parser
+// ----------------------------------
 
 struct Member;
 struct Type;
@@ -375,13 +358,31 @@ struct Parser {
 	ty_i16 *Type
 	ty_i32 *Type
 	ty_i64 *Type
+	program *i8
+}
+
+func strcmp(a *i8, b *i8) i32 {
+	var idx i32;
+	idx = 0;
+	while {
+		if a[idx] == b[idx] {
+			if a[idx] == 0 {
+				return 1;
+			}
+			goto ok_next;
+		} else {
+			return 0;
+		}
+		ok_next:
+		idx++;
+	}
 }
 
 func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type) i32 {
 	var obj *Object;
 	obj = alloc(typesize(Object));
 	if obj == nil {
-		println("NIL");
+		printf("nil");
 		exit(1);
 	}
 	obj.kind = kind;
@@ -402,20 +403,15 @@ func print_user_defined_types(p *Parser) i32 {
 	ty = p.user_defined_types;
 	while ty != nil {
 		if strcmp(ty.kind, "TY_STRUCT") {
-			print("struct ");
-			print(ty.name);
-			println(" {");
+			printf("struct %s {\n", ty.name);
 			member = ty.members;
 			while member != nil {
-				print("  ");
-				println(member.name);
+				printf("  %s\n", member.name);
 				member = member.next;
 			}
-			println("}");
+			printf("}\n");
 		} else {
-			print("unkown userdefined type `");
-			print(ty.name);
-			println("` found");
+			printf("got unkown userdefined type `%s`", ty.name);
 			exit(1);
 		}
 		ty = ty.next;
@@ -474,11 +470,11 @@ func ty_i8() *Type {
 func new_pointer_type(base *Type) *Type;
 func new_func_type(return_type *Type) *Type;
 
-func new_parser(tokens *Token) *Parser {
+func new_parser(program *i8, tokens *Token) *Parser {
 	var p *Parser;
 	p = alloc(typesize(Parser));
 	if p == nil {
-		println("NULL");
+		printf("nil");
 		exit(1);
 	}
 	p.tokens = tokens;
@@ -489,10 +485,6 @@ func new_parser(tokens *Token) *Parser {
 	p.ty_i8 = ty_i8();
 
 	add_builtin_object(p, "alloc", "OBJ_FUNC", nil, new_func_type(new_pointer_type(p.ty_i64)));
-	add_builtin_object(p, "println", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "print", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "iprint", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "iprintln", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
 	add_builtin_object(p, "open", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
 	add_builtin_object(p, "close", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
 	add_builtin_object(p, "read", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
@@ -500,12 +492,58 @@ func new_parser(tokens *Token) *Parser {
 	add_builtin_object(p, "exit", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
 	add_builtin_object(p, "printf", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
 
+	p.program = program;
+
 	return p;
+}
+
+func reverse(str *i8, length i32) i32 {
+	var start i32;
+	start = 0;
+	var end i32;
+	end = length - 1;
+
+    while start < end {
+		var temp i8;
+		temp = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+        end--;
+        start++;
+    }
+}
+
+func itoa(num i32, str *i8, base i32) *i8 {
+	var i i32;
+	i = 0;
+
+    if (num == 0) {
+        str[i++] = 48;
+        str[i] = 0;
+        return str;
+    }
+ 
+    while num != 0 {
+		var rem i32;
+        rem = num % base;
+		if (rem > 9) {
+			str[i++] = (rem - 10) + 97;
+		} else {
+			str[i++] = rem + 48;
+		}
+        num = num / base;
+    }
+ 
+    str[i] = 0;
+
+    reverse(str, i);
+ 
+    return str;
 }
 
 func parser_next(p *Parser) i32 {
 	if p.tokens.next == nil {
-		println("parser_next got nil!!!!!");
+		printf("parser_next got nil!!!\n");
 		exit(1);
 	}
 	p.tokens = p.tokens.next;
@@ -516,7 +554,7 @@ func new_node(kind *i8) *Node {
 	var node *Node;
 	node = alloc(typesize(Node));
 	if node == nil {
-		println("NULL");
+		printf("nil");
 		exit(1);
 	}
 	node.kind = kind;
@@ -528,7 +566,7 @@ func parser_skip(p *Parser, str *i8) i32 {
 		parser_next(p);
 		return 0;
 	}
-	print_error(p.tokens, "unexpected token");
+	print_error(p.program, p.tokens, "unexpected token");
 }
 
 func find_locals(p *Parser, name *i8) *Object {
@@ -564,7 +602,7 @@ func check_local_object_already_exist(p *Parser, name *i8, tok *Token) i32 {
 	locals = p.locals;
 	while locals != nil {
 		if strcmp(locals.name, name) {
-			print_error(tok, "name already exist");
+			print_error(p.program, tok, "name already exist");
 		}
 		locals = locals.next;
 	}
@@ -577,7 +615,7 @@ func new_local_object(p *Parser, kind *i8, name *i8, ty *Type, tok *Token) *Obje
 	var obj *Object;
 	obj = alloc(typesize(Object));
 	if obj == nil {
-		println("NULL");
+		printf("nil");
 		exit(1);
 	}
 
@@ -770,17 +808,10 @@ func parse_ty(p *Parser) *Type {
 	} else {
 		ty = get_user_defined_type(p, name);
 		if ty == nil {
-			print_error(ty_token, "unkown type found");
+			print_error(p.program, ty_token, "unkown type found");
 		}
 	}
 	return ty;
-}
-
-func eprint_onkown_object(name *i8) i32 {
-	print("unkown object `");
-	print(name);
-	println("`");
-	exit(1);
 }
 
 func parse_expr(p *Parser) *Node;
@@ -855,7 +886,7 @@ func parse_number(p *Parser) *Node {
 			var func_obj *Object;
 			func_obj = find_globals(p, node.func_name);
 			if func_obj == nil {
-				print_error(ident_tok, "unkown function");
+				print_error(p.program, ident_tok, "unkown function");
 			}
 			node.ty = func_obj.ty.return_type;
 		} else {
@@ -863,7 +894,7 @@ func parse_number(p *Parser) *Node {
 			node = new_node("ND_VAR");
 			obj = find_locals(p, name);
 			if obj == nil {
-				print_error(ident_tok, "unkown object");
+				print_error(p.program, ident_tok, "unkown object");
 			}
 			node.obj = obj;
 		}
@@ -872,7 +903,7 @@ func parse_number(p *Parser) *Node {
 		node = parse_expr(p);
 		parser_skip(p, ")");
 	} else {
-		print_error(p.tokens, "expected number or identifier");
+		print_error(p.program, p.tokens, "expected number or identifier");
 		exit(1);
 	}
 	return node;
@@ -914,7 +945,7 @@ func parse_deref(p *Parser) *Node {
 
 	add_type(p, node.lhs);
 	if !strcmp(node.lhs.ty.kind, "TY_PTR") {
-		print_error(tok, "invalid pointer dereference");
+		print_error(p.program, tok, "invalid pointer dereference");
 	}
 
 	return node;
@@ -989,7 +1020,7 @@ func parse_unary(p *Parser) *Node {
 			parser_skip(p, "]");
 
 			if !strcmp(node.ty.kind, "TY_PTR") {
-				print_error(access_tok, "`[]` cannot access to none pointer type.");
+				print_error(p.program, access_tok, "`[]` cannot access to none pointer type.");
 			}
 
 			var base_number_node *Node;
@@ -1015,11 +1046,11 @@ func parse_unary(p *Parser) *Node {
 
 			if strcmp(node.ty.kind, "TY_PTR") {
 				if !strcmp(node.ty.pointer_to.kind, "TY_STRUCT") {
-					print_error(access_tok, "cannot access from none struct type");
+					print_error(p.program, access_tok, "cannot access from none struct type");
 				}
 				member = search_struct_member(node.ty.pointer_to.members, member_name);
 				if member == nil {
-					print_error(member_tok, "member name not found");
+					print_error(p.program, member_tok, "member name not found");
 				}
 				offset = member.offset;
 				member_ty = member.ty;
@@ -1027,11 +1058,11 @@ func parse_unary(p *Parser) *Node {
 				node = new_struct_access_node("ND_MEMBER_ACCESS", node, offset, node.obj, member_ty);
 			} else {
 				if !strcmp(node.ty.kind, "TY_STRUCT") {
-					print_error(access_tok, "cannot access from none struct type");
+					print_error(p.program, access_tok, "cannot access from none struct type");
 				}
 				member = search_struct_member(node.ty.members, member_name);
 				if member == nil {
-					print_error(member_tok, "member name not found");
+					print_error(p.program, member_tok, "member name not found");
 				}
 				offset = member.offset;
 				member_ty = member.ty;
@@ -1413,7 +1444,7 @@ func parse_struct(p *Parser) i32 {
 			add_user_defined_type(p, struct_ty);
 		} else {
 			if !got_user_defined_struct.is_declaration {
-				print_error(name_token, "struct is already defined somewhere");
+				print_error(p.program, name_token, "struct is already defined somewhere");
 			}
 			got_user_defined_struct.members = head.next;
 			got_user_defined_struct.size = calc_sizof_struct_members(head.next);
@@ -1468,7 +1499,7 @@ func parse_func(p *Parser) i32 {
 		got_user_defined_func = find_globals(p, name);
 		if got_user_defined_func != nil {
 			if !got_user_defined_func.is_declaration {
-				print_error(name_tok, "function is already defined somewhere");
+				print_error(p.program, name_tok, "function is already defined somewhere");
 			}
 			got_user_defined_func.body = parse_block(p);
 			got_user_defined_func.locals = p.locals;
@@ -1493,12 +1524,16 @@ func parse(p *Parser) i32 {
 		} else if strcmp(p.tokens.lit, "struct") {
 			parse_struct(p);
 		} else {
-			print_error(p.tokens, "expected `func` or `struct`");
+			print_error(p.program, p.tokens, "expected `func` or `struct`");
 		}
 	}
 
 	return 0;
 }
+
+// ----------------------------------
+// Asm Gen
+// ----------------------------------
 
 struct Gen {
 	label_count i32
@@ -1535,9 +1570,9 @@ func gen_expr(g *Gen, node *Node) i32;
 
 func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32 {
 	gen_expr(g, rhs);
-	println("\tpush %rax");
+	printf("\tpush %rax\n");
 	gen_expr(g, lhs);
-	println("\tpop %rdi");
+	printf("\tpop %rdi\n");
 }
 
 func gen_addr(g *Gen, node *Node) i32;
@@ -1545,18 +1580,14 @@ func gen_addr(g *Gen, node *Node) i32;
 func gen_addr(g *Gen, node *Node) i32 {
 	if strcmp(node.kind, "ND_MEMBER_ACCESS") {
 		gen_addr(g, node.lhs);
-		print("\taddq $");
-		iprint(node.offset);
-		println(", %rax");
+		printf("\taddq $%d, %rax\n", node.offset);
 	} else if strcmp(node.kind, "ND_VAR") {
-		print("	leaq -");
-		iprint(node.obj.offset);
-		println("(%rbp), %rax");
+		printf("\tleaq -%d(%rbp), %rax\n", node.obj.offset);
 	} else if strcmp(node.kind, "ND_DEREF") {
 		gen_expr(g, node.lhs);
 	} else {
-		println(node.kind);
-		println("unreachable");
+		printf("%s\n", node.kind);
+		printf("unreachable\n");
 		exit(1);
 	}
 	return 0;
@@ -1567,27 +1598,22 @@ func gen_store(ty *Type) i32 {
 		var idx i32;
 		idx = 0;
 		while idx < ty.size {
-			print("\tmovb ");
-			iprint(idx);
-			println("(%rax), %r8b");
-
-			print("\tmovb %r8b, ");
-			iprint(idx);
-			println("(%rdi)");
+			printf("\tmovb %d(%rax), %r8b\n", idx);
+			printf("\tmovb %r8b, %d(%rdi)\n", idx);
 			idx++;
 		}
 		return 0;
 	}
 	if ty.size == 1 {
-		println("\tmovb %al, (%rdi)");
+		printf("\tmovb %al, (%rdi)\n");
 	} else if ty.size == 2 {
-		println("\tmovw %ax, (%rdi)");
+		printf("\tmovw %ax, (%rdi)\n");
 	} else if ty.size == 4 {
-		println("\tmovl %eax, (%rdi)");
+		printf("\tmovl %eax, (%rdi)\n");
 	} else if ty.size == 8 {
-		println("\tmovq %rax, (%rdi)");
+		printf("\tmovq %rax, (%rdi)\n");
 	} else {
-		println("unreachable");
+		printf("unreachable\n");
 		exit(1);
 	}
 	return 0;
@@ -1598,38 +1624,36 @@ func gen_load(ty *Type) i32 {
 		return 0;
 	}
 	if ty.size == 8 {
-		println("\tmovq (%rax), %rax");
+		printf("\tmovq (%rax), %rax\n");
 	} else if ty.size == 4 {
-		println("\tmovslq (%rax), %rax");
+		printf("\tmovslq (%rax), %rax\n");
 	} else if ty.size == 2 {
-		println("\tmovswl (%rax), %eax"); 
+		printf("\tmovswl (%rax), %eax\n"); 
 	} else if ty.size == 1 {
-		println("\tmovsbl (%rax), %eax");
+		printf("\tmovsbl (%rax), %eax\n");
 	} else {
-		println("unreachale");
+		printf("unreachable\n");
 		exit(1);
 	}
 	return 0;
 }
 
 func gen_binop(instr_name *i8, ty *Type) i32 {
-	print("\t");
-	print(instr_name);
 	if strcmp(ty.kind, "TY_PTR") {
-		println("q %rdi, %rax");
+		printf("\t%sq %rdi, %rax\n", instr_name);
 	} else {
-		println("l %edi, %eax");
+		printf("\t%sl %edi, %eax\n", instr_name);
 	}
 	return 0;
 }
 
 func gen_condition_store(ty *Type) i32 {
 	if strcmp(ty.kind, "TY_PTR") {
-		println("\tmovzbq %al, %rax");
+		printf("\tmovzbq %al, %rax\n");
 	} else if strcmp(ty.kind, "TY_I64") {
-		println("\tmovzbq %al, %rax");
+		printf("\tmovzbq %al, %rax\n");
 	} else {
-		println("\tmovzbl %al, %eax");
+		printf("\tmovzbl %al, %eax\n");
 	}
 }
 
@@ -1643,21 +1667,20 @@ func func_call_args_to_regi(g *Gen, arg *Node) i32 {
 	idx = 0;
 	while arg != nil {
 		gen_expr(g, arg);
-		println("\tpush %rax");
+		printf("\tpush %rax\n");
 		idx++;
 		arg = arg.next;
 	}
 	idx--;
 	while idx >= 0 {
-		print("\tpop ");
-		println(g.regi64[idx]);
+		printf("\tpop %s\n", g.regi64[idx]);
 		idx--;
 	}
 }
 
 func gen_expr(g *Gen, node *Node) i32 {
 	if node == nil {
-		println("node == nil. this shoult not happen!");
+		printf("node == nil. this shoult not happen!\n");
 		exit(1);
 	}
 	if strcmp(node.kind, "ND_MEMBER_ACCESS") {
@@ -1669,31 +1692,23 @@ func gen_expr(g *Gen, node *Node) i32 {
 		var c i32;
 		c = g.str_label_count;
 		g.str_label_count = g.str_label_count + 1;
-		println(".data");
-		print(".L.str.");
-		iprint(c);
-		println(":");
-		print("\t.string ");
-		println(node.str_val);
+		printf(".data\n");
+		printf(".L.str.%d:\n", c);
+		printf("\t.string %s\n", node.str_val);
 
-		println(".text");
-		print("\tleaq ");
-		print(".L.str.");
-		iprint(c);
-		println("(%rip), %rax");
+		printf(".text\n");
+		printf("\tleaq .L.str.%d(%rip), %rax\n", c);
 		return 0;
 	}
 	if strcmp(node.kind, "ND_NUM") {
-		print("\tmovq $");
-		print(node.int_val);
-		println(", %rax");
+		printf("\tmovq $%s, %rax\n", node.int_val);
 		return 0;
 	}
 	if strcmp(node.kind, "ND_ASSIGN") {
 		gen_addr(g, node.lhs);
-		println("\tpush %rax");
+		printf("\tpush %rax\n");
 		gen_expr(g, node.rhs);
-		println("\tpop %rdi");
+		printf("\tpop %rdi\n");
 		gen_store(node.ty);
 		return 0;
 	}
@@ -1704,9 +1719,8 @@ func gen_expr(g *Gen, node *Node) i32 {
 	}
 	if strcmp(node.kind, "ND_FUNC_CALL") {
 		func_call_args_to_regi(g, node.args);
-		println("\tmovq $0, %rax");
-		print("\tcall ");
-		println(node.func_name);
+		printf("\tmovq $0, %rax\n");
+		printf("\tcall %s\n", node.func_name);
 		return 0;
 	}
 	if strcmp(node.kind, "ND_EXPR_STMT") {
@@ -1724,9 +1738,9 @@ func gen_expr(g *Gen, node *Node) i32 {
 	}
 	if strcmp(node.kind, "ND_NOT") {
 		gen_expr(g, node.lhs);
-		println("\tcmpq $0, %rax");
-		println("\tsete %al");
-		println("\tmovzbq %al, %rax");
+		printf("\tcmpq $0, %rax\n");
+		printf("\tsete %al\n");
+		printf("\tmovzbq %al, %rax\n");
 		return 0;
 	}
 	if strcmp(node.kind, "ND_ADD") {
@@ -1747,62 +1761,61 @@ func gen_expr(g *Gen, node *Node) i32 {
 	if strcmp(node.kind, "ND_DIV") {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		if node.lhs.ty.size == 8 {
-			println("\tcqto");
+			printf("\tcqto\n");
 		} else {
-			println("\tcltd");
+			printf("\tcltd\n");
 		}
 		if node.ty.size == 8 {
-			println("\tidivq %rdi");
+			printf("\tidivq %rdi\n");
 		} else {
-			println("\tidivl %edi");
+			printf("\tidivl %edi\n");
 		}
 		return 0;
 	}
 	if strcmp(node.kind, "ND_MOD") {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		if node.lhs.ty.size == 8 {
-			println("\tcqto");
+			printf("\tcqto\n");
 		} else {
-			println("\tcltd");
+			printf("\tcltd\n");
 		}
 		if node.ty.size == 8 {
-			println("\tidivq %rdi");
+			printf("\tidivq %rdi\n");
 		} else {
-			println("\tidivl %edi");
+			printf("\tidivl %edi\n");
 		}
-		println("\tmovq %rdx, %rax");
+		printf("\tmovq %rdx, %rax\n");
 		return 0;
 	}
 	if strcmp(node.kind, "ND_EQ") {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		println("\tsete %al");
+		printf("\tsete %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
 	if strcmp(node.kind, "ND_NE") {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		println("\tsetne %al");
+		printf("\tsetne %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
 	if strcmp(node.kind, "ND_LE") {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		println("\tsetle %al");
+		printf("\tsetle %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
 	if strcmp(node.kind, "ND_LT") {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		println("\tsetl %al");
+		printf("\tsetl %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	println(node.kind);
-	println("unreachable");
+	printf("%s unreachable\n", node.kind);
 	exit(1);
 }
 
@@ -1828,592 +1841,399 @@ func gen_stmt(g *Gen, node *Node) i32 {
 		gen_expr(g, node.lhs);
 	} else if strcmp(node.kind, "ND_RETURN") {
 		gen_expr(g, node.lhs);
-		println("\tmovq %rbp, %rsp");
-		println("\tpop %rbp");
-		println("\tretq");
+		printf("\tmovq %rbp, %rsp\n");
+		printf("\tpop %rbp\n");
+		printf("\tretq\n");
 	} else if strcmp(node.kind, "ND_IF") {
 		c = g.label_count;
-		g.label_count = g.label_count + 1;
+		g.label_count++;
 		gen_expr(g, node.cond);
-		println("\tcmpq $1, %rax");
-		print("\tjne .L.else.");
-		iprintln(c);
+		printf("\tcmpq $1, %rax\n");
+		printf("\tjne .L.else.%d\n", c);
 		gen_stmt(g, node.then_block);
-		print("\tjmp .L.end.");
-		iprintln(c);
-		print(".L.else.");
-		iprint(c);
-		println(":");
+		printf("\tjmp .L.end.%d\n", c);
+		printf(".L.else.%d:\n", c);
 		if node.else_block != nil {
 			gen_stmt(g, node.else_block);
 		}
-		print(".L.end.");
-		iprint(c);
-		println(":");
+		printf(".L.end.%d:\n", c);
 	} else if strcmp(node.kind, "ND_GOTO") {
-		print("\tjmp .L.");
-		print(g.cur_func_name);
-		print(".");
-		println(node.label_name);
+		printf("\tjmp .L.%s.%s\n", g.cur_func_name, node.label_name);
 	} else if strcmp(node.kind, "ND_LABEL") {
-		print(".L.");
-		print(g.cur_func_name);
-		print(".");
-		print(node.label_name);
-		println(":");
+		printf(".L.%s.%s:\n", g.cur_func_name, node.label_name);
 	} else if strcmp(node.kind, "ND_WHILE") {
 		c = g.label_count;
-		g.label_count = g.label_count + 1;
-		print(".L.while.start.");
-		iprint(c);
-		println(":");
-
+		g.label_count++;
+		printf(".L.while.start.%d:\n", c);
 		gen_expr(g, node.cond);
-
-		println("\tcmpq $1, %rax");
-		print("\tjne .L.while.end.");
-		iprintln(c);
+		printf("\tcmpq $1, %rax\n");
+		printf("\tjne .L.while.end.%d\n", c);
 		gen_stmt(g, node.then_block);
-		print("\tjmp .L.while.start.");
-		iprintln(c);
-		print(".L.while.end.");
-		iprint(c);
-		println(":");
+		printf("\tjmp .L.while.start.%d\n", c);
+		printf(".L.while.end.%d:\n", c);
 	} else {
-		println(node.kind);
-		println("gen_stmt unreachable");
+		printf("%s\n", node.kind);
+		printf("gen_stmt unreachable\n");
+		exit(1);
 	}
 }
 
 func gen_builtin() i32 {
-	println("# builtin start");
-	println(".text");
-	println(".global write");
-	println("write:");
-	println("\tmovq $1, %rax");
-	println("\tsyscall");
-	println("\tret");
-
-	println(".global open");
-	println("open:");
-	println("\tmovq $2, %rax");
-	println("\tsyscall");
-	println("\tret");
-
-	println(".global read");
-	println("read:");
-	println("\tmovq $0, %rax");
-	println("\tsyscall");
-	println("\tret");
-
-	println(".global close");
-	println("close:");
-	println("    movq $3, %rax");
-	println("    syscall");
-	println("    ret");
-
-	println(".global println");
-	println("println:");
-	println("	pushq   %rbp");
-	println("	movq    %rsp, %rbp");
-	println("	subq    $32, %rsp");
-	println("	movq    %rdi, -24(%rbp)");
-	println("	movl    $0, -4(%rbp)");
-	println("	jmp     .L.println.2");
-	println(".L.println.3:");
-	println("	movl    -4(%rbp), %eax");
-	println("	movslq  %eax, %rdx");
-	println("	movq    -24(%rbp), %rsi");
-	println("	addq    %rdx, %rsi");
-	println("	movq    $1, %rdx");
-	println("	movq    $1, %rdi");
-	println("	movq    $1, %rax");
-	println("	syscall");
-	println("	addl    $1, -4(%rbp)");
-	println(".L.println.2:");
-	println("	movl    -4(%rbp), %eax");
-	println("	movslq  %eax, %rdx");
-	println("	movq    -24(%rbp), %rax");
-	println("	addq    %rdx, %rax");
-	println("	movzbl  (%rax), %eax");
-	println("	testb   %al, %al");
-	println("	jne     .L.println.3");
-	println("	movq    $1, %rdx");
-	println("	movq    $.L.str.newline, %rsi");
-	println("	movq    $1, %rdi");
-	println("	movq    $1, %rax");
-	println("	syscall");
-	println("	movl    -4(%rbp), %eax");
-	println("	leave");
-	println("	ret");
-
-	println("	.global print");
-	println("print:");
-	println("	pushq   %rbp");
-	println("	movq    %rsp, %rbp");
-	println("	subq    $32, %rsp");
-	println("	movq    %rdi, -24(%rbp)");
-	println("	movl    $0, -4(%rbp)");
-	println("	jmp     .L.print.2");
-	println(".L.print.3:");
-	println("	movl   -4(%rbp), %eax");
-	println("	movslq %eax, %rdx");
-	println("	movq   -24(%rbp), %rsi");
-	println("	addq   %rdx, %rsi");
-	println("	movq   $1, %rdx");
-	println("	movq   $1, %rdi");
-	println("	movq   $1, %rax");
-	println("	syscall");
-	println("	addl    $1, -4(%rbp)");
-	println(".L.print.2:");
-	println("	movl    -4(%rbp), %eax");
-	println("	movslq  %eax, %rdx");
-	println("	movq    -24(%rbp), %rax");
-	println("	addq    %rdx, %rax");
-	println("	movzbl  (%rax), %eax");
-	println("	testb   %al, %al");
-	println("	jne     .L.print.3");
-	println("	movl    -4(%rbp), %eax");
-	println("	leave");
-	println("	ret");
-
-	println(".global exit");
-	println("exit:");
-	println("	movq $60, %rax");
-	println("	syscall");
-	println(".bss");
-	println("heap:");
-	println("	.zero	5040000");
-	println("heap_size:");
-	println("	.zero	8");
-	println(".text");
-	println(".global	alloc");
-	println("alloc:");
-	println("	pushq	%rbp");
-	println("	movq	%rsp, %rbp");
-	println("	movq	%rdi, -24(%rbp)");
-	println("	movq	heap_size(%rip), %rdx");
-	println("	movq	-24(%rbp), %rax");
-	println("	addq	%rdx, %rax");
-	println("	cmpq	$5039999, %rax");
-	println("	jbe	.L.alloc.2");
-	println("	movl	$0, %eax");
-	println("	jmp	.L.alloc_ret_null");
-	println(".L.alloc.2:");
-	println("	movq	heap_size(%rip), %rax");
-	println("	leaq	heap(%rip), %rdx");
-	println("	addq	%rdx, %rax");
-	println("	movq	%rax, -8(%rbp)");
-	println("	movq	heap_size(%rip), %rdx");
-	println("	movq	-24(%rbp), %rax");
-	println("	addq	%rdx, %rax");
-	println("	movq	%rax, heap_size(%rip)");
-	println("	movq	-8(%rbp), %rax");
-	println(".L.alloc_ret_null:");
-	println("	popq	%rbp");
-	println("	ret");
-	println(".global iprintln");
-	println("iprintln:");
-	println("    pushq   %rbp");
-	println("    movq    %rsp, %rbp");
-	println("    subq    $64, %rsp");
-	println("    movq    %rdi, -56(%rbp)");
-	println("    movq    $1, -8(%rbp)");
-	println("    movl    $32, %eax");
-	println("    subq    -8(%rbp), %rax");
-	println("    movb    $10, -48(%rbp,%rax)");
-	println(".L.iprintln.2:");
-	println("    movq    -56(%rbp), %rcx");
-	println("    movabsq $-3689348814741910323, %rdx");
-	println("    movq    %rcx, %rax");
-	println("    mulq    %rdx");
-	println("    shrq    $3, %rdx");
-	println("    movq    %rdx, %rax");
-	println("    salq    $2, %rax");
-	println("    addq    %rdx, %rax");
-	println("    addq    %rax, %rax");
-	println("    subq    %rax, %rcx");
-	println("    movq    %rcx, %rdx");
-	println("    movl    %edx, %eax");
-	println("    leal    48(%rax), %edx");
-	println("    movl    $31, %eax");
-	println("    subq    -8(%rbp), %rax");
-	println("    movb    %dl, -48(%rbp,%rax)");
-	println("    addq    $1, -8(%rbp)");
-	println("    movq    -56(%rbp), %rax");
-	println("    movabsq $-3689348814741910323, %rdx");
-	println("    mulq    %rdx");
-	println("    movq    %rdx, %rax");
-	println("    shrq    $3, %rax");
-	println("    movq    %rax, -56(%rbp)");
-	println("    cmpq    $0, -56(%rbp)");
-	println("    jne     .L.iprintln.2");
-	println("    movl    $32, %eax");
-	println("    subq    -8(%rbp), %rax");
-	println("    leaq    -48(%rbp), %rdx");
-	println("    leaq    (%rdx,%rax), %rcx");
-	println("    movq    -8(%rbp), %rax");
-	println("    movq    %rax, %rdx");
-	println("    movq    %rcx, %rsi");
-	println("    movl    $1, %edi");
-	println("    movl    $1, %eax");
-	println("	syscall");
-	println("    nop");
-	println("    leave");
-	println("    ret");
-	println(".global iprint");
-	println(".global iprint");
-	println("iprint:");
-	println("    pushq   %rbp");
-	println("    movq    %rsp, %rbp");
-	println("    subq    $64, %rsp");
-	println("    movq    %rdi, -56(%rbp)");
-	println("    movq    $0, -8(%rbp)");
-	println("    movl    $32, %eax");
-	println("    subq    -8(%rbp), %rax");
-	println("    #movb    $0, -48(%rbp,%rax)");
-	println(".L.iprint.2:");
-	println("    movq    -56(%rbp), %rcx");
-	println("    movabsq $-3689348814741910323, %rdx");
-	println("    movq    %rcx, %rax");
-	println("    mulq    %rdx");
-	println("    shrq    $3, %rdx");
-	println("    movq    %rdx, %rax");
-	println("    salq    $2, %rax");
-	println("    addq    %rdx, %rax");
-	println("    addq    %rax, %rax");
-	println("    subq    %rax, %rcx");
-	println("    movq    %rcx, %rdx");
-	println("    movl    %edx, %eax");
-	println("    leal    48(%rax), %edx");
-	println("    movl    $31, %eax");
-	println("    subq    -8(%rbp), %rax");
-	println("    movb    %dl, -48(%rbp,%rax)");
-	println("    addq    $1, -8(%rbp)");
-	println("    movq    -56(%rbp), %rax");
-	println("    movabsq $-3689348814741910323, %rdx");
-	println("    mulq    %rdx");
-	println("    movq    %rdx, %rax");
-	println("    shrq    $3, %rax");
-	println("    movq    %rax, -56(%rbp)");
-	println("    cmpq    $0, -56(%rbp)");
-	println("    jne     .L.iprint.2");
-	println("    movl    $32, %eax");
-	println("    subq    -8(%rbp), %rax");
-	println("    leaq    -48(%rbp), %rdx");
-	println("    leaq    (%rdx,%rax), %rcx");
-	println("    movq    -8(%rbp), %rax");
-	println("    movq    %rax, %rdx");
-	println("    movq    %rcx, %rsi");
-	println("    movl    $1, %edi");
-	println("    movl    $1, %eax");
-	println("    syscall");
-	println("    nop");
-	println("    leave");
-	println("    ret");
-	println(".data");
-	println(".L.str.newline:");
-	println("	.byte 10");
-	println("	.byte 0");
-
-	println(".text");
-	println(".global	putchar");
-	println("putchar:");
-	println("	subq	$24, %rsp");
-	println("	movl	$1, %edx");
-	println("	movb	%dil, 12(%rsp)");
-	println("	leaq	12(%rsp), %rsi");
-	println("	movl	$1, %edi");
-	println("	movq $1, %rax");
-	println("	syscall");
-	println("	movl	$1, %eax");
-	println("	addq	$24, %rsp");
-	println("	ret");
-	println(".global	putstr");
-	println("putstr:");
-	println("	pushq	%rbp");
-	println("	xorl	%ebp, %ebp");
-	println("	pushq	%rbx");
-	println("	movq	%rdi, %rbx");
-	println("	pushq	%rcx");
-	println(".L.putstr.4:");
-	println("	movsbl	(%rbx), %edi");
-	println("	testb	%dil, %dil");
-	println("	je	.L.putstr.8");
-	println("	call	putchar");
-	println("	addq $1, %rbx # HERE");
-	println("	addq	%rax, %rbp");
-	println("	jmp	.L.putstr.4");
-	println(".L.putstr.8:");
-	println("	movq	%rbp, %rax");
-	println("	popq	%rdx");
-	println("	popq	%rbx");
-	println("	popq	%rbp");
-	println("	ret");
-	println(".data");
-	println(".LC.putunum.0:");
-	println("	.byte 48");
-	println("	.byte 49");
-	println("	.byte 50");
-	println("	.byte 51");
-	println("	.byte 52");
-	println("	.byte 53");
-	println("	.byte 54");
-	println("	.byte 55");
-	println("	.byte 56");
-	println("	.byte 57");
-	println("	.byte 65");
-	println("	.byte 66");
-	println("	.byte 67");
-	println("	.byte 68");
-	println("	.byte 69");
-	println("	.byte 70");
-	println("	.byte 0");
-	println(".LC.putunum.1:");
-	println("	.byte 48");
-	println("	.byte 49");
-	println("	.byte 50");
-	println("	.byte 51");
-	println("	.byte 52");
-	println("	.byte 53");
-	println("	.byte 54");
-	println("	.byte 55");
-	println("	.byte 56");
-	println("	.byte 57");
-	println("	.byte 97");
-	println("	.byte 98");
-	println("	.byte 99");
-	println("	.byte 100");
-	println("	.byte 101");
-	println("	.byte 102");
-	println("	.byte 0");
-	println(".text");
-	println(".global	putunum");
-	println("putunum:");
-	println("	pushq	%r13");
-	println("	movl	%edx, %r13d");
-	println("	pushq	%r12");
-	println("	movl	%esi, %r12d");
-	println("	pushq	%rbp");
-	println("	xorl	%ebp, %ebp");
-	println("	pushq	%rbx");
-	println("	movq	%rdi, %rbx");
-	println("	pushq	%rcx");
-	println("	cmpq	%r12, %rdi");
-	println("	jb	.L.putnum.10");
-	println("	movzbl	%dl, %ecx");
-	println("	movq	%rdi, %rax");
-	println("	xorl	%edx, %edx");
-	println("	divq	%r12");
-	println("	movl	%ecx, %edx");
-	println("	movq	%rax, %rdi");
-	println("	call	putunum");
-	println("	movq	%rax, %rbp");
-	println(".L.putnum.10:");
-	println("	testb	%r13b, %r13b");
-	println("	leaq	.LC.putunum.0(%rip), %rax");
-	println("	leaq	.LC.putunum.1(%rip), %rcx");
-	println("	cmovneq	%rax, %rcx");
-	println("	movq	%rbx, %rax");
-	println("	xorl	%edx, %edx");
-	println("	divq	%r12");
-	println("	movsbl	(%rcx,%rdx), %edi");
-	println("	call	putchar");
-	println("	popq	%rdx");
-	println("	popq	%rbx");
-	println("	addq	%rbp, %rax");
-	println("	popq	%rbp");
-	println("	popq	%r12");
-	println("	popq	%r13");
-	println("	ret");
-	println(".data");
-	println(".L.printf.C2:");
-	println("	.byte 40");
-	println("	.byte 110");
-	println("	.byte 105");
-	println("	.byte 108");
-	println("	.byte 41");
-	println("	.byte 0");
-	println(".L.printf.C3:");
-	println("	.byte 48");
-	println("	.byte 120");
-	println("	.byte 0");
-	println(".text");
-	println(".global	printf");
-	println("printf:");
-	println("	pushq	%r13");
-	println("	pushq	%r12");
-	println("	pushq	%rbp");
-	println("	movq	%rdi, %rbp");
-	println("	pushq	%rbx");
-	println("	xorl	%ebx, %ebx");
-	println("	subq	$88, %rsp");
-	println("	leaq	128(%rsp), %rax");
-	println("	movq	%rsi, 40(%rsp)");
-	println("	movq	%rax, 16(%rsp)");
-	println("	leaq	32(%rsp), %rax");
-	println("	movq	%rdx, 48(%rsp)");
-	println("	movq	%rcx, 56(%rsp)");
-	println("	movq	%r8, 64(%rsp)");
-	println("	movq	%r9, 72(%rsp)");
-	println("	movl	$8, 8(%rsp)");
-	println("	movq	%rax, 24(%rsp)");
-	println(".L.printf.17:");
-	println("	movsbl	0(%rbp), %edi");
-	println("	testb	%dil, %dil");
-	println("	je	.L.printf.50");
-	println("	leaq	1(%rbp), %r12");
-	println("	cmpb	$37, %dil");
-	println("	jne	.L.printf.18");
-	println("	movb	1(%rbp), %al");
-	println("	cmpb	$105, %al");
-	println("	je	.L.printf.19");
-	println("	jg	.L.printf.20");
-	println("	cmpb	$99, %al");
-	println("	je	.L.printf.21");
-	println("	cmpb	$100, %al");
-	println("	je	.L.printf.19");
-	println("	movl	$37, %edi");
-	println("	cmpb	$37, %al");
-	println("	je	.L.printf.49");
-	println("	jmp	.L.printf.23");
-	println(".L.printf.20:");
-	println("	cmpb	$112, %al");
-	println("	je	.L.printf.24");
-	println("	cmpb	$115, %al");
-	println("	je	.L.printf.25");
-	println("	jmp	.L.printf.23");
-	println(".L.printf.21:");
-	println("	movl	8(%rsp), %edx");
-	println("	cmpl	$47, %edx");
-	println("	ja	.L.printf.26");
-	println("	movl	%edx, %eax");
-	println("	addl	$8, %edx");
-	println("	addq	24(%rsp), %rax");
-	println("	movl	%edx, 8(%rsp)");
-	println("	jmp	.L.printf.27");
-	println(".L.printf.26:");
-	println("	movq	16(%rsp), %rax");
-	println("	leaq	8(%rax), %rdx");
-	println("	movq	%rdx, 16(%rsp)");
-	println(".L.printf.27:");
-	println("	movsbl	(%rax), %edi");
-	println("	jmp	.L.printf.49");
-	println(".L.printf.25:");
-	println("	movl	8(%rsp), %edx");
-	println("	cmpl	$47, %edx");
-	println("	ja	.L.printf.29");
-	println("	movl	%edx, %eax");
-	println("	addl	$8, %edx");
-	println("	addq	24(%rsp), %rax");
-	println("	movl	%edx, 8(%rsp)");
-	println("	jmp	.L.printf.30");
-	println(".L.printf.29:");
-	println("	movq	16(%rsp), %rax");
-	println("	leaq	8(%rax), %rdx");
-	println("	movq	%rdx, 16(%rsp)");
-	println(".L.printf.30:");
-	println("	movq	(%rax), %rdi");
-	println("	testq	%rdi, %rdi");
-	println("	jne	.L.printf.47");
-	println("	jmp	.L.printf.48");
-	println(".L.printf.24:");
-	println("	movl	8(%rsp), %edx");
-	println("	cmpl	$47, %edx");
-	println("	ja	.L.printf.32");
-	println("	movl	%edx, %eax");
-	println("	addl	$8, %edx");
-	println("	addq	24(%rsp), %rax");
-	println("	movl	%edx, 8(%rsp)");
-	println("	jmp	.L.printf.33");
-	println(".L.printf.32:");
-	println("	movq	16(%rsp), %rax");
-	println("	leaq	8(%rax), %rdx");
-	println("	movq	%rdx, 16(%rsp)");
-	println(".L.printf.33:");
-	println("	movq	(%rax), %r13");
-	println("	testq	%r13, %r13");
-	println("	jne	.L.printf.34");
-	println(".L.printf.48:");
-	println("	leaq	.L.printf.C2(%rip), %rdi");
-	println(".L.printf.47:");
-	println("	call	putstr");
-	println(".L.printf.46:");
-	println("	addq	%rax, %rbx");
-	println("	jmp	.L.printf.28");
-	println(".L.printf.34:");
-	println("	leaq	.L.printf.C3(%rip), %rdi");
-	println("	call	putstr");
-	println("	xorl	%edx, %edx");
-	println("	movl	$16, %esi");
-	println("	movq	%r13, %rdi");
-	println("	movq	%rax, %rbp");
-	println("	call	putunum");
-	println("	addq	%rax, %rbp");
-	println("	addq	%rbp, %rbx");
-	println("	jmp	.L.printf.28");
-	println(".L.printf.19:");
-	println("	movl	8(%rsp), %edx");
-	println("	cmpl	$47, %edx");
-	println("	ja	.L.printf.35");
-	println("	movl	%edx, %eax");
-	println("	addl	$8, %edx");
-	println("	addq	24(%rsp), %rax");
-	println("	movl	%edx, 8(%rsp)");
-	println("	jmp	.L.printf.36");
-	println(".L.printf.35:");
-	println("	movq	16(%rsp), %rax");
-	println("	leaq	8(%rax), %rdx");
-	println("	movq	%rdx, 16(%rsp)");
-	println(".L.printf.36:");
-	println("	movl	(%rax), %ebp");
-	println("	testl	%ebp, %ebp");
-	println("	jns	.L.printf.37");
-	println("	movl	$45, %edi");
-	println("	negl	%ebp");
-	println("	call	putchar");
-	println("	addq	%rax, %rbx");
-	println(".L.printf.37:");
-	println("	movl	%ebp, %edi");
-	println("	xorl	%edx, %edx");
-	println("	movl	$10, %esi");
-	println("	call	putunum");
-	println("	jmp	.L.printf.46");
-	println(".L.printf.49:");
-	println("	call	putchar");
-	println("	jmp	.L.printf.46");
-	println(".L.printf.23:");
-	println("	movl	$37, %edi");
-	println(".L.printf.18:");
-	println("	call	putchar");
-	println("	movq	%rbp, %r12");
-	println("	addq	%rax, %rbx");
-	println(".L.printf.28:");
-	println("	leaq	1(%r12), %rbp");
-	println("	jmp	.L.printf.17");
-	println(".L.printf.50:");
-	println("	addq	$88, %rsp");
-	println("	movq	%rbx, %rax");
-	println("	popq	%rbx");
-	println("	popq	%rbp");
-	println("	popq	%r12");
-	println("	popq	%r13");
-	println("	ret");
+	printf("# builtin start\n");
+	printf(".text\n");
+	printf(".global write\n");
+	printf("write:\n");
+	printf("\tmovq $1, %rax\n");
+	printf("\tsyscall\n");
+	printf("\tret\n");
+	printf(".global open\n");
+	printf("open:\n");
+	printf("\tmovq $2, %rax\n");
+	printf("\tsyscall\n");
+	printf("\tret\n");
+	printf(".global read\n");
+	printf("read:\n");
+	printf("\tmovq $0, %rax\n");
+	printf("\tsyscall\n");
+	printf("\tret\n");
+	printf(".global close\n");
+	printf("close:\n");
+	printf("\tmovq $3, %rax\n");
+	printf("\tsyscall\n");
+	printf("\tret\n");
+	printf(".global exit\n");
+	printf("exit:\n");
+	printf("\tmovq $60, %rax\n");
+	printf("\tsyscall\n");
+	printf(".bss\n");
+	printf("heap:\n");
+	printf("\t.zero	5040000\n");
+	printf("heap_size:\n");
+	printf("\t.zero	8\n");
+	printf(".text\n");
+	printf(".global	alloc\n");
+	printf("alloc:\n");
+	printf("\tpushq	%rbp\n");
+	printf("\tmovq	%rsp, %rbp\n");
+	printf("\tmovq	%rdi, -24(%rbp)\n");
+	printf("\tmovq	heap_size(%rip), %rdx\n");
+	printf("\tmovq	-24(%rbp), %rax\n");
+	printf("\taddq	%rdx, %rax\n");
+	printf("\tcmpq	$5039999, %rax\n");
+	printf("\tjbe	.L.alloc.2\n");
+	printf("\tmovl	$0, %eax\n");
+	printf("\tjmp	.L.alloc_ret_null\n");
+	printf(".L.alloc.2:\n");
+	printf("\tmovq	heap_size(%rip), %rax\n");
+	printf("\tleaq	heap(%rip), %rdx\n");
+	printf("\taddq	%rdx, %rax\n");
+	printf("\tmovq	%rax, -8(%rbp)\n");
+	printf("\tmovq	heap_size(%rip), %rdx\n");
+	printf("\tmovq	-24(%rbp), %rax\n");
+	printf("\taddq	%rdx, %rax\n");
+	printf("\tmovq	%rax, heap_size(%rip)\n");
+	printf("\tmovq	-8(%rbp), %rax\n");
+	printf(".L.alloc_ret_null:\n");
+	printf("\tpopq	%rbp\n");
+	printf("\tret\n");
+	printf(".text\n");
+	printf(".global	putchar\n");
+	printf("putchar:\n");
+	printf("\tsubq	$24, %rsp\n");
+	printf("\tmovl	$1, %edx\n");
+	printf("\tmovb	%%dil, 12(%rsp)\n");
+	printf("\tleaq	12(%rsp), %rsi\n");
+	printf("\tmovl	$1, %edi\n");
+	printf("\tmovq $1, %rax\n");
+	printf("\tsyscall\n");
+	printf("\tmovl	$1, %eax\n");
+	printf("\taddq	$24, %rsp\n");
+	printf("\tret\n");
+	printf(".global	putstr\n");
+	printf("putstr:\n");
+	printf("\tpushq	%rbp\n");
+	printf("\txorl	%ebp, %ebp\n");
+	printf("\tpushq	%rbx\n");
+	printf("\tmovq	%rdi, %rbx\n");
+	printf("\tpushq	%rcx\n");
+	printf(".L.putstr.4:\n");
+	printf("\tmovsbl	(%rbx), %edi\n");
+	printf("\ttestb	%%dil, %%dil\n");
+	printf("\tje	.L.putstr.8\n");
+	printf("\tcall	putchar\n");
+	printf("\taddq $1, %rbx # HERE\n");
+	printf("\taddq	%rax, %rbp\n");
+	printf("\tjmp	.L.putstr.4\n");
+	printf(".L.putstr.8:\n");
+	printf("\tmovq	%rbp, %rax\n");
+	printf("\tpopq	%rdx\n");
+	printf("\tpopq	%rbx\n");
+	printf("\tpopq	%rbp\n");
+	printf("\tret\n");
+	printf(".data\n");
+	printf(".LC.putunum.0:\n");
+	printf("\t.byte 48\n");
+	printf("\t.byte 49\n");
+	printf("\t.byte 50\n");
+	printf("\t.byte 51\n");
+	printf("\t.byte 52\n");
+	printf("\t.byte 53\n");
+	printf("\t.byte 54\n");
+	printf("\t.byte 55\n");
+	printf("\t.byte 56\n");
+	printf("\t.byte 57\n");
+	printf("\t.byte 65\n");
+	printf("\t.byte 66\n");
+	printf("\t.byte 67\n");
+	printf("\t.byte 68\n");
+	printf("\t.byte 69\n");
+	printf("\t.byte 70\n");
+	printf("\t.byte 0\n");
+	printf(".LC.putunum.1:\n");
+	printf("\t.byte 48\n");
+	printf("\t.byte 49\n");
+	printf("\t.byte 50\n");
+	printf("\t.byte 51\n");
+	printf("\t.byte 52\n");
+	printf("\t.byte 53\n");
+	printf("\t.byte 54\n");
+	printf("\t.byte 55\n");
+	printf("\t.byte 56\n");
+	printf("\t.byte 57\n");
+	printf("\t.byte 97\n");
+	printf("\t.byte 98\n");
+	printf("\t.byte 99\n");
+	printf("\t.byte 100\n");
+	printf("\t.byte 101\n");
+	printf("\t.byte 102\n");
+	printf("\t.byte 0\n");
+	printf(".text\n");
+	printf(".global	putunum\n");
+	printf("putunum:\n");
+	printf("\tpushq	%r13\n");
+	printf("\tmovl	%edx, %r13d\n");
+	printf("\tpushq	%r12\n");
+	printf("\tmovl	%esi, %r12d\n");
+	printf("\tpushq	%rbp\n");
+	printf("\txorl	%ebp, %ebp\n");
+	printf("\tpushq	%rbx\n");
+	printf("\tmovq	%rdi, %rbx\n");
+	printf("\tpushq	%rcx\n");
+	printf("\tcmpq	%r12, %rdi\n");
+	printf("\tjb	.L.putnum.10\n");
+	printf("\tmovzbl	%%dl, %ecx\n");
+	printf("\tmovq	%rdi, %rax\n");
+	printf("\txorl	%edx, %edx\n");
+	printf("\tdivq	%r12\n");
+	printf("\tmovl	%ecx, %edx\n");
+	printf("\tmovq	%rax, %rdi\n");
+	printf("\tcall	putunum\n");
+	printf("\tmovq	%rax, %rbp\n");
+	printf(".L.putnum.10:\n");
+	printf("\ttestb	%r13b, %r13b\n");
+	printf("\tleaq	.LC.putunum.0(%rip), %rax\n");
+	printf("\tleaq	.LC.putunum.1(%rip), %rcx\n");
+	printf("\tcmovneq	%rax, %rcx\n");
+	printf("\tmovq	%rbx, %rax\n");
+	printf("\txorl	%edx, %edx\n");
+	printf("\tdivq	%r12\n");
+	printf("\tmovsbl	(%rcx,%rdx), %edi\n");
+	printf("\tcall	putchar\n");
+	printf("\tpopq	%rdx\n");
+	printf("\tpopq	%rbx\n");
+	printf("\taddq	%rbp, %rax\n");
+	printf("\tpopq	%rbp\n");
+	printf("\tpopq	%r12\n");
+	printf("\tpopq	%r13\n");
+	printf("\tret\n");
+	printf(".data\n");
+	printf(".L.printf.C2:\n");
+	printf("\t.byte 40\n");
+	printf("\t.byte 110\n");
+	printf("\t.byte 105\n");
+	printf("\t.byte 108\n");
+	printf("\t.byte 41\n");
+	printf("\t.byte 0\n");
+	printf(".L.printf.C3:\n");
+	printf("\t.byte 48\n");
+	printf("\t.byte 120\n");
+	printf("\t.byte 0\n");
+	printf(".text\n");
+	printf(".global	printf\n");
+	printf("printf:\n");
+	printf("\tpushq	%r13\n");
+	printf("\tpushq	%r12\n");
+	printf("\tpushq	%rbp\n");
+	printf("\tmovq	%rdi, %rbp\n");
+	printf("\tpushq	%rbx\n");
+	printf("\txorl	%ebx, %ebx\n");
+	printf("\tsubq	$88, %rsp\n");
+	printf("\tleaq	128(%rsp), %rax\n");
+	printf("\tmovq	%rsi, 40(%rsp)\n");
+	printf("\tmovq	%rax, 16(%rsp)\n");
+	printf("\tleaq	32(%rsp), %rax\n");
+	printf("\tmovq	%rdx, 48(%rsp)\n");
+	printf("\tmovq	%rcx, 56(%rsp)\n");
+	printf("\tmovq	%r8, 64(%rsp)\n");
+	printf("\tmovq	%r9, 72(%rsp)\n");
+	printf("\tmovl	$8, 8(%rsp)\n");
+	printf("\tmovq	%rax, 24(%rsp)\n");
+	printf(".L.printf.17:\n");
+	printf("\tmovsbl	0(%rbp), %edi\n");
+	printf("\ttestb	%%dil, %%dil\n");
+	printf("\tje	.L.printf.50\n");
+	printf("\tleaq	1(%rbp), %r12\n");
+	printf("\tcmpb	$37, %%dil\n");
+	printf("\tjne	.L.printf.18\n");
+	printf("\tmovb	1(%rbp), %al\n");
+	printf("\tcmpb	$105, %al\n");
+	printf("\tje	.L.printf.19\n");
+	printf("\tjg	.L.printf.20\n");
+	printf("\tcmpb	$99, %al\n");
+	printf("\tje	.L.printf.21\n");
+	printf("\tcmpb	$100, %al\n");
+	printf("\tje	.L.printf.19\n");
+	printf("\tmovl	$37, %edi\n");
+	printf("\tcmpb	$37, %al\n");
+	printf("\tje	.L.printf.49\n");
+	printf("\tjmp	.L.printf.23\n");
+	printf(".L.printf.20:\n");
+	printf("\tcmpb	$112, %al\n");
+	printf("\tje	.L.printf.24\n");
+	printf("\tcmpb	$115, %al\n");
+	printf("\tje	.L.printf.25\n");
+	printf("\tjmp	.L.printf.23\n");
+	printf(".L.printf.21:\n");
+	printf("\tmovl	8(%rsp), %edx\n");
+	printf("\tcmpl	$47, %edx\n");
+	printf("\tja	.L.printf.26\n");
+	printf("\tmovl	%edx, %eax\n");
+	printf("\taddl	$8, %edx\n");
+	printf("\taddq	24(%rsp), %rax\n");
+	printf("\tmovl	%edx, 8(%rsp)\n");
+	printf("\tjmp	.L.printf.27\n");
+	printf(".L.printf.26:\n");
+	printf("\tmovq	16(%rsp), %rax\n");
+	printf("\tleaq	8(%rax), %rdx\n");
+	printf("\tmovq	%rdx, 16(%rsp)\n");
+	printf(".L.printf.27:\n");
+	printf("\tmovsbl	(%rax), %edi\n");
+	printf("\tjmp	.L.printf.49\n");
+	printf(".L.printf.25:\n");
+	printf("\tmovl	8(%rsp), %edx\n");
+	printf("\tcmpl	$47, %edx\n");
+	printf("\tja	.L.printf.29\n");
+	printf("\tmovl	%edx, %eax\n");
+	printf("\taddl	$8, %edx\n");
+	printf("\taddq	24(%rsp), %rax\n");
+	printf("\tmovl	%edx, 8(%rsp)\n");
+	printf("\tjmp	.L.printf.30\n");
+	printf(".L.printf.29:\n");
+	printf("\tmovq	16(%rsp), %rax\n");
+	printf("\tleaq	8(%rax), %rdx\n");
+	printf("\tmovq	%rdx, 16(%rsp)\n");
+	printf(".L.printf.30:\n");
+	printf("\tmovq	(%rax), %rdi\n");
+	printf("\ttestq	%rdi, %rdi\n");
+	printf("\tjne	.L.printf.47\n");
+	printf("\tjmp	.L.printf.48\n");
+	printf(".L.printf.24:\n");
+	printf("\tmovl	8(%rsp), %edx\n");
+	printf("\tcmpl	$47, %edx\n");
+	printf("\tja	.L.printf.32\n");
+	printf("\tmovl	%edx, %eax\n");
+	printf("\taddl	$8, %edx\n");
+	printf("\taddq	24(%rsp), %rax\n");
+	printf("\tmovl	%edx, 8(%rsp)\n");
+	printf("\tjmp	.L.printf.33\n");
+	printf(".L.printf.32:\n");
+	printf("\tmovq	16(%rsp), %rax\n");
+	printf("\tleaq	8(%rax), %rdx\n");
+	printf("\tmovq	%rdx, 16(%rsp)\n");
+	printf(".L.printf.33:\n");
+	printf("\tmovq	(%rax), %r13\n");
+	printf("\ttestq	%r13, %r13\n");
+	printf("\tjne	.L.printf.34\n");
+	printf(".L.printf.48:\n");
+	printf("\tleaq	.L.printf.C2(%rip), %rdi\n");
+	printf(".L.printf.47:\n");
+	printf("\tcall	putstr\n");
+	printf(".L.printf.46:\n");
+	printf("\taddq	%rax, %rbx\n");
+	printf("\tjmp	.L.printf.28\n");
+	printf(".L.printf.34:\n");
+	printf("\tleaq	.L.printf.C3(%rip), %rdi\n");
+	printf("\tcall	putstr\n");
+	printf("\txorl	%edx, %edx\n");
+	printf("\tmovl	$16, %esi\n");
+	printf("\tmovq	%r13, %rdi\n");
+	printf("\tmovq	%rax, %rbp\n");
+	printf("\tcall	putunum\n");
+	printf("\taddq	%rax, %rbp\n");
+	printf("\taddq	%rbp, %rbx\n");
+	printf("\tjmp	.L.printf.28\n");
+	printf(".L.printf.19:\n");
+	printf("\tmovl	8(%rsp), %edx\n");
+	printf("\tcmpl	$47, %edx\n");
+	printf("\tja	.L.printf.35\n");
+	printf("\tmovl	%edx, %eax\n");
+	printf("\taddl	$8, %edx\n");
+	printf("\taddq	24(%rsp), %rax\n");
+	printf("\tmovl	%edx, 8(%rsp)\n");
+	printf("\tjmp	.L.printf.36\n");
+	printf(".L.printf.35:\n");
+	printf("\tmovq	16(%rsp), %rax\n");
+	printf("\tleaq	8(%rax), %rdx\n");
+	printf("\tmovq	%rdx, 16(%rsp)\n");
+	printf(".L.printf.36:\n");
+	printf("\tmovl	(%rax), %ebp\n");
+	printf("\ttestl	%ebp, %ebp\n");
+	printf("\tjns	.L.printf.37\n");
+	printf("\tmovl	$45, %edi\n");
+	printf("\tnegl	%ebp\n");
+	printf("\tcall	putchar\n");
+	printf("\taddq	%rax, %rbx\n");
+	printf(".L.printf.37:\n");
+	printf("\tmovl	%ebp, %edi\n");
+	printf("\txorl	%edx, %edx\n");
+	printf("\tmovl	$10, %esi\n");
+	printf("\tcall	putunum\n");
+	printf("\tjmp	.L.printf.46\n");
+	printf(".L.printf.49:\n");
+	printf("\tcall	putchar\n");
+	printf("\tjmp	.L.printf.46\n");
+	printf(".L.printf.23:\n");
+	printf("\tmovl	$37, %edi\n");
+	printf(".L.printf.18:\n");
+	printf("\tcall	putchar\n");
+	printf("\tmovq	%rbp, %r12\n");
+	printf("\taddq	%rax, %rbx\n");
+	printf(".L.printf.28:\n");
+	printf("\tleaq	1(%r12), %rbp\n");
+	printf("\tjmp	.L.printf.17\n");
+	printf(".L.printf.50:\n");
+	printf("\taddq	$88, %rsp\n");
+	printf("\tmovq	%rbx, %rax\n");
+	printf("\tpopq	%rbx\n");
+	printf("\tpopq	%rbp\n");
+	printf("\tpopq	%r12\n");
+	printf("\tpopq	%r13\n");
+	printf("\tret\n");
 	return 0;
 }
 
 func gen(g *Gen, globals *Object) i32 {
-	println(".text");
-	println(".global _start");
-	println("_start:");
-	println("\tpush %rbp");
-	println("\tmovq %rsp, %rbp");
-	println("\tmovq 8(%rbp), %rdi"); 
-	println("\tleaq 16(%rbp), %rsi"); 
-	println("\tcallq main");
-	println("\tmovq %rax, %rdi");
-	println("\tmovq $60, %rax");
-	println("\tsyscall");
+	printf(".text\n");
+	printf(".global _start\n");
+	printf("_start:\n");
+	printf("\tpush %rbp\n");
+	printf("\tmovq %rsp, %rbp\n");
+	printf("\tmovq 8(%rbp), %rdi\n"); 
+	printf("\tleaq 16(%rbp), %rsi\n"); 
+	printf("\tcallq main\n");
+	printf("\tmovq %rax, %rdi\n");
+	printf("\tmovq $60, %rax\n");
+	printf("\tsyscall\n");
 
 	var object *Object;
 	object = globals;
@@ -2428,15 +2248,11 @@ func gen(g *Gen, globals *Object) i32 {
 			}
 			object.stack_size = assign_offset(object.locals);
 			g.cur_func_name = object.name;
-			print(".global ");
-			println(object.name);
-			print(object.name);
-			println(":");
-			println("\tpush %rbp");
-			println("\tmovq %rsp, %rbp");
-			print("\tsubq $");
-			iprint(object.stack_size);
-			println(", %rsp");
+			printf(".global %s\n", object.name);
+			printf("%s:\n", object.name);
+			printf("\tpush %rbp\n");
+			printf("\tmovq %rsp, %rbp\n");
+			printf("\tsubq $%d, %rsp\n", object.stack_size);
 
 			var params *Object;
 			params = object.params;
@@ -2444,33 +2260,27 @@ func gen(g *Gen, globals *Object) i32 {
 			idx = 0;
 			while params != nil {
 				if params.ty.size == 1 {
-					print("\tmovb ");
-					print(g.regi8[idx]);
+					printf("\tmovb %s", g.regi8[idx]);
 				} else if params.ty.size == 2 {
-					print("\tmovw ");
-					print(g.regi16[idx]);
+					printf("\tmovw %s", g.regi16[idx]);
 				} else if params.ty.size == 4 {
-					print("\tmovl ");
-					print(g.regi32[idx]);
+					printf("\tmovl %s", g.regi32[idx]);
 				} else if params.ty.size == 8 {
-					print("\tmovq ");
-					print(g.regi64[idx]);
+					printf("\tmovq %s", g.regi64[idx]);
 				} else {
-					println("unreachable");
+					printf("unreachable\n");
 					exit(1);
 				}
-				print(", -");
-				iprint(params.offset);
-				println("(%rbp)");
+				printf(", -%d(%rbp)\n", params.offset);
 				params = params.next_param;
 				idx++;
 			}
 
 			gen_node_block(g, object.body);
-			println("\tleave");
-			println("\tret");
+			printf("\tleave\n");
+			printf("\tret\n");
 		} else {
-			println("unreachable");
+			printf("unreachable\n");
 			exit(1);
 		}
 		next:
@@ -2482,9 +2292,13 @@ func gen(g *Gen, globals *Object) i32 {
 	return 0;
 }
 
+// ----------------------------------
+// Start
+// ----------------------------------
+
 func main(argc i32, argv **i8) i32 {
 	if argc != 2 {
-		println("usage\n\tibu <filename>.ibu");
+		printf("usage\n\tibu <filename>.ibu\n");
 		exit(0);
 	}
 
@@ -2501,7 +2315,7 @@ func main(argc i32, argv **i8) i32 {
 	tokens = tokenize(t);
 
 	var p *Parser;
-	p = new_parser(tokens);
+	p = new_parser(buf, tokens);
 
 	parse(p);
 

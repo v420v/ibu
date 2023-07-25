@@ -4,13 +4,13 @@ func main() i32 {
     c = 1;
     while c <= 100 {
         if c % 15 == 0 {
-            println("FizzBuzz");
+            printf("FizzBuzz\n");
         } else if c % 3 == 0 {
-            println("Fizz");
+            printf("Fizz\n");
         } else if c % 5 == 0 {
-            println("Buzz");
+            printf("Buzz\n");
         } else {
-            iprintln(c);
+            printf("%d\n", c);
         }
         c++;
     }
