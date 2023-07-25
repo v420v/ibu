@@ -15,7 +15,7 @@
 ```
 
 func main() i32 {
-    println("Hello, world!");
+    printf("Hello, world!\n");
     return 0;
 }
 

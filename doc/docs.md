@@ -14,7 +14,7 @@ $ ./ibu filename.ibu
 ```
 
 func main() i32 {
-    println("Hello, world!");
+    printf("Hello, world!\n");
 }
 
 ```
@@ -57,7 +57,7 @@ func main() i32 {
     user.name = "Ibuki";
     user.age = 19;
 
-    println(user.name);
+    printf("%s\n", user.name);
 
     return 0;
 }
@@ -78,7 +78,7 @@ func main() i32 {
     user.name = "Ibuki";
     user.age = 19;
 
-    println(user.name);
+    printf("%s\n", user.name);
 
     return 0;
 }
@@ -90,7 +90,7 @@ func main() i32 {
 
 func main() i32 {
     if 1 {
-        println("IBUKI");
+        printf("IBUKI\n");
     }
 
     return 0;
@@ -103,15 +103,15 @@ func main() i32 {
 
 func main() i32 {
     while {
-        println("IBUKI");
+        printf("IBUKI\n");
     }
 
     while 1 {
-        println("IBUKI");
+        printf("IBUKI\n");
     }
 
     while 1 == 1 {
-        println("IBUKI");
+        printf("IBUKI\n");
     }
 }
 
