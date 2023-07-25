@@ -34,6 +34,32 @@ $ ./ibu src/ibu.ibu | vas - -o src/ibu.o
 $ ld -o ibu src/ibu.o
 ```
 
+## Contributing
+Welcome!
+
+```go
+
+func print_user_defined_types(p *Parser);
+
+func print_all_tokens(tok *Token) i32;
+
+```
+
+### Update bootstrap folder
+```sh
+
+$ make update_bootstrap
+
+```
+
+### Selfhosting
+`make dev` will compile `src/ibu.ibu` using the ./ibu executable
+```sh
+
+$ make dev
+
+```
+
 ## Reference
 https://github.com/rui314/chibicc
 
