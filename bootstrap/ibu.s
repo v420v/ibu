@@ -70,7 +70,7 @@ main:
 	movq %rax, (%rdi)
 	leaq -40(%rbp), %rax
 	push %rax
-	movq $55000, %rax
+	movq $40000, %rax
 	push %rax
 	pop %rdi
 	movq $0, %rax
@@ -83,7 +83,7 @@ main:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	movq $55000, %rax
+	movq $40000, %rax
 	push %rax
 	pop %rdx
 	pop %rsi

@@ -1960,8 +1960,8 @@ func main(argc i32, argv **i8) i32 {
 	var f *i8;
 	var buf *i8;
 	f = open(argv[1], 0, 420);
-	buf = alloc(55000);
-	read(f, buf, 55000);
+	buf = alloc(40000);
+	read(f, buf, 40000);
 	close(f);
 
 	var tokens *Token;
