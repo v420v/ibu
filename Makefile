@@ -1,11 +1,13 @@
 
 make:
 	vas -o bootstrap/ibu.o bootstrap/ibu.s
-	ld -o ibu bootstrap/ibu.o
+	vas -o src/builtin.o src/builtin.s
+	ld -o ibu bootstrap/ibu.o src/builtin.o
 
 dev:
 	./ibu src/ibu.ibu | vas - -o src/ibu.o
-	ld -o ibu src/ibu.o
+	vas -o src/builtin.o src/builtin.s
+	ld -o ibu src/ibu.o src/builtin.o
 
 update_bootstrap:
 	./ibu src/ibu.ibu | vas -

@@ -29,9 +29,8 @@ To build the compiler, run the following command below or just run `make`
 
 ```sh
 $ vas -o bootstrap/ibu.o bootstrap/ibu.s
-$ ld -o ibu bootstrap/ibu.o
-$ ./ibu src/ibu.ibu | vas - -o src/ibu.o
-$ ld -o ibu src/ibu.o
+$ vas -o src/builtin.o src/builtin.s
+$ ld -o ibu bootstrap/ibu.o src/builtin.o
 ```
 
 ## Contributing

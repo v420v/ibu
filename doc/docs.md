@@ -7,7 +7,8 @@ If you have problems installing vas assembler, replace the `vas` keyword in Make
 
 ```sh
 $ make
-$ ./ibu filename.ibu
+$ ./ibu <filename>.ibu | vas - -o <filename>.o
+$ ld -o <filename> <filename>.o src/builtin.o
 ```
 
 ## Hello world!
