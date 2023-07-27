@@ -12,7 +12,9 @@
 - No block scopes.
 - No bugs, everything is a feature
 
-```
+It is similar to C and is also influenced by Go, HolyC, and Python.
+
+```go
 
 func main() i32 {
     printf("Hello, world!\n");
@@ -21,9 +23,21 @@ func main() i32 {
 
 ```
 
+## Build compiler
+
+> **Note**
+> Supports Linux x86-64 only.
+
+```sh
+$ git clone git@github.com:v420v/ibu.git
+$ cd ibu
+```
+
 Since the language is selfhosted you need to bootstrap the compiler first.
 
-Ibu uses <a href="https://github.com/v420v/vas">vas</a> assembler.
+* <a href="https://github.com/v420v/vas">vas</a> assembler needs to be available in `$PATH`.
+
+***If you have issues installing the `vas` assembler, replace `vas` with `as` in the Makefile. It will work the same way***
 
 To build the compiler, run the following command below or just run `make`
 
@@ -113,6 +127,8 @@ func main() i32 {
         printf("%d\n", i);
         i++;
     }
+
+    return 0;
 }
 ```
 
