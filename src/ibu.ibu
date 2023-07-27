@@ -1,6 +1,8 @@
+
 // ----------------------------------
 // Tokenizer
 // ----------------------------------
+
 struct Tokenizer {
 	program *i8
 }
@@ -78,7 +80,7 @@ func is_two_c_punct(a *i8) i32 {
 	}
 }
 
-func isalpha(c i32) i32 {
+func isalpha(c i8) i8 {
 	if 65 <= c <= 90 { // A .. Z
 		return 1;
 	}
@@ -88,7 +90,7 @@ func isalpha(c i32) i32 {
 	return 0;
 }
 
-func isdigit(c i8) i32 {
+func isdigit(c i8) i8 {
 	if 48 <= c <= 57 { // 0 .. 9
 		return 1;
 	}

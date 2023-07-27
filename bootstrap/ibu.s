@@ -14873,10 +14873,10 @@ isdigit:
 isalpha:
 	push %rbp
 	movq %rsp, %rbp
-	subq $4, %rsp
-	movl %edi, -4(%rbp)
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
+	subq $1, %rsp
+	movb %dil, -1(%rbp)
+	leaq -1(%rbp), %rax
+	movsbl (%rax), %eax
 	push %rax
 	movq $65, %rax
 	pop %rdi
@@ -14887,8 +14887,8 @@ isalpha:
 	je .L.false.253
 	movq $90, %rax
 	push %rax
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
+	leaq -1(%rbp), %rax
+	movsbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setle %al
@@ -14909,8 +14909,8 @@ isalpha:
 	jmp .L.end.252
 .L.else.252:
 .L.end.252:
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
+	leaq -1(%rbp), %rax
+	movsbl (%rax), %eax
 	push %rax
 	movq $97, %rax
 	pop %rdi
@@ -14921,8 +14921,8 @@ isalpha:
 	je .L.false.255
 	movq $122, %rax
 	push %rax
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
+	leaq -1(%rbp), %rax
+	movsbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setle %al
