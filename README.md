@@ -34,7 +34,7 @@ $ ld -o ibu bootstrap/ibu.o src/builtin.o
 ```
 
 ## How to build, compile programs written in Ibu
-*** Don't forget to pass `src/builtin.o` to the linker ***
+***Don't forget to pass `src/builtin.o` to the linker***
 ```sh
 $ ./ibu <filename>.ibu | vas - -o <filename>.o
 $ ld -o <filename> <filename>.o src/builtin.o
