@@ -1,0 +1,13 @@
+
+func main() i32 {
+    var age i8;
+    age = 19;
+
+    if 13 <= age < 20 {
+        printf("Teen-ager\n");
+    }
+
+    return 0;
+}
+
+
