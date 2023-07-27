@@ -14829,16 +14829,16 @@ isdigit:
 	movq %rsp, %rbp
 	subq $1, %rsp
 	movb %dil, -1(%rbp)
-	movq $48, %rax
-	push %rax
 	leaq -1(%rbp), %rax
 	movsbl (%rax), %eax
+	push %rax
+	movq $48, %rax
 	pop %rdi
 	cmpl %edi, %eax
-	setge %al
+	setle %al
 	movzbl %al, %eax
-	cmpq $1, %rax
-	jne .L.else.250
+	cmpq $0, %rax
+	je .L.false.251
 	movq $57, %rax
 	push %rax
 	leaq -1(%rbp), %rax
@@ -14847,15 +14847,19 @@ isdigit:
 	cmpl %edi, %eax
 	setle %al
 	movzbl %al, %eax
+	cmpq $0, %rax
+	je .L.false.251
+	movq $1, %rax
+	jmp .L.end.251
+.L.false.251:
+	movq $0, %rax
+.L.end.251:
 	cmpq $1, %rax
-	jne .L.else.251
+	jne .L.else.250
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.251
-.L.else.251:
-.L.end.251:
 	jmp .L.end.250
 .L.else.250:
 .L.end.250:
@@ -14871,16 +14875,16 @@ isalpha:
 	movq %rsp, %rbp
 	subq $4, %rsp
 	movl %edi, -4(%rbp)
-	movq $65, %rax
-	push %rax
 	leaq -4(%rbp), %rax
 	movslq (%rax), %rax
+	push %rax
+	movq $65, %rax
 	pop %rdi
 	cmpl %edi, %eax
-	setge %al
+	setle %al
 	movzbl %al, %eax
-	cmpq $1, %rax
-	jne .L.else.252
+	cmpq $0, %rax
+	je .L.false.253
 	movq $90, %rax
 	push %rax
 	leaq -4(%rbp), %rax
@@ -14889,28 +14893,32 @@ isalpha:
 	cmpl %edi, %eax
 	setle %al
 	movzbl %al, %eax
+	cmpq $0, %rax
+	je .L.false.253
+	movq $1, %rax
+	jmp .L.end.253
+.L.false.253:
+	movq $0, %rax
+.L.end.253:
 	cmpq $1, %rax
-	jne .L.else.253
+	jne .L.else.252
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.253
-.L.else.253:
-.L.end.253:
 	jmp .L.end.252
 .L.else.252:
 .L.end.252:
-	movq $97, %rax
-	push %rax
 	leaq -4(%rbp), %rax
 	movslq (%rax), %rax
+	push %rax
+	movq $97, %rax
 	pop %rdi
 	cmpl %edi, %eax
-	setge %al
+	setle %al
 	movzbl %al, %eax
-	cmpq $1, %rax
-	jne .L.else.254
+	cmpq $0, %rax
+	je .L.false.255
 	movq $122, %rax
 	push %rax
 	leaq -4(%rbp), %rax
@@ -14919,15 +14927,19 @@ isalpha:
 	cmpl %edi, %eax
 	setle %al
 	movzbl %al, %eax
+	cmpq $0, %rax
+	je .L.false.255
+	movq $1, %rax
+	jmp .L.end.255
+.L.false.255:
+	movq $0, %rax
+.L.end.255:
 	cmpq $1, %rax
-	jne .L.else.255
+	jne .L.else.254
 	movq $1, %rax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
-	jmp .L.end.255
-.L.else.255:
-.L.end.255:
 	jmp .L.end.254
 .L.else.254:
 .L.end.254:
