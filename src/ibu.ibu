@@ -2083,6 +2083,10 @@ func main(argc i32, argv **i8) i32 {
 	var f *i8;
 	var buf *i8;
 	f = open(argv[1], 0, 420);
+	if f < 0 {
+		eprintf("error: opening file %s\n", argv[1]);
+		exit(1);
+	}
 	buf = alloc(55000);
 	read(f, buf, 55000);
 	close(f);
