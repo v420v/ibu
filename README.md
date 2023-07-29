@@ -12,7 +12,7 @@
 - No block scopes.
 - No bugs, everything is a feature
 
-It is similar to C and is also influenced by Go, HolyC, and Python.
+Ibu is similar to C and is also influenced by Go, HolyC, and Python.
 
 ```go
 
@@ -32,7 +32,6 @@ func main() i32 {
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
 
-# You don't need to use docker if your in x86-64 linux and GNU assembler, linker is installed
 $ docker build ./ -t ibulang
 ```
 
