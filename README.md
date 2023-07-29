@@ -31,26 +31,41 @@ func main() i32 {
 ```sh
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
+
+# You don't need to use docker if your in x86-64 linux and GNU assembler, linker is installed
+$ docker build ./ -t ibulang
+```
+
+```sh
+# Linux or MacOS:
+$ docker run --rm -it -v "$(pwd)":/root/env ibulang
+
+# Windows (CMD):
+$ docker run --rm -it -v "%cd%":/root/env ibulang
+
+# Windows (PowerShell):
+$ docker run --rm -it -v "${pwd}:/root/env" ibulang
+
+# To leave the build environment, enter `exit`.
 ```
 
 Since the language is selfhosted you need to bootstrap the compiler first.
 
-* <a href="https://github.com/v420v/vas">vas</a> assembler needs to be available in `$PATH`.
-
-***If you have issues installing the `vas` assembler, replace `vas` with `as` in the Makefile. It will work the same way***
-
 To build the compiler, run the following command below or just run `make`
 
 ```sh
-$ vas -o bootstrap/ibu.o bootstrap/ibu.s
-$ vas -o src/builtin.o src/builtin.s
+$ as -o bootstrap/ibu.o bootstrap/ibu.s
+$ as -o src/builtin.o src/builtin.s
 $ ld -o ibu bootstrap/ibu.o src/builtin.o
+
+# just to check if the compiler can compile itself.
+$ make dev
 ```
 
 ## How to build, compile programs written in Ibu
 ***Don't forget to pass `src/builtin.o` to the linker***
 ```sh
-$ ./ibu <filename>.ibu | vas - -o <filename>.o
+$ ./ibu <filename>.ibu | as - -o <filename>.o
 $ ld -o <filename> <filename>.o src/builtin.o
 ```
 
