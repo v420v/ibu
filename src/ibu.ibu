@@ -4,17 +4,17 @@
 // ----------------------------------
 
 struct Tokenizer {
-	program *i8
+	program *i8;
 }
 
 struct Token;
 
 struct Token {
-	kind *i8
-	start *i8
-	len i32
-	lit *i8
-	next *Token
+	kind *i8;
+	start *i8;
+	len i32;
+	lit *i8;
+	next *Token;
 }
 
 func strlen(s *i8) i32 {
@@ -289,70 +289,70 @@ struct Member;
 struct Type;
 
 struct Member {
-	ty *Type
-	name *i8
-	offset i32
-	next *Member
+	ty *Type;
+	name *i8;
+	offset i32;
+	next *Member;
 }
 
 struct Type {
-	kind *i8
-	size i32
-	name *i8
-	members *Member
-	return_type *Type
-	pointer_to *Type
-	is_declaration i8
-	next *Type
+	kind *i8;
+	size i32;
+	name *i8;
+	members *Member;
+	return_type *Type;
+	pointer_to *Type;
+	is_declaration i8;
+	next *Type;
 }
 
 struct Object;
 struct Node;
 
 struct Object {
-	name *i8
-	kind *i8
-	offset i32
-	body *Node
-	params *Object
-	locals *Object
-	stack_size i32
-	ty *Type
-	is_declaration i8
-	is_builtin i8
-	next *Object
-	next_param *Object
+	name *i8;
+	kind *i8;
+	offset i32;
+	body *Node;
+	params *Object;
+	locals *Object;
+	stack_size i32;
+	ty *Type;
+	is_declaration i8;
+	is_builtin i8;
+	next *Object;
+	next_param *Object;
 }
 
 struct Node {
-	kind *i8
-	lhs *Node
-	rhs *Node
-	body *Node
-	cond *Node
-	then_block *Node
-	else_block *Node
-	label_name *i8
-	int_val *i8
-	str_val *i8
-	obj *Object
-	ty *Type
-	func_name *i8
-	offset i32
-	args *Node
-	next *Node
+	kind *i8;
+	lhs *Node;
+	rhs *Node;
+	body *Node;
+	cond *Node;
+	then_block *Node;
+	else_block *Node;
+	label_name *i8;
+	int_val *i8;
+	str_val *i8;
+	obj *Object;
+	ty *Type;
+	func_name *i8;
+	offset i32;
+	args *Node;
+	next *Node;
 }
 
 struct Parser {
-	tokens *Token
-	globals *Object
-	locals *Object
-	user_defined_types *Type
-	ty_i8 *Type
-	ty_i16 *Type
-	ty_i32 *Type
-	ty_i64 *Type
-	program *i8
+	tokens *Token;
+	globals *Object;
+	locals *Object;
+	user_defined_types *Type;
+	ty_i8 *Type;
+	ty_i16 *Type;
+	ty_i32 *Type;
+	ty_i64 *Type;
+	program *i8;
 }
 
 func strcmp(a *i8, b *i8) i32 {
@@ -1525,6 +1525,7 @@ func parse_struct(p *Parser) i32 {
 			member_name = p.tokens.lit;
 			parser_next(p);
 			cur = cur.next = new_member(member_name, parse_ty(p));
+			parser_skip(p, ";");
 		}
 
 		parser_skip(p, "}");
@@ -1630,13 +1631,13 @@ func parse(p *Parser) i32 {
 // ----------------------------------
 
 struct Gen {
-	label_count i32
-	str_label_count i32
-	cur_func_name *i8
-	regi64 **i8
-	regi32 **i8
-	regi16 **i8
-	regi8 **i8
+	label_count i32;
+	str_label_count i32;
+	cur_func_name *i8;
+	regi64 **i8;
+	regi32 **i8;
+	regi16 **i8;
+	regi8 **i8;
 }
 
 func new_gen() *Gen {

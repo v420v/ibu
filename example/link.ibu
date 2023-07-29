@@ -2,8 +2,8 @@
 struct User;
 
 struct User {
-    name *i8
-    next *User
+    name *i8;
+    next *User;
 }
 
 func user_print_names(user *User) i32;

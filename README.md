@@ -135,8 +135,8 @@ func main() i32 {
 #### Struct
 ```go
 struct Person {
-    name *i8
-    age i8
+    name *i8;
+    age i8;
 }
 
 func main() i32 {
@@ -153,8 +153,8 @@ func main() i32 {
 #### Struct Pointer
 ```go
 struct Person {
-    name *i8
-    age i8
+    name *i8;
+    age i8;
 }
 
 func main() i32 {
@@ -176,8 +176,8 @@ func main() i32 {
 struct User;
 
 struct User {
-    name *i8
-    next *User
+    name *i8;
+    next *User;
 }
 
 func user_print_names(user *User) i32;
