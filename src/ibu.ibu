@@ -101,7 +101,7 @@ func strndup(str *i8, n i32) *i8 {
 	var r *i8;
 	r = alloc(n+1);
 	if r == nil {
-		printf("nil");
+		eprintf("nil");
 		exit(1);
 	}
 	var idx i32;
@@ -118,7 +118,7 @@ func new_token(kind *i8, start *i8, len i32) *Token {
 	var tok *Token;
 	tok = alloc(typesize(Token));
 	if tok == nil {
-		printf("nil");
+		eprintf("nil");
 		exit(1);
 	}
 
@@ -148,7 +148,7 @@ func new_tokenizer(program *i8) *Tokenizer {
 	var tokenizer *Tokenizer;
 	tokenizer = alloc(typesize(Tokenizer));
 	if tokenizer == nil {
-		printf("nil");
+		eprintf("nil");
 		exit(1);
 	}
 	tokenizer.program = program;
@@ -376,7 +376,7 @@ func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type)
 	var obj *Object;
 	obj = alloc(typesize(Object));
 	if obj == nil {
-		printf("nil");
+		eprintf("nil");
 		exit(1);
 	}
 	obj.kind = kind;
@@ -442,7 +442,7 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	var p *Parser;
 	p = alloc(typesize(Parser));
 	if p == nil {
-		printf("nil");
+		eprintf("nil");
 		exit(1);
 	}
 	p.tokens = tokens;
@@ -524,7 +524,7 @@ func new_node(kind *i8) *Node {
 	var node *Node;
 	node = alloc(typesize(Node));
 	if node == nil {
-		printf("nil");
+		eprintf("nil");
 		exit(1);
 	}
 	node.kind = kind;
@@ -585,7 +585,7 @@ func new_local_object(p *Parser, kind *i8, name *i8, ty *Type, tok *Token) *Obje
 	var obj *Object;
 	obj = alloc(typesize(Object));
 	if obj == nil {
-		printf("nil");
+		eprintf("nil");
 		exit(1);
 	}
 
@@ -1682,7 +1682,7 @@ func gen_addr(g *Gen, node *Node) i32 {
 		gen_expr(g, node.lhs);
 	} else {
 		printf("%s\n", node.kind);
-		printf("unreachable\n");
+		eprintf("unreachable\n");
 		exit(1);
 	}
 	return 0;
@@ -1708,7 +1708,7 @@ func gen_store(ty *Type) i32 {
 	} else if ty.size == 8 {
 		printf("\tmovq %rax, (%rdi)\n");
 	} else {
-		printf("unreachable\n");
+		eprintf("unreachable\n");
 		exit(1);
 	}
 	return 0;
@@ -1727,7 +1727,23 @@ func gen_load(ty *Type) i32 {
 	} else if ty.size == 1 {
 		printf("\tmovsbl (%rax), %eax\n");
 	} else {
-		printf("unreachable\n");
+		eprintf("unreachable\n");
+		exit(1);
+	}
+	return 0;
+}
+
+func gen_load_regi(g *Gen, ty *Type, idx i32) i32 {
+	if ty.size == 8 {
+		printf("\tmovq (%s), %s\n", g.regi64[idx], g.regi64[idx]);
+	} else if ty.size == 4 {
+		printf("\tmovslq (%s), %s\n", g.regi64[idx], g.regi64[idx]);
+	} else if ty.size == 2 {
+		printf("\tmovswl (%s), %s\n", g.regi64[idx], g.regi32[idx]); 
+	} else if ty.size == 1 {
+		printf("\tmovsbl (%s), %s\n", g.regi64[idx], g.regi32[idx]);
+	} else {
+		eprintf("unreachable\n");
 		exit(1);
 	}
 	return 0;
@@ -2003,6 +2019,55 @@ func gen_stmt(g *Gen, node *Node) i32 {
 	}
 }
 
+func gen_func_params(g *Gen, params *Object) i32 {
+	var idx i32;
+	var struct_idx i32;
+	idx = 0;
+	while params != nil {
+		if strcmp(params.ty.kind, "TY_STRUCT") {
+			if params.ty.size > 8 {
+				struct_idx = 0;
+				while struct_idx < params.ty.size {
+					printf("\tmovb %d(%s), %r10b\n", struct_idx, g.regi64[idx]);
+					printf("\tmovb %r10b, -%d(%rbp)\n", params.offset-struct_idx);
+					struct_idx++;
+				}
+				goto next;
+			} else {
+				if params.ty.size == 8 {
+					printf("\tmovq (%s), %s\n", g.regi64[idx], g.regi64[idx]);
+				} else if params.ty.size == 4 {
+					printf("\tmovslq (%s), %s\n", g.regi64[idx], g.regi64[idx]);
+				} else if params.ty.size == 2 {
+					printf("\tmovswl (%s), %s\n", g.regi64[idx], g.regi32[idx]); 
+				} else if params.ty.size == 1 {
+					printf("\tmovsbl (%s), %s\n", g.regi64[idx], g.regi32[idx]);
+				} else {
+					eprintf("unreachable\n");
+					exit(1);
+				}
+			}
+		}
+
+		if params.ty.size == 1 {
+			printf("\tmovb %s, -%d(%rbp)\n", g.regi8[idx], params.offset);
+		} else if params.ty.size == 2 {
+			printf("\tmovw %s, -%d(%rbp)\n", g.regi16[idx], params.offset);
+		} else if params.ty.size == 4 {
+			printf("\tmovl %s, -%d(%rbp)\n", g.regi32[idx], params.offset);
+		} else if params.ty.size == 8 {
+			printf("\tmovq %s, -%d(%rbp)\n", g.regi64[idx], params.offset);
+		} else {
+			eprintf("unreachable\n");
+			exit(1);
+		}
+
+	next:
+		params = params.next_param;
+		idx++;
+	}
+}
+
 func gen(g *Gen, globals *Object) i32 {
 	printf(".text\n");
 	printf(".global _start\n");
@@ -2035,33 +2100,13 @@ func gen(g *Gen, globals *Object) i32 {
 			printf("\tmovq %rsp, %rbp\n");
 			printf("\tsubq $%d, %rsp\n", object.stack_size);
 
-			var params *Object;
-			params = object.params;
-			var idx i32;
-			idx = 0;
-			while params != nil {
-				if params.ty.size == 1 {
-					printf("\tmovb %s", g.regi8[idx]);
-				} else if params.ty.size == 2 {
-					printf("\tmovw %s", g.regi16[idx]);
-				} else if params.ty.size == 4 {
-					printf("\tmovl %s", g.regi32[idx]);
-				} else if params.ty.size == 8 {
-					printf("\tmovq %s", g.regi64[idx]);
-				} else {
-					printf("unreachable\n");
-					exit(1);
-				}
-				printf(", -%d(%rbp)\n", params.offset);
-				params = params.next_param;
-				idx++;
-			}
+			gen_func_params(g, object.params);
 
 			gen_node_block(g, object.body);
 			printf("\tleave\n");
 			printf("\tret\n");
 		} else {
-			printf("unreachable\n");
+			eprintf("unreachable\n");
 			exit(1);
 		}
 		next:
