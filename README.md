@@ -58,7 +58,7 @@ $ as -o src/builtin.o src/builtin.s
 $ ld -o ibu bootstrap/ibu.o src/builtin.o
 
 # just to check if the compiler can compile itself.
-$ make dev
+$ make self
 ```
 
 ## How to build, compile programs written in Ibu
@@ -250,10 +250,10 @@ $ make update_bootstrap
 ```
 
 ### Selfhosting
-`make dev` will compile `src/ibu.ibu` using the ./ibu executable
+`make self` will compile `src/ibu.ibu` using the ./ibu executable
 ```sh
 
-$ make dev
+$ make self
 
 ```
 

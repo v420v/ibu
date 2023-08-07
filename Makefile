@@ -4,7 +4,7 @@ make:
 	as -o src/builtin.o src/builtin.s
 	ld -o ibu bootstrap/ibu.o src/builtin.o
 
-dev:
+self:
 	./ibu src/ibu.ibu | as - -o src/ibu.o
 	as -o src/builtin.o src/builtin.s
 	ld -o ibu src/ibu.o src/builtin.o
