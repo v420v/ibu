@@ -1,4 +1,3 @@
-# builtin start
 .text
 .global write
 write:
@@ -25,12 +24,12 @@ exit:
 	movq $60, %rax
 	syscall
 
+# Allocator
 .bss
 heap:
 	.zero	5040000
 heap_size:
 	.zero	8
-
 .text
 .global	alloc
 alloc:
@@ -58,9 +57,7 @@ alloc:
 	popq	%rbp
 	ret
 
-
-
-
+# printf
 .text
 putchar:
 	subq	$24, %rsp

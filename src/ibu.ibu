@@ -352,6 +352,11 @@ struct Parser {
 	ty_i16 *Type;
 	ty_i32 *Type;
 	ty_i64 *Type;
+	ty_u8 *Type;
+	ty_u16 *Type;
+	ty_u32 *Type;
+	ty_u64 *Type;
+	ty_u0 *Type;
 	program *i8;
 }
 
@@ -819,8 +824,61 @@ func parse_args(p *Parser) *Node {
 
 func parse_unary(p *Parser) *Node;
 
+func parse_sizeof(p *Parser) *Node {
+	var node *Node;
+	var size i32;
+
+	parser_next(p);
+	parser_skip(p, "(");
+	node = parse_unary(p);
+	parser_skip(p, ")");
+	add_type(p, node);
+	size = node.ty.size;
+
+	node.kind = "ND_NUM";
+	node.int_val = itoa(size, alloc(32), 10);
+	node.ty = p.ty_i32;
+
+	return node;
+}
+
+func parse_ident(p *Parser) *Node {
+	var node *Node;
+	var name *i8;
+	var ident_tok *Token;
+	var obj *Object;
+
+	name = p.tokens.lit;
+	ident_tok = p.tokens;
+	parser_next(p);
+
+	if strcmp(p.tokens.lit, "(") {
+		node = new_node("ND_FUNC_CALL");
+		parser_skip(p, "(");
+		node.func_name = name;
+		node.args = parse_args(p);
+		parser_skip(p, ")");
+
+		obj = find_globals(p, node.func_name);
+		if obj == nil {
+			print_error(p.program, ident_tok, "unkown function");
+		}
+		node.ty = obj.ty.return_type;
+	} else {
+		node = new_node("ND_VAR");
+		obj = find_locals(p, name);
+		if obj == nil {
+			print_error(p.program, ident_tok, "unkown object");
+		}
+		node.obj = obj;
+	}
+
+	return node;
+}
+
 func parse_number(p *Parser) *Node {
 	var node *Node;
+
 	if strcmp(p.tokens.kind, "TK_NUM") {
 		node = new_node("ND_NUM");
 		node.int_val = p.tokens.lit;
@@ -842,44 +900,9 @@ func parse_number(p *Parser) *Node {
 		node.ty = p.ty_i32;
 		parser_skip(p, ")");
 	} else if strcmp(p.tokens.lit, "sizeof") {
-		parser_next(p);
-		parser_skip(p, "(");
-		node = parse_unary(p);
-		parser_skip(p, ")");
-		add_type(p, node);
-		var size i32;
-		size = node.ty.size;
-		node = new_node("ND_NUM");
-		node.int_val = itoa(size, alloc(32), 10);
-		node.ty = p.ty_i32;
+		node = parse_sizeof(p);
 	} else if strcmp(p.tokens.kind, "TK_IDENT") {
-		var name *i8;
-		var ident_tok *Token;
-		name = p.tokens.lit;
-		ident_tok = p.tokens;
-		parser_next(p);
-		if strcmp(p.tokens.lit, "(") {
-			node = new_node("ND_FUNC_CALL");
-			parser_skip(p, "(");
-			node.func_name = name;
-			node.args = parse_args(p);
-			parser_skip(p, ")");
-
-			var func_obj *Object;
-			func_obj = find_globals(p, node.func_name);
-			if func_obj == nil {
-				print_error(p.program, ident_tok, "unkown function");
-			}
-			node.ty = func_obj.ty.return_type;
-		} else {
-			var obj *Object;
-			node = new_node("ND_VAR");
-			obj = find_locals(p, name);
-			if obj == nil {
-				print_error(p.program, ident_tok, "unkown object");
-			}
-			node.obj = obj;
-		}
+		node = parse_ident(p);
 	} else if strcmp(p.tokens.lit, "(") {
 		parser_next(p);
 		node = parse_expr(p);
@@ -1034,10 +1057,7 @@ func parse_unary(p *Parser) *Node {
 				if member == nil {
 					print_error(p.program, member_tok, "member name not found");
 				}
-				offset = member.offset;
-				member_ty = member.ty;
 				node = new_struct_access_node("ND_DEREF", node, 0, node.obj, node.ty.pointer_to);
-				node = new_struct_access_node("ND_MEMBER_ACCESS", node, offset, node.obj, member_ty);
 			} else {
 				if !strcmp(node.ty.kind, "TY_STRUCT") {
 					print_error(p.program, access_tok, "cannot access from none struct type");
@@ -1046,10 +1066,10 @@ func parse_unary(p *Parser) *Node {
 				if member == nil {
 					print_error(p.program, member_tok, "member name not found");
 				}
-				offset = member.offset;
-				member_ty = member.ty;
-				node = new_struct_access_node("ND_MEMBER_ACCESS", node, offset, node.obj, member_ty);
 			}
+			offset = member.offset;
+			member_ty = member.ty;
+			node = new_struct_access_node("ND_MEMBER_ACCESS", node, offset, node.obj, member_ty);
 			goto again;
 		}
 		goto end;
@@ -1335,8 +1355,8 @@ func node_true() *Node {
 }
 
 func parse_stmt(p *Parser) *Node {
-
 	var node *Node;
+
 	if strcmp(p.tokens.lit, "var") {
 		var var_name *i8;
 		var var_ty *Type;
