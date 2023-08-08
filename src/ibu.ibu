@@ -18,8 +18,7 @@ struct Token {
 }
 
 func strlen(s *i8) i32 {
-	var start *i8;
-	start = s;
+	var start *i8 = s;
 	while *s != nil {
 		s++;
 	}
@@ -27,8 +26,7 @@ func strlen(s *i8) i32 {
 }
 
 func get_line_number(program *i8, start *i8) i32 {
-	var line i32;
-	line = 1;
+	var line i32 = 1;
 
 	while program != start {
 		start--;
@@ -41,8 +39,7 @@ func get_line_number(program *i8, start *i8) i32 {
 }
 
 func get_column_number(program *i8, start *i8) i32 {
-	var col i32;
-	col = 0;
+	var col i32 = 0;
 
 	while *start != 10 {
 		if program == start {
@@ -62,10 +59,8 @@ func print_error(program *i8, tok *Token, msg *i8) i32 {
 }
 
 func is_two_c_punct(a *i8) i32 {
-	var idx i32;
-	var puncts *i8;
-	puncts = "==<=>=!=++--";
-	idx = 0;
+	var puncts *i8 = "==<=>=!=++--";
+	var idx i32 = 0;
 	while {
 		if idx >= 11 {
 			return 0;
@@ -98,14 +93,12 @@ func isdigit(c i8) i8 {
 }
 
 func strndup(str *i8, n i32) *i8 {
-	var r *i8;
-	r = alloc(n+1);
+	var r *i8 = alloc(n+1);
 	if r == nil {
 		eprintf("nil");
 		exit(1);
 	}
-	var idx i32;
-	idx = 0;
+	var idx i32 = 0;
 	while idx < n {
 		r[idx] = str[idx];
 		idx++;
@@ -115,8 +108,7 @@ func strndup(str *i8, n i32) *i8 {
 }
 
 func new_token(kind *i8, start *i8, len i32) *Token {
-	var tok *Token;
-	tok = alloc(typesize(Token));
+	var tok *Token = alloc(typesize(Token));
 	if tok == nil {
 		eprintf("nil");
 		exit(1);
@@ -131,8 +123,7 @@ func new_token(kind *i8, start *i8, len i32) *Token {
 }
 
 func ispunct(c i8) i32 {
-	var punct_list *i8;
-	punct_list = "+-<>;:{}=,()[].*!%&/";
+	var punct_list *i8 = "+-<>;:{}=,()[].*!%&/";
 
 	while *punct_list != nil {
 		if *punct_list == c {
@@ -145,8 +136,7 @@ func ispunct(c i8) i32 {
 }
 
 func new_tokenizer(program *i8) *Tokenizer {
-	var tokenizer *Tokenizer;
-	tokenizer = alloc(typesize(Tokenizer));
+	var tokenizer *Tokenizer = alloc(typesize(Tokenizer));
 	if tokenizer == nil {
 		eprintf("nil");
 		exit(1);
@@ -156,8 +146,7 @@ func new_tokenizer(program *i8) *Tokenizer {
 }
 
 func tokenize_number(t *Tokenizer) *Token {
-	var digit_start *i8;
-	digit_start = t.program;
+	var digit_start *i8 = t.program;
 	while isdigit(*t.program) {
 		t.program++;
 	}
@@ -182,8 +171,7 @@ func skip_comment(t *Tokenizer) i32 {
 }
 
 func tokenize_string(t *Tokenizer) *Token {
-	var string_start *i8;
-	string_start = t.program;
+	var string_start *i8 = t.program;
 	t.program++;
 	while *t.program != 34 {
 		t.program++;
@@ -193,8 +181,7 @@ func tokenize_string(t *Tokenizer) *Token {
 }
 
 func tokenize_ident(t *Tokenizer) *Token {
-	var ident_start *i8;
-	ident_start = t.program;
+	var ident_start *i8 = t.program;
 	while {
 		if !isalpha(*t.program) {
 			if !isdigit(*t.program) {
@@ -211,11 +198,8 @@ func tokenize_ident(t *Tokenizer) *Token {
 
 func tokenize(t *Tokenizer) *Token {
 	var head Token;
-	var cur *Token;
-	var save *i8;
-
-	save = t.program;
-	cur = &head;
+	var save *i8 = t.program;
+	var cur *Token = &head;
 
 	while *t.program != nil {
 		if isdigit(*t.program) {
@@ -361,8 +345,7 @@ struct Parser {
 }
 
 func strcmp(a *i8, b *i8) i32 {
-	var idx i32;
-	idx = 0;
+	var idx i32 = 0;
 	while {
 		if a[idx] == b[idx] {
 			if a[idx] == 0 {
@@ -378,8 +361,7 @@ func strcmp(a *i8, b *i8) i32 {
 }
 
 func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type) i32 {
-	var obj *Object;
-	obj = alloc(typesize(Object));
+	var obj *Object = alloc(typesize(Object));
 	if obj == nil {
 		eprintf("nil");
 		exit(1);
@@ -397,13 +379,11 @@ func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type)
 }
 
 func print_user_defined_types(p *Parser) i32 {
-	var ty *Type;
-	var member *Member;
-	ty = p.user_defined_types;
+	var ty *Type = p.user_defined_types;
 	while ty != nil {
 		if strcmp(ty.kind, "TY_STRUCT") {
 			printf("struct %s {\n", ty.name);
-			member = ty.members;
+			var member *Member = ty.members;
 			while member != nil {
 				printf("  %s\n", member.name);
 				member = member.next;
@@ -419,8 +399,7 @@ func print_user_defined_types(p *Parser) i32 {
 }
 
 func get_user_defined_type(p *Parser, name *i8) *Type {
-	var ty *Type;
-	ty = p.user_defined_types;
+	var ty *Type = p.user_defined_types;
 	while ty != nil {
 		if strcmp(ty.name, name) {
 			return ty;
@@ -431,8 +410,7 @@ func get_user_defined_type(p *Parser, name *i8) *Type {
 }
 
 func new_builtin_type(kind *i8, size i32, name *i8) *Type {
-	var ty *Type;
-	ty = alloc(typesize(Type));
+	var ty *Type = alloc(typesize(Type));
 	ty.kind = kind;
 	ty.size = size;
 	ty.name = name;
@@ -444,8 +422,7 @@ func new_pointer_type(base *Type) *Type;
 func new_func_type(return_type *Type) *Type;
 
 func new_parser(program *i8, tokens *Token) *Parser {
-	var p *Parser;
-	p = alloc(typesize(Parser));
+	var p *Parser = alloc(typesize(Parser));
 	if p == nil {
 		eprintf("nil");
 		exit(1);
@@ -473,14 +450,11 @@ func new_parser(program *i8, tokens *Token) *Parser {
 }
 
 func reverse(str *i8, length i32) i32 {
-	var start i32;
-	start = 0;
-	var end i32;
-	end = length - 1;
+	var start i32 = 0;
+	var end i32 = length - 1;
 
     while start < end {
-		var temp i8;
-		temp = str[start];
+		var temp i8 = str[start];
         str[start] = str[end];
         str[end] = temp;
         end--;
@@ -489,8 +463,7 @@ func reverse(str *i8, length i32) i32 {
 }
 
 func itoa(num i32, str *i8, base i32) *i8 {
-	var i i32;
-	i = 0;
+	var i i32 = 0;
 
     if (num == 0) {
         str[i++] = 48;
@@ -499,8 +472,7 @@ func itoa(num i32, str *i8, base i32) *i8 {
     }
  
     while num != 0 {
-		var rem i32;
-        rem = num % base;
+        var rem i32 = num % base;
 		if (rem > 9) {
 			str[i++] = (rem - 10) + 97;
 		} else {
@@ -526,8 +498,7 @@ func parser_next(p *Parser) i32 {
 }
 
 func new_node(kind *i8) *Node {
-	var node *Node;
-	node = alloc(typesize(Node));
+	var node *Node = alloc(typesize(Node));
 	if node == nil {
 		eprintf("nil");
 		exit(1);
@@ -545,8 +516,7 @@ func parser_skip(p *Parser, str *i8) i32 {
 }
 
 func find_locals(p *Parser, name *i8) *Object {
-	var obj *Object;
-	obj = p.locals;
+	var obj *Object = p.locals;
 
 	while obj != nil {
 		if strcmp(obj.name, name) {
@@ -559,8 +529,7 @@ func find_locals(p *Parser, name *i8) *Object {
 }
 
 func find_globals(p *Parser, name *i8) *Object {
-	var object *Object;
-	object = p.globals;
+	var object *Object = p.globals;
 
 	while object != nil {
 		if strcmp(object.name, name) {
@@ -573,8 +542,7 @@ func find_globals(p *Parser, name *i8) *Object {
 }
 
 func check_local_object_already_exist(p *Parser, name *i8, tok *Token) i32 {
-	var locals *Object;
-	locals = p.locals;
+	var locals *Object = p.locals;
 	while locals != nil {
 		if strcmp(locals.name, name) {
 			print_error(p.program, tok, "name already exist");
@@ -587,8 +555,7 @@ func check_local_object_already_exist(p *Parser, name *i8, tok *Token) i32 {
 func new_local_object(p *Parser, kind *i8, name *i8, ty *Type, tok *Token) *Object {
 	check_local_object_already_exist(p, name, tok);
 
-	var obj *Object;
-	obj = alloc(typesize(Object));
+	var obj *Object = alloc(typesize(Object));
 	if obj == nil {
 		eprintf("nil");
 		exit(1);
@@ -610,8 +577,7 @@ func add_user_defined_type(p *Parser, ty *Type) i32 {
 }
 
 func new_pointer_type(base *Type) *Type {
-	var ty *Type;
-	ty = alloc(typesize(Type));
+	var ty *Type = alloc(typesize(Type));
 	ty.kind = "TY_PTR";
 	ty.size = 8;
 	ty.pointer_to = base;
@@ -621,8 +587,7 @@ func new_pointer_type(base *Type) *Type {
 func add_type(p *Parser, node *Node) i32;
 
 func add_type_block(p *Parser, block *Node) i32 {
-	var node_block *Node;
-	node_block = block;
+	var node_block *Node = block;
 	while node_block != nil {
 		add_type(p, node_block);
 		node_block = node_block.next;
@@ -774,11 +739,8 @@ func add_type(p *Parser, node *Node) i32 {
 func parse_ty(p *Parser) *Type;
 
 func parse_ty(p *Parser) *Type {
-	var name *i8;
-	var ty_token *Token;
-
-	name = p.tokens.lit;
-	ty_token = p.tokens;
+	var name *i8 = p.tokens.lit;
+	var ty_token *Token = p.tokens;
 
 	parser_next(p);
 	var ty *Type;
@@ -805,8 +767,7 @@ func parse_expr(p *Parser) *Node;
 
 func parse_args(p *Parser) *Node {
 	var head Node;
-	var cur *Node;
-	cur = &head;
+	var cur *Node = &head;
 
 	if strcmp(p.tokens.lit, ")") {
 		return nil;
@@ -825,15 +786,12 @@ func parse_args(p *Parser) *Node {
 func parse_unary(p *Parser) *Node;
 
 func parse_sizeof(p *Parser) *Node {
-	var node *Node;
-	var size i32;
-
 	parser_next(p);
 	parser_skip(p, "(");
-	node = parse_unary(p);
+	var node *Node = parse_unary(p);
 	parser_skip(p, ")");
 	add_type(p, node);
-	size = node.ty.size;
+	var size i32 = node.ty.size;
 
 	node.kind = "ND_NUM";
 	node.int_val = itoa(size, alloc(32), 10);
@@ -844,12 +802,10 @@ func parse_sizeof(p *Parser) *Node {
 
 func parse_ident(p *Parser) *Node {
 	var node *Node;
-	var name *i8;
-	var ident_tok *Token;
 	var obj *Object;
 
-	name = p.tokens.lit;
-	ident_tok = p.tokens;
+	var name *i8 = p.tokens.lit;
+	var ident_tok *Token = p.tokens;
 	parser_next(p);
 
 	if strcmp(p.tokens.lit, "(") {
@@ -915,8 +871,7 @@ func parse_number(p *Parser) *Node {
 }
 
 func search_struct_member(members *Member, exp_member_name *i8) *Member {
-	var member *Member;
-	member = members;
+	var member *Member = members;
 	while member != nil {
 		if strcmp(member.name, exp_member_name) {
 			return member;
@@ -927,8 +882,7 @@ func search_struct_member(members *Member, exp_member_name *i8) *Member {
 }
 
 func new_struct_access_node(kind *i8, lhs *Node, offset i32, obj *Object, ty *Type) *Node {
-	var node *Node;
-	node = alloc(typesize(Node));
+	var node *Node = alloc(typesize(Node));
 
 	node.kind = kind;
 	node.lhs = lhs;
@@ -940,12 +894,9 @@ func new_struct_access_node(kind *i8, lhs *Node, offset i32, obj *Object, ty *Ty
 }
 
 func parse_deref(p *Parser) *Node {
-	var node *Node;
-	var tok *Token;
-
-	tok = p.tokens;
+	var tok *Token = p.tokens;
 	parser_next(p);
-	node = new_node("ND_DEREF");
+	var node *Node = new_node("ND_DEREF");
 	node.lhs = parse_unary(p);
 
 	add_type(p, node.lhs);
@@ -957,16 +908,14 @@ func parse_deref(p *Parser) *Node {
 }
 
 func new_binop(kind *i8, lhs *Node, rhs *Node) *Node {
-	var node *Node;
-	node = new_node(kind);
+	var node *Node = new_node(kind);
 	node.lhs = lhs;
 	node.rhs = rhs;
 	return node;
 }
 
 func node_num_one(p *Parser) *Node {
-	var node *Node;
-	node = new_node("ND_NUM");
+	var node *Node = new_node("ND_NUM");
 	node.int_val = "1";
 	node.ty = p.ty_i32;
 	return node;
@@ -974,6 +923,7 @@ func node_num_one(p *Parser) *Node {
 
 func parse_unary(p *Parser) *Node {
 	var node *Node;
+
 	if strcmp(p.tokens.lit, "*") {
 		return parse_deref(p);
 	}
@@ -992,36 +942,22 @@ func parse_unary(p *Parser) *Node {
 
 	node = parse_number(p);
 
-	var access_tok *Token;
-
-	var member_tok *Token;
-	var member *Member;
-	var member_name *i8;
-	var offset i32;
-	var member_ty *Type;
-	offset = 0;
-
-	var idx *Node;
-	var idx_pointer_arith *Node;
-
 	while {
+		var access_tok *Token = p.tokens;
 		if strcmp(p.tokens.lit, "++") {
-			access_tok = p.tokens;
 			parser_next(p);
 			node = new_binop("ND_SUB", new_binop("ND_ASSIGN", node, new_binop("ND_ADD", node, node_num_one(p))), node_num_one(p));
 			goto again;
 		}
 		if strcmp(p.tokens.lit, "--") {
-			access_tok = p.tokens;
 			parser_next(p);
 			node = new_binop("ND_ADD", new_binop("ND_ASSIGN", node, new_binop("ND_SUB", node, node_num_one(p))), node_num_one(p));
 			goto again;
 		}
 		if strcmp(p.tokens.lit, "[") {
-			access_tok = p.tokens;
 			add_type(p, node);
 			parser_next(p);
-			idx = parse_expr(p);
+			var idx *Node = parse_expr(p);
 			parser_skip(p, "]");
 
 			if !strcmp(node.ty.kind, "TY_PTR") {
@@ -1033,18 +969,19 @@ func parse_unary(p *Parser) *Node {
 			base_number_node.int_val = itoa(node.ty.pointer_to.size, alloc(32), 10);
 			base_number_node.ty = p.ty_i32;
 
-			idx_pointer_arith = new_binop("ND_MUL", idx, base_number_node);
+			var idx_pointer_arith *Node = new_binop("ND_MUL", idx, base_number_node);
 			node = new_binop("ND_ADD", node, idx_pointer_arith);
 
 			node = new_struct_access_node("ND_DEREF", node, 0, nil, nil);
 			goto again;
 		}
 		if strcmp(p.tokens.lit, ".") {
-			access_tok = p.tokens;
 			parser_next(p);
 
-			member_name = p.tokens.lit;
-			member_tok = p.tokens;
+			var member_name *i8 = p.tokens.lit;
+			var member_tok *Token = p.tokens;
+			var member *Member;
+
 			parser_next(p);
 
 			add_type(p, node);
@@ -1067,8 +1004,8 @@ func parse_unary(p *Parser) *Node {
 					print_error(p.program, member_tok, "member name not found");
 				}
 			}
-			offset = member.offset;
-			member_ty = member.ty;
+			var offset i32 = member.offset;
+			var member_ty *Type = member.ty;
 			node = new_struct_access_node("ND_MEMBER_ACCESS", node, offset, node.obj, member_ty);
 			goto again;
 		}
@@ -1358,19 +1295,23 @@ func parse_stmt(p *Parser) *Node {
 	var node *Node;
 
 	if strcmp(p.tokens.lit, "var") {
-		var var_name *i8;
-		var var_ty *Type;
-		var var_name_tok *Token;
 		parser_next(p);
-		var_name = p.tokens.lit;
-		var_name_tok = p.tokens;
+		var var_name *i8 = p.tokens.lit;
+		var var_name_tok *Token = p.tokens;
 		parser_next(p);
-		var_ty = parse_ty(p);
-		parser_skip(p, ";");
-
-		new_local_object(p, "OBJ_VAR", var_name, var_ty, var_name_tok);
-
-		return nil;
+		var var_ty *Type = parse_ty(p);
+		var obj *Object = new_local_object(p, "OBJ_VAR", var_name, var_ty, var_name_tok);
+		if strcmp(p.tokens.lit, "=") {
+			parser_skip(p, "=");
+			var node_var *Node;
+			node_var = new_node("ND_VAR");
+			node_var.obj = obj;
+			node = new_binop("ND_ASSIGN", node_var, parse_expr_stmt(p));
+			return node;
+		} else {
+			parser_skip(p, ";");
+			return nil;
+		}
 	}
 
 	var label_name *i8;
@@ -1509,25 +1450,20 @@ func calc_sizof_struct_members(members *Member) i32 {
 }
 
 func parse_struct(p *Parser) i32 {
-	var struct_ty *Type;
-	var name *i8;
 	var head Member; 
 	var cur *Member;
-	var member_name *i8;
-	var name_token *Token;
-
-	struct_ty = alloc(typesize(Type));
 
 	head.next = nil;
 	cur = &head;
 
 	parser_skip(p, "struct");
-	name = p.tokens.lit;
-	name_token = p.tokens;
+	var name *i8 = p.tokens.lit;
+	var name_token *Token = p.tokens;
 	parser_next(p);
 
-	struct_ty.name = name;
+	var struct_ty *Type = alloc(typesize(Type));
 	struct_ty.kind = "TY_STRUCT";
+	struct_ty.name = name;
 
 	if strcmp(p.tokens.lit, ";") {
 		struct_ty.is_declaration = 1;
@@ -1542,7 +1478,7 @@ func parse_struct(p *Parser) i32 {
 		parser_skip(p, "{");
 
 		while !strcmp(p.tokens.lit, "}") {
-			member_name = p.tokens.lit;
+			var member_name *i8 = p.tokens.lit;
 			parser_next(p);
 			cur = cur.next = new_member(member_name, parse_ty(p));
 			parser_skip(p, ";");
@@ -1553,17 +1489,16 @@ func parse_struct(p *Parser) i32 {
 		struct_ty.members = head.next;
 		struct_ty.size = calc_sizof_struct_members(head.next);
 
-		var got_user_defined_struct *Type;
-		got_user_defined_struct = get_user_defined_type(p, name); 
-		if got_user_defined_struct == nil {
+		var user_defined_struct *Type = get_user_defined_type(p, name); 
+		if user_defined_struct == nil {
 			add_user_defined_type(p, struct_ty);
 		} else {
-			if !got_user_defined_struct.is_declaration {
+			if !user_defined_struct.is_declaration {
 				print_error(p.program, name_token, "struct is already defined somewhere");
 			}
-			got_user_defined_struct.members = head.next;
-			got_user_defined_struct.size = calc_sizof_struct_members(head.next);
-			got_user_defined_struct.is_declaration = 0;
+			user_defined_struct.members = head.next;
+			user_defined_struct.size = calc_sizof_struct_members(head.next);
+			user_defined_struct.is_declaration = 0;
 		}
 	}
 
@@ -1571,19 +1506,16 @@ func parse_struct(p *Parser) i32 {
 }
 
 func parse_func(p *Parser) i32 {
-	var obj *Object;
-	var name *i8;
-	var func_return_ty *Type;
-	var name_tok *Token;
-
 	p.locals = nil;
 
 	parser_next(p);
 
-	obj = alloc(typesize(Object));
+	var obj *Object = alloc(typesize(Object));
 	obj.kind = "OBJ_FUNC";
-	name = p.tokens.lit;
-	name_tok = p.tokens;
+
+	var name *i8 = p.tokens.lit;
+	var name_tok *Token = p.tokens;
+
 	obj.name = name;
 
 	parser_next(p);
@@ -1597,7 +1529,7 @@ func parse_func(p *Parser) i32 {
 
 	parser_skip(p, ")");
 
-	func_return_ty = parse_ty(p);
+	var func_return_ty *Type = parse_ty(p);
 
 	if strcmp(p.tokens.lit, ";") {
 		parser_skip(p, ";");
@@ -1661,8 +1593,7 @@ struct Gen {
 }
 
 func new_gen() *Gen {
-	var g *Gen;
-	g = alloc(typesize(Gen));
+	var g *Gen = alloc(typesize(Gen));
 
 	g.regi64 = alloc(typesize(*i8)*6);
 	g.regi64[0] = "%rdi"; g.regi64[1] = "%rsi"; g.regi64[2] = "%rdx"; g.regi64[3] = "%rcx"; g.regi64[4] = "%r8"; g.regi64[5] = "%r9";
@@ -1710,8 +1641,7 @@ func gen_addr(g *Gen, node *Node) i32 {
 
 func gen_store(ty *Type) i32 {
 	if strcmp(ty.kind, "TY_STRUCT") {
-		var idx i32;
-		idx = 0;
+		var idx i32 = 0;
 		while idx < ty.size {
 			printf("\tmovb %d(%rax), %r8b\n", idx);
 			printf("\tmovb %r8b, %d(%rdi)\n", idx);
@@ -1794,8 +1724,7 @@ func func_call_args_to_regi(g *Gen, arg *Node) i32 {
 	if arg == nil {
 		return 0;
 	}
-	var idx i32;
-	idx = 0;
+	var idx i32 = 0;
 	while arg != nil {
 		gen_expr(g, arg);
 		printf("\tpush %rax\n");
@@ -1983,8 +1912,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 func gen_stmt(g *Gen, node *Node) i32;
 
 func gen_node_block(g *Gen, node_block *Node) i32 {
-	var node *Node;
-	node = node_block.body;
+	var node *Node = node_block.body;
 
 	while node != nil {
 		gen_stmt(g, node);
@@ -2032,21 +1960,25 @@ func gen_stmt(g *Gen, node *Node) i32 {
 		gen_stmt(g, node.then_block);
 		printf("\tjmp .L.while.start.%d\n", c);
 		printf(".L.while.end.%d:\n", c);
+	} else if strcmp(node.kind, "ND_ASSIGN") {
+		gen_addr(g, node.lhs);
+		printf("\tpush %rax\n");
+		gen_expr(g, node.rhs);
+		printf("\tpop %rdi\n");
+		gen_store(node.ty);
 	} else {
-		printf("%s\n", node.kind);
-		printf("gen_stmt unreachable\n");
+		eprintf("%s\n", node.kind);
+		eprintf("gen_stmt unreachable\n");
 		exit(1);
 	}
 }
 
 func gen_func_params(g *Gen, params *Object) i32 {
-	var idx i32;
-	var struct_idx i32;
-	idx = 0;
+	var idx i32 = 0;
 	while params != nil {
 		if strcmp(params.ty.kind, "TY_STRUCT") {
 			if params.ty.size > 8 {
-				struct_idx = 0;
+				var struct_idx i32 = 0;
 				while struct_idx < params.ty.size {
 					printf("\tmovb %d(%s), %r10b\n", struct_idx, g.regi64[idx]);
 					printf("\tmovb %r10b, -%d(%rbp)\n", params.offset-struct_idx);
@@ -2101,8 +2033,7 @@ func gen(g *Gen, globals *Object) i32 {
 	printf("\tmovq $60, %rax\n");
 	printf("\tsyscall\n");
 
-	var object *Object;
-	object = globals;
+	var object *Object = globals;
 
 	while object != nil {
 		if strcmp(object.kind, "OBJ_FUNC") {
@@ -2146,29 +2077,23 @@ func main(argc i32, argv **i8) i32 {
 		exit(0);
 	}
 
-	var f *i8;
-	var buf *i8;
-	f = open(argv[1], 0, 420);
+	var f *i8 = open(argv[1], 0, 420);
 	if f < 0 {
 		eprintf("error: opening file %s\n", argv[1]);
 		exit(1);
 	}
-	buf = alloc(55000);
+	var buf *i8 = alloc(55000);
 	read(f, buf, 55000);
 	close(f);
 
-	var tokens *Token;
-	var t *Tokenizer;
-	t = new_tokenizer(buf);
-	tokens = tokenize(t);
+	var t *Tokenizer = new_tokenizer(buf);
+	var tokens *Token = tokenize(t);
 
-	var p *Parser;
-	p = new_parser(buf, tokens);
+	var p *Parser = new_parser(buf, tokens);
 
 	parse(p);
 
-	var g *Gen;
-	g = new_gen();
+	var g *Gen = new_gen();
 
 	gen(g, p.globals);
 
