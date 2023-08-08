@@ -1,7 +1,6 @@
 
 func main() i32 {
-    var c i32;
-    c = 1;
+    var c i32 = 1;
     while c <= 100 {
         if c % 15 == 0 {
             printf("FizzBuzz\n");

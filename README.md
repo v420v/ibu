@@ -81,10 +81,8 @@ func main() i32 {
 #### Variables
 ```go
 func main() i32 {
-    var name *i8;
-    var age i8;
-    name = "Ibuki";
-    age = 19;
+    var name *i8 = "Ibuki";
+    var age i8 = 19;
 
     printf("name: %s, age: %d\n", name, age);
 
@@ -100,10 +98,8 @@ i8, i16, i32, i64
 #### If
 ```go
 func main() i32 {
-    var x i32;
-    var y i32;
-    x = 34;
-    y = 35;
+    var x i32 = 34;
+    var y i32 = 35;
     if x < y {
         printf("%d < %d\n", x, y);
     } else if x > y {
@@ -116,8 +112,7 @@ func main() i32 {
 
 ```go
 func main() i32 {
-    var age i8;
-    age = 19;
+    var age i8 = 19;
 
     if 13 <= age < 20 { // Allows "13 <= age < 20" instead of "13 <= age && age < 20"
         printf("Teen-ager\n");
@@ -172,8 +167,7 @@ struct Person {
 }
 
 func main() i32 {
-    var p *Person;
-    p = alloc(typesize(Person));
+    var p *Person = alloc(typesize(Person));
 
     p.name = "Ibuki";
     p.age = 19;
@@ -206,16 +200,14 @@ func user_print_names(user *User) i32 {
 }
 
 func new_user(name *i8) *User {
-    var user *User;
-    user = alloc(typesize(User));
+    var user *User = alloc(typesize(User));
     user.name = name;
     return user;
 }
 
 func main(argc i32, argv **i8) i32 {
     var head User;
-    var cur *User;
-    cur = &head;
+    var cur *User = &head;
 
     cur = cur.next = new_user("Ibu");
     cur = cur.next = new_user("Ibuki");

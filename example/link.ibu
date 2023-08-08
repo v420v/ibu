@@ -18,16 +18,14 @@ func user_print_names(user *User) i32 {
 }
 
 func new_user(name *i8) *User {
-    var user *User;
-    user = alloc(typesize(User));
+    var user *User = alloc(typesize(User));
     user.name = name;
     return user;
 }
 
 func main(argc i32, argv **i8) i32 {
     var head User;
-    var cur *User;
-    cur = &head;
+    var cur *User = &head;
 
     cur = cur.next = new_user("Ibu");
     cur = cur.next = new_user("Ibuki");
