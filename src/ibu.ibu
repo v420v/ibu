@@ -1,4 +1,9 @@
 
+// https://templeos.org/
+// https://en.wikipedia.org/wiki/TempleOS
+// https://tinkeros.github.io/WbGit/Doc/HolyC.html
+// https://github.com/cia-foundation/TempleOS
+
 // ----------------------------------
 // Tokenizer
 // ----------------------------------
@@ -1974,26 +1979,26 @@ func gen_stmt(g *Gen, node *Node) i32 {
 }
 
 func gen_func_params(g *Gen, params *Object) i32 {
-	var idx i32 = 0;
+	var regi_idx i32 = 0;
 	while params != nil {
 		if strcmp(params.ty.kind, "TY_STRUCT") {
 			if params.ty.size > 8 {
 				var struct_idx i32 = 0;
 				while struct_idx < params.ty.size {
-					printf("\tmovb %d(%s), %r10b\n", struct_idx, g.regi64[idx]);
+					printf("\tmovb %d(%s), %r10b\n", struct_idx, g.regi64[regi_idx]);
 					printf("\tmovb %r10b, -%d(%rbp)\n", params.offset-struct_idx);
 					struct_idx++;
 				}
 				goto next;
 			} else {
 				if params.ty.size == 8 {
-					printf("\tmovq (%s), %s\n", g.regi64[idx], g.regi64[idx]);
+					printf("\tmovq (%s), %s\n", g.regi64[regi_idx], g.regi64[regi_idx]);
 				} else if params.ty.size == 4 {
-					printf("\tmovslq (%s), %s\n", g.regi64[idx], g.regi64[idx]);
+					printf("\tmovslq (%s), %s\n", g.regi64[regi_idx], g.regi64[regi_idx]);
 				} else if params.ty.size == 2 {
-					printf("\tmovswl (%s), %s\n", g.regi64[idx], g.regi32[idx]); 
+					printf("\tmovswl (%s), %s\n", g.regi64[regi_idx], g.regi32[regi_idx]); 
 				} else if params.ty.size == 1 {
-					printf("\tmovsbl (%s), %s\n", g.regi64[idx], g.regi32[idx]);
+					printf("\tmovsbl (%s), %s\n", g.regi64[regi_idx], g.regi32[regi_idx]);
 				} else {
 					eprintf("unreachable\n");
 					exit(1);
@@ -2002,13 +2007,13 @@ func gen_func_params(g *Gen, params *Object) i32 {
 		}
 
 		if params.ty.size == 1 {
-			printf("\tmovb %s, -%d(%rbp)\n", g.regi8[idx], params.offset);
+			printf("\tmovb %s, -%d(%rbp)\n", g.regi8[regi_idx], params.offset);
 		} else if params.ty.size == 2 {
-			printf("\tmovw %s, -%d(%rbp)\n", g.regi16[idx], params.offset);
+			printf("\tmovw %s, -%d(%rbp)\n", g.regi16[regi_idx], params.offset);
 		} else if params.ty.size == 4 {
-			printf("\tmovl %s, -%d(%rbp)\n", g.regi32[idx], params.offset);
+			printf("\tmovl %s, -%d(%rbp)\n", g.regi32[regi_idx], params.offset);
 		} else if params.ty.size == 8 {
-			printf("\tmovq %s, -%d(%rbp)\n", g.regi64[idx], params.offset);
+			printf("\tmovq %s, -%d(%rbp)\n", g.regi64[regi_idx], params.offset);
 		} else {
 			eprintf("unreachable\n");
 			exit(1);
@@ -2016,7 +2021,7 @@ func gen_func_params(g *Gen, params *Object) i32 {
 
 	next:
 		params = params.next_param;
-		idx++;
+		regi_idx++;
 	}
 }
 
@@ -2090,11 +2095,9 @@ func main(argc i32, argv **i8) i32 {
 	var tokens *Token = tokenize(t);
 
 	var p *Parser = new_parser(buf, tokens);
-
 	parse(p);
 
 	var g *Gen = new_gen();
-
 	gen(g, p.globals);
 
 	return 0;
