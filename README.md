@@ -10,7 +10,6 @@
 - No C-like pointer arithmetic
 - No `break`, `continue` stmt. Use `goto`
 - No block scopes.
-- No bugs, everything is a feature
 
 Ibu is similar to C and is also influenced by Go, HolyC, and Python.
 
