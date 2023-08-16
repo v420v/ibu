@@ -322,7 +322,7 @@ struct Node {
 	then_block *Node;
 	else_block *Node;
 	label_name *i8;
-	int_val *i8;
+	int_val i32;
 	str_val *i8;
 	obj *Object;
 	ty *Type;
@@ -491,6 +491,27 @@ func itoa(num i32, str *i8, base i32) *i8 {
     reverse(str, i);
  
     return str;
+}
+
+func atoi(str *i8) i32 {
+	var i i32 = 0;
+	var n i32 = 0;
+	var is_neg i8 = 0;
+
+	if str[i] == 45 {
+		is_neg = 1;
+		i++;
+	}
+
+	while str[i] != 0 {
+		n = n * 10 + str[i++] - 48;
+	}
+
+	if is_neg {
+	    n = n - n*2;
+	}
+
+	return n;
 }
 
 func parser_next(p *Parser) i32 {
@@ -797,9 +818,9 @@ func parse_sizeof(p *Parser) *Node {
 	parser_skip(p, ")");
 	add_type(p, node);
 	var size i32 = node.ty.size;
-
+ 
 	node.kind = "ND_NUM";
-	node.int_val = itoa(size, alloc(32), 10);
+	node.int_val = size;
 	node.ty = p.ty_i32;
 
 	return node;
@@ -842,7 +863,7 @@ func parse_number(p *Parser) *Node {
 
 	if strcmp(p.tokens.kind, "TK_NUM") {
 		node = new_node("ND_NUM");
-		node.int_val = p.tokens.lit;
+		node.int_val = atoi(p.tokens.lit);
 		parser_next(p);
 	} else if strcmp(p.tokens.kind, "TK_STR") {
 		node = new_node("ND_STR");
@@ -852,12 +873,12 @@ func parse_number(p *Parser) *Node {
 		parser_next(p);
 		node = new_node("ND_NUM");
 		node.ty = p.ty_i32;
-		node.int_val = "0";
+		node.int_val = 0;
 	} else if strcmp(p.tokens.lit, "typesize") {
 		node = new_node("ND_NUM");
 		parser_next(p);
 		parser_skip(p, "(");
-		node.int_val = itoa(parse_ty(p).size, alloc(32), 10);
+		node.int_val = parse_ty(p).size;
 		node.ty = p.ty_i32;
 		parser_skip(p, ")");
 	} else if strcmp(p.tokens.lit, "sizeof") {
@@ -921,7 +942,7 @@ func new_binop(kind *i8, lhs *Node, rhs *Node) *Node {
 
 func node_num_one(p *Parser) *Node {
 	var node *Node = new_node("ND_NUM");
-	node.int_val = "1";
+	node.int_val = 1;
 	node.ty = p.ty_i32;
 	return node;
 }
@@ -971,7 +992,7 @@ func parse_unary(p *Parser) *Node {
 
 			var base_number_node *Node;
 			base_number_node = new_node("ND_NUM");
-			base_number_node.int_val = itoa(node.ty.pointer_to.size, alloc(32), 10);
+			base_number_node.int_val = node.ty.pointer_to.size;
 			base_number_node.ty = p.ty_i32;
 
 			var idx_pointer_arith *Node = new_binop("ND_MUL", idx, base_number_node);
@@ -1292,7 +1313,7 @@ func node_true() *Node {
 	var node *Node;
 	node = alloc(typesize(Node));
 	node.kind = "ND_NUM";
-	node.int_val = "1";
+	node.int_val = 1;
 	return node;
 }
 
@@ -1766,7 +1787,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		return 0;
 	}
 	if strcmp(node.kind, "ND_NUM") {
-		printf("\tmovq $%s, %rax\n", node.int_val);
+		printf("\tmovq $%d, %rax\n", node.int_val);
 		return 0;
 	}
 	if strcmp(node.kind, "ND_ASSIGN") {
