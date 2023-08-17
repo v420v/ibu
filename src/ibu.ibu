@@ -63,16 +63,16 @@ func print_error(program *i8, tok *Token, msg *i8) i32 {
 	exit(1);
 }
 
-func is_two_c_punct(a *i8) i32 {
+func is_two_c_punct(a *i8) bool {
 	var puncts *i8 = "==<=>=!=++--";
 	var idx i32 = 0;
 	while {
 		if idx >= 11 {
-			return 0;
+			return false;
 		}
 		if a[0] == puncts[idx] {
 			if a[1] == puncts[idx+1] {
-				return 1;
+				return true;
 			}
 		}
 		idx++;
@@ -80,21 +80,21 @@ func is_two_c_punct(a *i8) i32 {
 	}
 }
 
-func isalpha(c i8) i8 {
+func isalpha(c i8) bool {
 	if 65 <= c <= 90 { // A .. Z
-		return 1;
+		return true;
 	}
 	if 97 <= c <= 122 { // a .. z
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
-func isdigit(c i8) i8 {
+func isdigit(c i8) bool {
 	if 48 <= c <= 57 { // 0 .. 9
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 func strndup(str *i8, n i32) *i8 {
@@ -127,17 +127,17 @@ func new_token(kind *i8, start *i8, len i32) *Token {
 	return tok;
 }
 
-func ispunct(c i8) i32 {
+func ispunct(c i8) bool {
 	var punct_list *i8 = "+-<>;:{}=,()[].*!%&/";
 
 	while *punct_list != nil {
 		if *punct_list == c {
-			return 1;
+			return true;
 		}
 		punct_list++;
 	}
 
-	return 0;
+	return false;
 }
 
 func new_tokenizer(program *i8) *Tokenizer {
@@ -291,7 +291,7 @@ struct Type {
 	members *Member;
 	return_type *Type;
 	pointer_to *Type;
-	is_declaration i8;
+	is_declaration bool;
 	next *Type;
 }
 
@@ -307,9 +307,9 @@ struct Object {
 	locals *Object;
 	stack_size i32;
 	ty *Type;
-	is_declaration i8;
-	is_func_param i8;
-	is_builtin i8;
+	is_declaration bool;
+	is_func_param bool;
+	is_builtin bool;
 	next *Object;
 	next_param *Object;
 }
@@ -342,28 +342,25 @@ struct Parser {
 	ty_i16 *Type;
 	ty_i32 *Type;
 	ty_i64 *Type;
-	ty_u8 *Type;
-	ty_u16 *Type;
-	ty_u32 *Type;
-	ty_u64 *Type;
-	ty_u0 *Type;
+	ty_bool *Type;
 	program *i8;
 }
 
-func strcmp(a *i8, b *i8) i32 {
+func strcmp(a *i8, b *i8) bool {
 	var idx i32 = 0;
 	while {
 		if a[idx] == b[idx] {
 			if a[idx] == 0 {
-				return 1;
+				return true;
 			}
 			goto ok_next;
 		} else {
-			return 0;
+			return false;
 		}
 		ok_next:
 		idx++;
 	}
+	return false;
 }
 
 func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type) i32 {
@@ -376,7 +373,7 @@ func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type)
 	obj.name = name;
 	obj.params = params;
 	obj.ty = ty;
-	obj.is_builtin = 1;
+	obj.is_builtin = true;
 
 	obj.next = p.globals;
 	p.globals = obj;
@@ -440,6 +437,7 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	p.ty_i32 = new_builtin_type("i32", 4, "i32");
 	p.ty_i16 = new_builtin_type("i16", 2, "i16");
 	p.ty_i8 = new_builtin_type("i8", 1, "i8");
+	p.ty_bool = new_builtin_type("bool", 1, "bool");
 
 	add_builtin_object(p, "alloc", "OBJ_FUNC", nil, new_func_type(new_pointer_type(p.ty_i64)));
 	add_builtin_object(p, "open", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
@@ -497,10 +495,10 @@ func itoa(num i32, str *i8, base i32) *i8 {
 func atoi(str *i8) i32 {
 	var i i32 = 0;
 	var n i32 = 0;
-	var is_neg i8 = 0;
+	var is_neg bool = 0;
 
 	if str[i] == 45 {
-		is_neg = 1;
+		is_neg = true;
 		i++;
 	}
 
@@ -779,6 +777,8 @@ func parse_ty(p *Parser) *Type {
 		ty = p.ty_i16;
 	} else if strcmp(name, "i8") {
 		ty = p.ty_i8;
+	} else if strcmp(name, "bool") {
+		ty = p.ty_bool;
 	} else if strcmp(name, "*") {
 		ty = new_pointer_type(parse_ty(p));
 	} else {
@@ -874,6 +874,16 @@ func parse_number(p *Parser) *Node {
 		parser_next(p);
 		node = new_node("ND_NUM");
 		node.ty = p.ty_i32;
+		node.int_val = 0;
+	} else if strcmp(p.tokens.lit, "true") {
+		parser_next(p);
+		node = new_node("ND_NUM");
+		node.ty = p.ty_bool;
+		node.int_val = 1;
+	} else if strcmp(p.tokens.lit, "false") {
+		parser_next(p);
+		node = new_node("ND_NUM");
+		node.ty = p.ty_bool;
 		node.int_val = 0;
 	} else if strcmp(p.tokens.lit, "typesize") {
 		node = new_node("ND_NUM");
@@ -1424,7 +1434,7 @@ func parse_func_params(p *Parser) *Object {
 		name_tok = p.tokens;
 		parser_next(p);
 		cur = cur.next_param = new_local_object(p, "OBJ_VAR", name, parse_ty(p), name_tok);
-		cur.is_func_param = 1;
+		cur.is_func_param = true;
 
 		if strcmp(p.tokens.lit, ",") {
 			parser_skip(p, ",");
@@ -1480,7 +1490,7 @@ func parse_struct(p *Parser) i32 {
 	struct_ty.name = name;
 
 	if strcmp(p.tokens.lit, ";") {
-		struct_ty.is_declaration = 1;
+		struct_ty.is_declaration = true;
 		struct_ty.members = nil;
 		struct_ty.size = 0;
 		parser_skip(p, ";");
@@ -1512,7 +1522,7 @@ func parse_struct(p *Parser) i32 {
 			}
 			user_defined_struct.members = head.next;
 			user_defined_struct.size = calc_sizof_struct_members(head.next);
-			user_defined_struct.is_declaration = 0;
+			user_defined_struct.is_declaration = false;
 		}
 	}
 
@@ -1550,7 +1560,7 @@ func parse_func(p *Parser) i32 {
 		if find_globals(p, name) == nil {
 			obj.ty = new_func_type(func_return_ty);
 			obj.locals = nil;
-			obj.is_declaration = 1;
+			obj.is_declaration = true;
 
 			obj.next = p.globals;
 			p.globals = obj;
@@ -1564,13 +1574,13 @@ func parse_func(p *Parser) i32 {
 			}
 			got_user_defined_func.body = parse_block(p);
 			got_user_defined_func.locals = p.locals;
-			got_user_defined_func.is_declaration = 0;
+			got_user_defined_func.is_declaration = false;
 			got_user_defined_func.params = obj.params;
 		} else {
 			obj.ty = new_func_type(func_return_ty);
 			obj.body = parse_block(p);
 			obj.locals = p.locals;
-			obj.is_declaration = 0;
+			obj.is_declaration = false;
 	
 			obj.next = p.globals;
 			p.globals = obj;
