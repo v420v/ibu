@@ -540,6 +540,39 @@ func parser_skip(p *Parser, str *i8) i32 {
 	print_error(p.program, p.tokens, "unexpected token");
 }
 
+func cmp_type(ty1 *Type, ty2 *Type) bool;
+
+func cmp_type(ty1 *Type, ty2 *Type) bool {
+	if ty1 == nil {
+		return false;
+	}
+	if ty2 == nil {
+		return false;
+	}
+
+	if !strcmp(ty1.kind, ty2.kind) {
+		return false;
+	}
+	
+	if strcmp(ty1.kind, "TY_FUNC") {
+		return cmp_type(ty1.return_type, ty2.return_type);
+	}
+
+	if strcmp(ty1.kind, "TY_PTR") {
+		return cmp_type(ty1.pointer_to, ty2.pointer_to);
+	}
+
+	if ty1.size != ty2.size {
+		return false;
+	}
+
+	if !strcmp(ty1.name, ty2.name) {
+		return false;
+	}
+
+	return true;
+}
+
 func find_locals(p *Parser, name *i8) *Object {
 	var obj *Object = p.locals;
 
@@ -1529,6 +1562,49 @@ func parse_struct(p *Parser) i32 {
 	return 0;
 }
 
+func foo(a i32) i32;
+
+func cmp_func_param(p1 *Object, p2 *Object) bool {
+	if p1 == p2 {
+		return true;
+	}
+	if !strcmp(p1.name, p2.name) {
+		return false;
+	}
+	if cmp_type(p1.ty, p2.ty) {
+		return true;
+	}
+	return false;
+}
+
+func cmp_func_params(p1 *Object, p2 *Object) bool;
+
+func cmp_func_params(p1 *Object, p2 *Object) bool {
+    if p1 == p2 {
+	    return true;
+    }
+	if p1 == nil {
+		return false;
+	}
+	if p2 == nil {
+		return false;
+	}
+	if !cmp_func_param(p1, p2) {
+		return false;
+	}
+	if p1.next != nil {
+		if !cmp_func_params(p1.next, p2.next) {
+			return false;
+		}
+	}
+	if p2.next != nil {
+		if !cmp_func_params(p1.next, p2.next) {
+			return false;
+		}
+	}
+	return true;
+}
+
 func parse_func(p *Parser) i32 {
 	p.locals = nil;
 
@@ -1557,20 +1633,27 @@ func parse_func(p *Parser) i32 {
 
 	if strcmp(p.tokens.lit, ";") {
 		parser_skip(p, ";");
-		if find_globals(p, name) == nil {
-			obj.ty = new_func_type(func_return_ty);
-			obj.locals = nil;
-			obj.is_declaration = true;
-
-			obj.next = p.globals;
-			p.globals = obj;
+		if find_globals(p, name) != nil {
+			print_error(p.program, name_tok, "function is already declared somewhere.");
 		}
+		obj.ty = new_func_type(func_return_ty);
+		obj.locals = nil;
+		obj.is_declaration = true;
+
+		obj.next = p.globals;
+		p.globals = obj;
 	} else {
 		var got_user_defined_func *Object;
 		got_user_defined_func = find_globals(p, name);
 		if got_user_defined_func != nil {
 			if !got_user_defined_func.is_declaration {
 				print_error(p.program, name_tok, "function is already defined somewhere");
+			}
+			if !cmp_func_params(got_user_defined_func.params, obj.params) {
+				print_error(p.program, name_tok, "function declaration paramaters does not match to definition");
+			}
+			if !cmp_type(func_return_ty, got_user_defined_func.ty.return_type) {
+				print_error(p.program, name_tok, "function declaration return type does not match to definition");
 			}
 			got_user_defined_func.body = parse_block(p);
 			got_user_defined_func.locals = p.locals;
@@ -1741,8 +1824,6 @@ func gen_condition_store(ty *Type) i32 {
 		printf("\tmovzbl %al, %eax\n");
 	}
 }
-
-func gen_expr(g *Gen, node *Node) i32;
 
 func pop_arg_regi(g *Gen, arg *Node, idx *i32) i32;
 
