@@ -13,12 +13,12 @@ _start:
 main:
 	push %rbp
 	movq %rsp, %rbp
-	subq $60, %rsp
-	movl %edi, -60(%rbp)
-	movq %rsi, -56(%rbp)
+	subq $56, %rsp
+	movl %edi, -56(%rbp)
+	movq %rsi, -52(%rbp)
 	movq $2, %rax
 	push %rax
-	leaq -60(%rbp), %rax
+	leaq -56(%rbp), %rax
 	movslq (%rax), %rax
 	pop %rdi
 	cmpl %edi, %eax
@@ -45,7 +45,7 @@ main:
 	jmp .L.end.0
 .L.else.0:
 .L.end.0:
-	leaq -48(%rbp), %rax
+	leaq -44(%rbp), %rax
 	push %rax
 	movq $8, %rax
 	push %rax
@@ -53,7 +53,7 @@ main:
 	pop %rdi
 	imull %edi, %eax
 	push %rax
-	leaq -56(%rbp), %rax
+	leaq -52(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
@@ -70,11 +70,11 @@ main:
 	call open
 	addq $0, %rsp
 	pop %rdi
-	movq %rax, (%rdi)
+	movl %eax, (%rdi)
 	movq $0, %rax
 	push %rax
-	leaq -48(%rbp), %rax
-	movq (%rax), %rax
+	leaq -44(%rbp), %rax
+	movslq (%rax), %rax
 	pop %rdi
 	cmpl %edi, %eax
 	setl %al
@@ -93,7 +93,7 @@ main:
 	pop %rdi
 	imull %edi, %eax
 	push %rax
-	leaq -56(%rbp), %rax
+	leaq -52(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
@@ -123,8 +123,8 @@ main:
 	addq $0, %rsp
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq -48(%rbp), %rax
-	movq (%rax), %rax
+	leaq -44(%rbp), %rax
+	movslq (%rax), %rax
 	push %rax
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
@@ -137,8 +137,8 @@ main:
 	movq $0, %rax
 	call read
 	addq $0, %rsp
-	leaq -48(%rbp), %rax
-	movq (%rax), %rax
+	leaq -44(%rbp), %rax
+	movslq (%rax), %rax
 	push %rax
 	pop %rdi
 	movq $0, %rax
@@ -1456,12 +1456,6 @@ gen_stmt:
 	jne .L.else.24
 	leaq -4(%rbp), %rax
 	push %rax
-	leaq -20(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	movslq (%rax), %rax
-	pop %rdi
-	movl %eax, (%rdi)
 	movq $1, %rax
 	push %rax
 	leaq -20(%rbp), %rax
@@ -1480,6 +1474,8 @@ gen_stmt:
 	movl %eax, (%rdi)
 	pop %rdi
 	subl %edi, %eax
+	pop %rdi
+	movl %eax, (%rdi)
 	leaq -20(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
@@ -1706,12 +1702,6 @@ gen_stmt:
 	jne .L.else.28
 	leaq -4(%rbp), %rax
 	push %rax
-	leaq -20(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	movslq (%rax), %rax
-	pop %rdi
-	movl %eax, (%rdi)
 	movq $1, %rax
 	push %rax
 	leaq -20(%rbp), %rax
@@ -1730,6 +1720,8 @@ gen_stmt:
 	movl %eax, (%rdi)
 	pop %rdi
 	subl %edi, %eax
+	pop %rdi
+	movl %eax, (%rdi)
 .data
 .L.str.50:
 	.string ".L.while.start.%d:\n"
@@ -2087,12 +2079,12 @@ func_call_args_to_regi:
 func_call_args_to_stack:
 	push %rbp
 	movq %rsp, %rbp
-	subq $32, %rsp
-	movq %rdi, -32(%rbp)
-	movq %rsi, -24(%rbp)
+	subq $28, %rsp
+	movq %rdi, -28(%rbp)
+	movq %rsi, -20(%rbp)
 	movq $0, %rax
 	push %rax
-	leaq -24(%rbp), %rax
+	leaq -20(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	cmpl %edi, %eax
@@ -2107,13 +2099,13 @@ func_call_args_to_stack:
 	jmp .L.end.33
 .L.else.33:
 .L.end.33:
-	leaq -16(%rbp), %rax
+	leaq -12(%rbp), %rax
 	push %rax
-	leaq -24(%rbp), %rax
+	leaq -20(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq -8(%rbp), %rax
+	leaq -4(%rbp), %rax
 	push %rax
 	movq $0, %rax
 	pop %rdi
@@ -2121,7 +2113,7 @@ func_call_args_to_stack:
 .L.while.start.34:
 	movq $0, %rax
 	push %rax
-	leaq -16(%rbp), %rax
+	leaq -12(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	cmpl %edi, %eax
@@ -2131,7 +2123,7 @@ func_call_args_to_stack:
 	jne .L.while.end.34
 	movq $8, %rax
 	push %rax
-	leaq -16(%rbp), %rax
+	leaq -12(%rbp), %rax
 	movq (%rax), %rax
 	addq $84, %rax
 	movq (%rax), %rax
@@ -2143,10 +2135,57 @@ func_call_args_to_stack:
 	movzbl %al, %eax
 	cmpq $1, %rax
 	jne .L.else.35
-	leaq -32(%rbp), %rax
+	leaq -4(%rbp), %rax
+	push %rax
+	leaq -28(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq -16(%rbp), %rax
+	leaq -12(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	pop %rsi
+	pop %rdi
+	movq $0, %rax
+	call func_call_copy_val_rsp
+	addq $0, %rsp
+	push %rax
+	leaq -4(%rbp), %rax
+	movslq (%rax), %rax
+	pop %rdi
+	addl %edi, %eax
+	pop %rdi
+	movl %eax, (%rdi)
+	jmp .L.end.35
+.L.else.35:
+.L.end.35:
+	leaq -12(%rbp), %rax
+	push %rax
+	leaq -12(%rbp), %rax
+	movq (%rax), %rax
+	addq $112, %rax
+	movq (%rax), %rax
+	pop %rdi
+	movq %rax, (%rdi)
+	jmp .L.while.start.34
+.L.while.end.34:
+	leaq -4(%rbp), %rax
+	movslq (%rax), %rax
+	movq %rbp, %rsp
+	pop %rbp
+	retq
+	leave
+	ret
+.global func_call_copy_val_rsp
+func_call_copy_val_rsp:
+	push %rbp
+	movq %rsp, %rbp
+	subq $20, %rsp
+	movq %rdi, -20(%rbp)
+	movq %rsi, -12(%rbp)
+	leaq -20(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq -12(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
 	pop %rsi
@@ -2160,7 +2199,7 @@ func_call_args_to_stack:
 .text
 	leaq .L.str.61(%rip), %rax
 	push %rax
-	leaq -16(%rbp), %rax
+	leaq -12(%rbp), %rax
 	movq (%rax), %rax
 	addq $84, %rax
 	movq (%rax), %rax
@@ -2172,28 +2211,13 @@ func_call_args_to_stack:
 	movq $0, %rax
 	call printf
 	addq $0, %rsp
-	leaq -8(%rbp), %rax
-	push %rax
-	leaq -16(%rbp), %rax
-	movq (%rax), %rax
-	addq $84, %rax
-	movq (%rax), %rax
-	addq $8, %rax
-	movslq (%rax), %rax
-	push %rax
-	leaq -8(%rbp), %rax
-	movslq (%rax), %rax
-	pop %rdi
-	addl %edi, %eax
-	pop %rdi
-	movl %eax, (%rdi)
 	leaq -4(%rbp), %rax
 	push %rax
 	movq $0, %rax
 	pop %rdi
 	movl %eax, (%rdi)
 .L.while.start.36:
-	leaq -16(%rbp), %rax
+	leaq -12(%rbp), %rax
 	movq (%rax), %rax
 	addq $84, %rax
 	movq (%rax), %rax
@@ -2252,20 +2276,11 @@ func_call_args_to_stack:
 	subl %edi, %eax
 	jmp .L.while.start.36
 .L.while.end.36:
-	jmp .L.end.35
-.L.else.35:
-.L.end.35:
-	leaq -16(%rbp), %rax
-	push %rax
-	leaq -16(%rbp), %rax
+	leaq -12(%rbp), %rax
 	movq (%rax), %rax
-	addq $112, %rax
+	addq $84, %rax
 	movq (%rax), %rax
-	pop %rdi
-	movq %rax, (%rdi)
-	jmp .L.while.start.34
-.L.while.end.34:
-	leaq -8(%rbp), %rax
+	addq $8, %rax
 	movslq (%rax), %rax
 	movq %rbp, %rsp
 	pop %rbp
@@ -3471,12 +3486,8 @@ gen_expr:
 	jne .L.else.62
 	leaq -8(%rbp), %rax
 	push %rax
-	leaq -24(%rbp), %rax
-	movq (%rax), %rax
-	addq $4, %rax
-	movslq (%rax), %rax
-	pop %rdi
-	movl %eax, (%rdi)
+	movq $1, %rax
+	push %rax
 	leaq -24(%rbp), %rax
 	movq (%rax), %rax
 	addq $4, %rax
@@ -3489,6 +3500,10 @@ gen_expr:
 	movslq (%rax), %rax
 	pop %rdi
 	addl %edi, %eax
+	pop %rdi
+	movl %eax, (%rdi)
+	pop %rdi
+	subl %edi, %eax
 	pop %rdi
 	movl %eax, (%rdi)
 .data
@@ -4622,12 +4637,6 @@ gen_expr:
 	jne .L.else.82
 	leaq -8(%rbp), %rax
 	push %rax
-	leaq -24(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	movslq (%rax), %rax
-	pop %rdi
-	movl %eax, (%rdi)
 	movq $1, %rax
 	push %rax
 	leaq -24(%rbp), %rax
@@ -4646,6 +4655,8 @@ gen_expr:
 	movl %eax, (%rdi)
 	pop %rdi
 	subl %edi, %eax
+	pop %rdi
+	movl %eax, (%rdi)
 	leaq -24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
@@ -17203,7 +17214,7 @@ ispunct:
 	push %rax
 .data
 .L.str.453:
-	.string "+-<>;:{}=,()[].*!%&/"
+	.string "+-<>;:{}=,()[].*#!%&/"
 .text
 	leaq .L.str.453(%rip), %rax
 	pop %rdi

@@ -128,7 +128,7 @@ func new_token(kind *i8, start *i8, len i32) *Token {
 }
 
 func ispunct(c i8) bool {
-	var punct_list *i8 = "+-<>;:{}=,()[].*!%&/";
+	var punct_list *i8 = "+-<>;:{}=,()[].*#!%&/";
 
 	while *punct_list != nil {
 		if *punct_list == c {
@@ -1841,6 +1841,18 @@ func pop_arg_regi(g *Gen, arg *Node, idx *i32) i32 {
 	return 0;
 }
 
+func func_call_copy_val_rsp(g *Gen, n *Node) i32 {
+	gen_expr(g, n);
+	printf("\tsubq $%d, %rsp\n", n.ty.size);
+	var b i32 = 0;
+	while b < n.ty.size {
+		printf("\tmovb %d(%rax), %r10b\n", b);
+		printf("\tmovb %r10b, %d(%rsp)\n", b);
+		b++;
+	}
+	return n.ty.size;
+}
+
 func func_call_args_to_stack(g *Gen, arg *Node) i32 {
 	if arg == nil {
 		return 0;
@@ -1851,15 +1863,7 @@ func func_call_args_to_stack(g *Gen, arg *Node) i32 {
 
 	while arg2 != nil {
 		if arg2.ty.size > 8 {
-			gen_expr(g, arg2);
-			printf("\tsubq $%d, %rsp\n", arg2.ty.size);
-			stack = stack + arg2.ty.size;
-			var b i32 = 0;
-			while b < arg2.ty.size {
-				printf("\tmovb %d(%rax), %r10b\n", b);
-				printf("\tmovb %r10b, %d(%rsp)\n", b);
-				b++;
-			}
+			stack = stack + func_call_copy_val_rsp(g, arg2);
 		}
 		arg2 = arg2.next;
 	}
@@ -1903,8 +1907,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		return 0;
 	}
 	if strcmp(node.kind, "ND_STR") {
-		c = g.str_label_count;
-		g.str_label_count = g.str_label_count + 1;
+		c = g.str_label_count++;
 		printf(".data\n");
 		printf(".L.str.%d:\n", c);
 		printf("\t.string %s\n", node.str_val);
@@ -1925,6 +1928,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_store(node.ty);
 		return 0;
 	}
+
 	if strcmp(node.kind, "ND_VAR") {
 		gen_addr(g, node);
 		gen_load(node.ty);
@@ -2017,8 +2021,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		return 0;
 	}
 	if strcmp(node.kind, "ND_AND") {
-		c = g.label_count;
-		g.label_count++;
+		c = g.label_count++;
     	gen_expr(g, node.lhs);
     	printf("\tcmpq $0, %rax\n");
     	printf("\tje .L.false.%d\n", c);
@@ -2089,8 +2092,7 @@ func gen_stmt(g *Gen, node *Node) i32 {
 		printf("\tpop %rbp\n");
 		printf("\tretq\n");
 	} else if strcmp(node.kind, "ND_IF") {
-		c = g.label_count;
-		g.label_count++;
+		c = g.label_count++;
 		gen_expr(g, node.cond);
 		printf("\tcmpq $1, %rax\n");
 		printf("\tjne .L.else.%d\n", c);
@@ -2106,8 +2108,7 @@ func gen_stmt(g *Gen, node *Node) i32 {
 	} else if strcmp(node.kind, "ND_LABEL") {
 		printf(".L.%s.%s:\n", g.cur_func_name, node.label_name);
 	} else if strcmp(node.kind, "ND_WHILE") {
-		c = g.label_count;
-		g.label_count++;
+		c = g.label_count++;
 		printf(".L.while.start.%d:\n", c);
 		gen_expr(g, node.cond);
 		printf("\tcmpq $1, %rax\n");
@@ -2184,7 +2185,7 @@ func assign_offset(objects *Object) i32 {
 		}
 		offset = offset + obj.ty.size;
 		obj.offset = offset - offset * 2;
-		next:
+	next:
 		obj = obj.next;
 	}
 	return offset;
@@ -2230,7 +2231,7 @@ func gen(g *Gen, globals *Object) i32 {
 			eprintf("unreachable\n");
 			exit(1);
 		}
-		next:
+	next:
 		object = object.next;
 	}
 
@@ -2247,14 +2248,14 @@ func main(argc i32, argv **i8) i32 {
 		exit(0);
 	}
 
-	var f *i8 = open(argv[1], 0, 420);
-	if f < 0 {
+	var fd i32 = open(argv[1], 0, 420);
+	if fd < 0 {
 		eprintf("error: opening file %s\n", argv[1]);
 		exit(1);
 	}
 	var buf *i8 = alloc(55000);
-	read(f, buf, 55000);
-	close(f);
+	read(fd, buf, 55000);
+	close(fd);
 
 	var t *Tokenizer = new_tokenizer(buf);
 	var tokens *Token = tokenize(t);
