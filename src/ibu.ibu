@@ -12,10 +12,18 @@ struct Tokenizer {
 	program *i8;
 }
 
+#define TokenKind	i32
+#define TK_NUM		0
+#define TK_IDENT	1
+#define TK_STR		2
+#define TK_PUNCT	3
+#define TK_EOF		4
+#define TK_UNKOWN	5
+
 struct Token;
 
 struct Token {
-	kind *i8;
+	kind TokenKind;
 	start *i8;
 	len i32;
 	lit *i8;
@@ -112,7 +120,7 @@ func strndup(str *i8, n i32) *i8 {
 	return r;
 }
 
-func new_token(kind *i8, start *i8, len i32) *Token {
+func new_token(kind TokenKind, start *i8, len i32) *Token {
 	var tok *Token = alloc(typesize(Token));
 	if tok == nil {
 		eprintf("nil");
@@ -155,7 +163,7 @@ func tokenize_number(t *Tokenizer) *Token {
 	while isdigit(*t.program) {
 		t.program++;
 	}
-	return new_token("TK_NUM", digit_start, t.program-digit_start);
+	return new_token(TK_NUM, digit_start, t.program-digit_start);
 }
 
 func skip_comment(t *Tokenizer) i32 {
@@ -182,7 +190,7 @@ func tokenize_string(t *Tokenizer) *Token {
 		t.program++;
 	}
 	t.program++;
-	return new_token("TK_STR", string_start, t.program-string_start);
+	return new_token(TK_STR, string_start, t.program-string_start);
 }
 
 func tokenize_ident(t *Tokenizer) *Token {
@@ -198,7 +206,7 @@ func tokenize_ident(t *Tokenizer) *Token {
 		t.program++;
 	}
 	ident_end:
-	return new_token("TK_IDENT", ident_start, t.program-ident_start);
+	return new_token(TK_IDENT, ident_start, t.program-ident_start);
 }
 
 func tokenize(t *Tokenizer) *Token {
@@ -223,12 +231,12 @@ func tokenize(t *Tokenizer) *Token {
 			goto again;
 		}
 		if is_two_c_punct(t.program) {
-			cur = cur.next = new_token("TK_PUNCT", t.program, 2);
+			cur = cur.next = new_token(TK_PUNCT, t.program, 2);
 			t.program = t.program + 2;
 			goto again;
 		}
 		if ispunct(*t.program) {
-			cur = cur.next = new_token("TK_PUNCT", t.program, 1);
+			cur = cur.next = new_token(TK_PUNCT, t.program, 1);
 			t.program++;
 			goto again;
 		}
@@ -244,11 +252,11 @@ func tokenize(t *Tokenizer) *Token {
 			t.program++;
 			goto again;
 		}
-		print_error(save, new_token("TK_UNKOWN", t.program, 1), "unkown character found");
+		print_error(save, new_token(TK_UNKOWN, t.program, 1), "unkown character found");
 		again:
 	}
 
-	cur = cur.next = new_token("TK_EOF", t.program, 1);
+	cur = cur.next = new_token(TK_EOF, t.program, 1);
 	cur.lit = "EOF";
 
 	return head.next;
@@ -261,7 +269,7 @@ func print_all_tokens(tok *Token) i32 {
 		return 1;
 	}
 
-	printf("%s : %s\n", tok.kind, tok.lit);
+	printf("kind = %d\n lit = %s\n----------\n", tok.kind, tok.lit);
 
 	if tok.next != nil {
 		print_all_tokens(tok.next);
@@ -284,8 +292,18 @@ struct Member {
 	next *Member;
 }
 
+#define TypeKind	i32
+#define TY_I64		0
+#define TY_I32		1
+#define TY_I16		2
+#define TY_I8		3
+#define TY_BOOL		4
+#define TY_STRUCT	5
+#define TY_FUNC		6
+#define TY_PTR		7
+
 struct Type {
-	kind *i8;
+	kind TypeKind;
 	size i32;
 	name *i8;
 	members *Member;
@@ -295,12 +313,16 @@ struct Type {
 	next *Type;
 }
 
+#define ObjectKind	i32
+#define OBJ_FUNC	0
+#define OBJ_VAR		1
+
 struct Object;
 struct Node;
 
 struct Object {
 	name *i8;
-	kind *i8;
+	kind ObjectKind;
 	offset i32;
 	body *Node;
 	params *Object;
@@ -314,8 +336,38 @@ struct Object {
 	next_param *Object;
 }
 
+#define NodeKind			i32
+#define ND_ADD				0
+#define ND_SUB				1
+#define ND_MUL				2
+#define ND_DIV				3
+#define ND_MOD				4
+#define ND_NOT				5
+#define ND_NE				6
+#define ND_EQ				7
+#define ND_LE				8
+#define ND_LT				9
+#define ND_GE				10
+#define ND_GT				11
+#define ND_STR				12
+#define ND_NUM				13
+#define ND_VAR				14
+#define ND_IF				15
+#define ND_WHILE			16
+#define ND_ASSIGN			17
+#define ND_RETURN			18
+#define ND_REF				19
+#define ND_DEREF			20
+#define ND_BLOCK			21
+#define ND_EXPR_STMT		22
+#define ND_GOTO				23
+#define ND_LABEL			24
+#define ND_FUNC_CALL		25
+#define ND_AND				26
+#define ND_MEMBER_ACCESS	27
+
 struct Node {
-	kind *i8;
+	kind NodeKind;
 	lhs *Node;
 	rhs *Node;
 	body *Node;
@@ -363,7 +415,7 @@ func strcmp(a *i8, b *i8) bool {
 	return false;
 }
 
-func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type) i32 {
+func add_builtin_object(p *Parser, name *i8, kind ObjectKind, params *Object, ty *Type) i32 {
 	var obj *Object = alloc(typesize(Object));
 	if obj == nil {
 		eprintf("nil");
@@ -384,7 +436,7 @@ func add_builtin_object(p *Parser, name *i8, kind *i8, params *Object, ty *Type)
 func print_user_defined_types(p *Parser) i32 {
 	var ty *Type = p.user_defined_types;
 	while ty != nil {
-		if strcmp(ty.kind, "TY_STRUCT") {
+		if ty.kind == TY_STRUCT {
 			printf("struct %s {\n", ty.name);
 			var member *Member = ty.members;
 			while member != nil {
@@ -412,7 +464,7 @@ func get_user_defined_type(p *Parser, name *i8) *Type {
 	return nil;
 }
 
-func new_builtin_type(kind *i8, size i32, name *i8) *Type {
+func new_builtin_type(kind TypeKind, size i32, name *i8) *Type {
 	var ty *Type = alloc(typesize(Type));
 	ty.kind = kind;
 	ty.size = size;
@@ -433,20 +485,20 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	p.tokens = tokens;
 	p.locals = nil;
 
-	p.ty_i64 = new_builtin_type("i64", 8, "i64");
-	p.ty_i32 = new_builtin_type("i32", 4, "i32");
-	p.ty_i16 = new_builtin_type("i16", 2, "i16");
-	p.ty_i8 = new_builtin_type("i8", 1, "i8");
-	p.ty_bool = new_builtin_type("bool", 1, "bool");
+	p.ty_i64 = new_builtin_type(TY_I64, 8, "i64");
+	p.ty_i32 = new_builtin_type(TY_I32, 4, "i32");
+	p.ty_i16 = new_builtin_type(TY_I16, 2, "i16");
+	p.ty_i8 = new_builtin_type(TY_I8, 1, "i8");
+	p.ty_bool = new_builtin_type(TY_BOOL, 1, "bool");
 
-	add_builtin_object(p, "alloc", "OBJ_FUNC", nil, new_func_type(new_pointer_type(p.ty_i64)));
-	add_builtin_object(p, "open", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "close", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "read", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "write", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "exit", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "printf", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "eprintf", "OBJ_FUNC", nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "alloc", OBJ_FUNC, nil, new_func_type(new_pointer_type(p.ty_i64)));
+	add_builtin_object(p, "open", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "close", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "read", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "write", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "exit", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "printf", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_object(p, "eprintf", OBJ_FUNC, nil, new_func_type(p.ty_i32));
 
 	p.program = program;
 
@@ -522,7 +574,7 @@ func parser_next(p *Parser) i32 {
 	return 0;
 }
 
-func new_node(kind *i8) *Node {
+func new_node(kind NodeKind) *Node {
 	var node *Node = alloc(typesize(Node));
 	if node == nil {
 		eprintf("nil");
@@ -550,15 +602,15 @@ func cmp_type(ty1 *Type, ty2 *Type) bool {
 		return false;
 	}
 
-	if !strcmp(ty1.kind, ty2.kind) {
+	if ty1.kind != ty2.kind {
 		return false;
 	}
 	
-	if strcmp(ty1.kind, "TY_FUNC") {
+	if ty1.kind == TY_FUNC {
 		return cmp_type(ty1.return_type, ty2.return_type);
 	}
 
-	if strcmp(ty1.kind, "TY_PTR") {
+	if ty1.kind == TY_PTR {
 		return cmp_type(ty1.pointer_to, ty2.pointer_to);
 	}
 
@@ -610,7 +662,7 @@ func check_local_object_already_exist(p *Parser, name *i8, tok *Token) i32 {
 	return 0;
 }
 
-func new_local_object(p *Parser, kind *i8, name *i8, ty *Type, tok *Token) *Object {
+func new_local_object(p *Parser, kind ObjectKind, name *i8, ty *Type, tok *Token) *Object {
 	check_local_object_already_exist(p, name, tok);
 
 	var obj *Object = alloc(typesize(Object));
@@ -636,7 +688,7 @@ func add_user_defined_type(p *Parser, ty *Type) i32 {
 
 func new_pointer_type(base *Type) *Type {
 	var ty *Type = alloc(typesize(Type));
-	ty.kind = "TY_PTR";
+	ty.kind = TY_PTR;
 	ty.size = 8;
 	ty.pointer_to = base;
 	return ty;
@@ -676,117 +728,117 @@ func add_type(p *Parser, node *Node) i32 {
 		node_args = node_args.next;
 	}
 
-	if strcmp(node.kind, "ND_STR") {
+	if node.kind == ND_STR {
 		node.ty = new_pointer_type(p.ty_i8);
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_GOTO") {
+	if node.kind == ND_GOTO {
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_LABEL") {
+	if node.kind == ND_LABEL {
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_FUNC_CALL") {
+	if node.kind == ND_FUNC_CALL {
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_IF") {
+	if node.kind == ND_IF {
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_WHILE") {
+	if node.kind == ND_WHILE {
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_RETURN") {
+	if node.kind == ND_RETURN {
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_ADD") {
+	if node.kind == ND_ADD {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_SUB") {
+	if node.kind == ND_SUB {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_MUL") {
+	if node.kind == ND_MUL {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_DIV") {
+	if node.kind == ND_DIV {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_MOD") {
+	if node.kind == ND_MOD {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_ASSIGN") {
+	if node.kind == ND_ASSIGN {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_ADD") {
+	if node.kind == ND_ADD {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_NOT") {
+	if node.kind == ND_NOT {
 		node.ty = p.ty_i32;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_EQ") {
+	if node.kind == ND_EQ {
 		node.ty = p.ty_i32;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_NE") {
+	if node.kind == ND_NE {
 		node.ty = p.ty_i32;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_LE") {
+	if node.kind == ND_LE {
 		node.ty = p.ty_i32;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_LT") {
+	if node.kind == ND_LT {
 		node.ty = p.ty_i32;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_GT") {
+	if node.kind == ND_GT {
 		node.ty = p.ty_i32;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_GE") {
+	if node.kind == ND_GE {
 		node.ty = p.ty_i32;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_AND") {
+	if node.kind == ND_AND {
 		node.ty = p.ty_i32;
 		return 0;
 	}
-	if strcmp(node.kind, "ND_NUM") {
+	if node.kind == ND_NUM {
 		node.ty = p.ty_i32;
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_VAR") {
+	if node.kind == ND_VAR {
 		node.ty = node.obj.ty;
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_REF") {
+	if node.kind == ND_REF {
 		node.ty = new_pointer_type(node.lhs.ty);
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_DEREF") {
+	if node.kind == ND_DEREF {
 		node.ty = node.lhs.ty.pointer_to;
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_EXPR_STMT") {
+	if node.kind == ND_EXPR_STMT {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
@@ -853,7 +905,7 @@ func parse_sizeof(p *Parser) *Node {
 	add_type(p, node);
 	var size i32 = node.ty.size;
  
-	node.kind = "ND_NUM";
+	node.kind = ND_NUM;
 	node.int_val = size;
 	node.ty = p.ty_i32;
 
@@ -869,7 +921,7 @@ func parse_ident(p *Parser) *Node {
 	parser_next(p);
 
 	if strcmp(p.tokens.lit, "(") {
-		node = new_node("ND_FUNC_CALL");
+		node = new_node(ND_FUNC_CALL);
 		parser_skip(p, "(");
 		node.func_name = name;
 		node.args = parse_args(p);
@@ -881,7 +933,7 @@ func parse_ident(p *Parser) *Node {
 		}
 		node.ty = obj.ty.return_type;
 	} else {
-		node = new_node("ND_VAR");
+		node = new_node(ND_VAR);
 		obj = find_locals(p, name);
 		if obj == nil {
 			print_error(p.program, ident_tok, "unkown object");
@@ -895,31 +947,31 @@ func parse_ident(p *Parser) *Node {
 func parse_number(p *Parser) *Node {
 	var node *Node;
 
-	if strcmp(p.tokens.kind, "TK_NUM") {
-		node = new_node("ND_NUM");
+	if p.tokens.kind == TK_NUM {
+		node = new_node(ND_NUM);
 		node.int_val = atoi(p.tokens.lit);
 		parser_next(p);
-	} else if strcmp(p.tokens.kind, "TK_STR") {
-		node = new_node("ND_STR");
+	} else if p.tokens.kind == TK_STR {
+		node = new_node(ND_STR);
 		node.str_val = p.tokens.lit;
 		parser_next(p);
 	} else if strcmp(p.tokens.lit, "nil") {
 		parser_next(p);
-		node = new_node("ND_NUM");
+		node = new_node(ND_NUM);
 		node.ty = p.ty_i32;
 		node.int_val = 0;
 	} else if strcmp(p.tokens.lit, "true") {
 		parser_next(p);
-		node = new_node("ND_NUM");
+		node = new_node(ND_NUM);
 		node.ty = p.ty_bool;
 		node.int_val = 1;
 	} else if strcmp(p.tokens.lit, "false") {
 		parser_next(p);
-		node = new_node("ND_NUM");
+		node = new_node(ND_NUM);
 		node.ty = p.ty_bool;
 		node.int_val = 0;
 	} else if strcmp(p.tokens.lit, "typesize") {
-		node = new_node("ND_NUM");
+		node = new_node(ND_NUM);
 		parser_next(p);
 		parser_skip(p, "(");
 		node.int_val = parse_ty(p).size;
@@ -927,7 +979,7 @@ func parse_number(p *Parser) *Node {
 		parser_skip(p, ")");
 	} else if strcmp(p.tokens.lit, "sizeof") {
 		node = parse_sizeof(p);
-	} else if strcmp(p.tokens.kind, "TK_IDENT") {
+	} else if p.tokens.kind == TK_IDENT {
 		node = parse_ident(p);
 	} else if strcmp(p.tokens.lit, "(") {
 		parser_next(p);
@@ -951,7 +1003,7 @@ func search_struct_member(members *Member, exp_member_name *i8) *Member {
 	return nil;
 }
 
-func new_struct_access_node(kind *i8, lhs *Node, offset i32, obj *Object, ty *Type) *Node {
+func new_struct_access_node(kind NodeKind, lhs *Node, offset i32, obj *Object, ty *Type) *Node {
 	var node *Node = alloc(typesize(Node));
 
 	node.kind = kind;
@@ -966,18 +1018,18 @@ func new_struct_access_node(kind *i8, lhs *Node, offset i32, obj *Object, ty *Ty
 func parse_deref(p *Parser) *Node {
 	var tok *Token = p.tokens;
 	parser_next(p);
-	var node *Node = new_node("ND_DEREF");
+	var node *Node = new_node(ND_DEREF);
 	node.lhs = parse_unary(p);
 
 	add_type(p, node.lhs);
-	if !strcmp(node.lhs.ty.kind, "TY_PTR") {
+	if node.lhs.ty.kind != TY_PTR {
 		print_error(p.program, tok, "invalid pointer dereference");
 	}
 
 	return node;
 }
 
-func new_binop(kind *i8, lhs *Node, rhs *Node) *Node {
+func new_binop(kind NodeKind, lhs *Node, rhs *Node) *Node {
 	var node *Node = new_node(kind);
 	node.lhs = lhs;
 	node.rhs = rhs;
@@ -985,7 +1037,7 @@ func new_binop(kind *i8, lhs *Node, rhs *Node) *Node {
 }
 
 func node_num_one(p *Parser) *Node {
-	var node *Node = new_node("ND_NUM");
+	var node *Node = new_node(ND_NUM);
 	node.int_val = 1;
 	node.ty = p.ty_i32;
 	return node;
@@ -999,13 +1051,13 @@ func parse_unary(p *Parser) *Node {
 	}
 	if strcmp(p.tokens.lit, "&") {
 		parser_next(p);
-		node = new_node("ND_REF");
+		node = new_node(ND_REF);
 		node.lhs = parse_unary(p);
 		return node;
 	}
 	if strcmp(p.tokens.lit, "!") {
 		parser_next(p);
-		node = new_node("ND_NOT");
+		node = new_node(ND_NOT);
 		node.lhs = parse_unary(p);
 		return node;
 	}
@@ -1016,12 +1068,12 @@ func parse_unary(p *Parser) *Node {
 		var access_tok *Token = p.tokens;
 		if strcmp(p.tokens.lit, "++") {
 			parser_next(p);
-			node = new_binop("ND_SUB", new_binop("ND_ASSIGN", node, new_binop("ND_ADD", node, node_num_one(p))), node_num_one(p));
+			node = new_binop(ND_SUB, new_binop(ND_ASSIGN, node, new_binop(ND_ADD, node, node_num_one(p))), node_num_one(p));
 			goto again;
 		}
 		if strcmp(p.tokens.lit, "--") {
 			parser_next(p);
-			node = new_binop("ND_ADD", new_binop("ND_ASSIGN", node, new_binop("ND_SUB", node, node_num_one(p))), node_num_one(p));
+			node = new_binop(ND_ADD, new_binop(ND_ASSIGN, node, new_binop(ND_SUB, node, node_num_one(p))), node_num_one(p));
 			goto again;
 		}
 		if strcmp(p.tokens.lit, "[") {
@@ -1030,19 +1082,19 @@ func parse_unary(p *Parser) *Node {
 			var idx *Node = parse_expr(p);
 			parser_skip(p, "]");
 
-			if !strcmp(node.ty.kind, "TY_PTR") {
+			if node.ty.kind != TY_PTR {
 				print_error(p.program, access_tok, "`[]` cannot access to none pointer type.");
 			}
 
 			var base_number_node *Node;
-			base_number_node = new_node("ND_NUM");
+			base_number_node = new_node(ND_NUM);
 			base_number_node.int_val = node.ty.pointer_to.size;
 			base_number_node.ty = p.ty_i32;
 
-			var idx_pointer_arith *Node = new_binop("ND_MUL", idx, base_number_node);
-			node = new_binop("ND_ADD", node, idx_pointer_arith);
+			var idx_pointer_arith *Node = new_binop(ND_MUL, idx, base_number_node);
+			node = new_binop(ND_ADD, node, idx_pointer_arith);
 
-			node = new_struct_access_node("ND_DEREF", node, 0, nil, nil);
+			node = new_struct_access_node(ND_DEREF, node, 0, nil, nil);
 			goto again;
 		}
 		if strcmp(p.tokens.lit, ".") {
@@ -1056,17 +1108,17 @@ func parse_unary(p *Parser) *Node {
 
 			add_type(p, node);
 
-			if strcmp(node.ty.kind, "TY_PTR") {
-				if !strcmp(node.ty.pointer_to.kind, "TY_STRUCT") {
+			if node.ty.kind == TY_PTR {
+				if node.ty.pointer_to.kind != TY_STRUCT {
 					print_error(p.program, access_tok, "cannot access from none struct type");
 				}
 				member = search_struct_member(node.ty.pointer_to.members, member_name);
 				if member == nil {
 					print_error(p.program, member_tok, "member name not found");
 				}
-				node = new_struct_access_node("ND_DEREF", node, 0, node.obj, node.ty.pointer_to);
+				node = new_struct_access_node(ND_DEREF, node, 0, node.obj, node.ty.pointer_to);
 			} else {
-				if !strcmp(node.ty.kind, "TY_STRUCT") {
+				if node.ty.kind != TY_STRUCT {
 					print_error(p.program, access_tok, "cannot access from none struct type");
 				}
 				member = search_struct_member(node.ty.members, member_name);
@@ -1076,7 +1128,7 @@ func parse_unary(p *Parser) *Node {
 			}
 			var offset i32 = member.offset;
 			var member_ty *Type = member.ty;
-			node = new_struct_access_node("ND_MEMBER_ACCESS", node, offset, node.obj, member_ty);
+			node = new_struct_access_node(ND_MEMBER_ACCESS, node, offset, node.obj, member_ty);
 			goto again;
 		}
 		goto end;
@@ -1094,17 +1146,17 @@ func parse_mul(p *Parser) *Node {
 	while {
 		if strcmp(p.tokens.lit, "*") {
 			parser_next(p);
-			node = new_binop("ND_MUL", node, parse_unary(p));
+			node = new_binop(ND_MUL, node, parse_unary(p));
 			goto again;
 		}
 		if strcmp(p.tokens.lit, "/") {
 			parser_next(p);
-			node = new_binop("ND_DIV", node, parse_unary(p));
+			node = new_binop(ND_DIV, node, parse_unary(p));
 			goto again;
 		}
 		if strcmp(p.tokens.lit, "%") {
 			parser_next(p);
-			node = new_binop("ND_MOD", node, parse_unary(p));
+			node = new_binop(ND_MOD, node, parse_unary(p));
 			goto again;
 		}
 		goto end;
@@ -1122,12 +1174,12 @@ func parse_add(p *Parser) *Node {
 	while {
 		if strcmp(p.tokens.lit, "+") {
 			parser_next(p);
-			node = new_binop("ND_ADD", node, parse_mul(p));
+			node = new_binop(ND_ADD, node, parse_mul(p));
 			goto again;
 		}
 		if strcmp(p.tokens.lit, "-") {
 			parser_next(p);
-			node = new_binop("ND_SUB", node, parse_mul(p));
+			node = new_binop(ND_SUB, node, parse_mul(p));
 			goto again;
 		}
 		goto end;
@@ -1139,25 +1191,25 @@ func parse_add(p *Parser) *Node {
 }
 
 func is_comparison_node(node *Node) i8 {
-	if strcmp(node.kind, "ND_LE") {
+	if node.kind == ND_LE {
 		return 1;
 	}
-	if strcmp(node.kind, "ND_GE") {
+	if node.kind == ND_GE {
 		return 1;
 	}
-	if strcmp(node.kind, "ND_LT") {
+	if node.kind == ND_LT {
 		return 1;
 	}
-	if strcmp(node.kind, "ND_GT") {
+	if node.kind == ND_GT {
 		return 1;
 	}
-	if strcmp(node.kind, "ND_EQ") {
+	if node.kind == ND_EQ {
 		return 1;
 	}
-	if strcmp(node.kind, "ND_NE") {
+	if node.kind == ND_NE {
 		return 1;
 	}
-	if strcmp(node.kind, "ND_AND") {
+	if node.kind == ND_AND {
 		return 1;
 	}
 	return 0;
@@ -1183,35 +1235,35 @@ func search_relational_lhs(node *Node) *Node {
 	return rel_node;
 }
 
-func new_relational(kind *i8, lhs *Node, rhs *Node) *Node {
+func new_relational(kind NodeKind, lhs *Node, rhs *Node) *Node {
 	var node *Node;
 
 	if is_comparison_node(lhs) {
 		if is_comparison_node(rhs) {
 			node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
-			node = new_binop("ND_AND", node, rhs);
-			node = new_binop("ND_AND", lhs, node);
+			node = new_binop(ND_AND, node, rhs);
+			node = new_binop(ND_AND, lhs, node);
 			return node;
 		}
 	}
 
 	node = new_binop(kind, search_relational_rhs(lhs.rhs), rhs);
-	node = new_binop("ND_AND", lhs, node);
+	node = new_binop(ND_AND, lhs, node);
 	return node;
 }
 
-func new_equality(kind *i8, lhs *Node, rhs *Node) *Node {
+func new_equality(kind NodeKind, lhs *Node, rhs *Node) *Node {
 	var node *Node;
 	if is_comparison_node(lhs) {
 		if is_comparison_node(rhs) {
 			node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
-			node = new_binop("ND_AND", lhs, node);
-			node = new_binop("ND_AND", node, rhs);
+			node = new_binop(ND_AND, lhs, node);
+			node = new_binop(ND_AND, node, rhs);
 			return node;
 		}
 	}
 	node = new_binop(kind, lhs, search_relational_lhs(rhs.lhs));
-	node = new_binop("ND_AND", node, rhs);
+	node = new_binop(ND_AND, node, rhs);
 	return node;
 }
 
@@ -1224,9 +1276,9 @@ func parse_relational(p *Parser) *Node {
 			parser_next(p);
 			rhs = parse_add(p);
 			if is_comparison_node(node) {
-				node = new_relational("ND_LE", node, rhs);
+				node = new_relational(ND_LE, node, rhs);
 			} else {
-				node = new_binop("ND_LE", node, rhs);
+				node = new_binop(ND_LE, node, rhs);
 			}
 			goto again;
 		}
@@ -1234,9 +1286,9 @@ func parse_relational(p *Parser) *Node {
 			parser_next(p);
 			rhs = parse_add(p);
 			if is_comparison_node(node) {
-				node = new_relational("ND_GE", node, rhs);
+				node = new_relational(ND_GE, node, rhs);
 			} else {
-				node = new_binop("ND_GE", node, rhs);
+				node = new_binop(ND_GE, node, rhs);
 			}
 			goto again;
 		}
@@ -1244,9 +1296,9 @@ func parse_relational(p *Parser) *Node {
 			parser_next(p);
 			rhs = parse_add(p);
 			if is_comparison_node(node) {
-				node = new_relational("ND_LT", node, rhs);
+				node = new_relational(ND_LT, node, rhs);
 			} else {
-				node = new_binop("ND_LT", node, rhs);
+				node = new_binop(ND_LT, node, rhs);
 			}
 			goto again;
 		}
@@ -1254,9 +1306,9 @@ func parse_relational(p *Parser) *Node {
 			parser_next(p);
 			rhs = parse_add(p);
 			if is_comparison_node(node) {
-				node = new_relational("ND_GT", node, rhs);
+				node = new_relational(ND_GT, node, rhs);
 			} else {
-				node = new_binop("ND_GT", node, rhs);
+				node = new_binop(ND_GT, node, rhs);
 			}
 			goto again;
 		}
@@ -1278,28 +1330,28 @@ func parse_equality(p *Parser) *Node {
 			parser_next(p);
 			rhs = parse_relational(p);
 			if is_comparison_node(rhs) {
-				node = new_equality("ND_EQ", node, rhs);
+				node = new_equality(ND_EQ, node, rhs);
 			} else if is_comparison_node(node) {
-				node = new_relational("ND_EQ", node, rhs);
+				node = new_relational(ND_EQ, node, rhs);
 			} else {
-				node = new_binop("ND_EQ", node, rhs);
+				node = new_binop(ND_EQ, node, rhs);
 			}
-			goto again;
+			goto continue;
 		}
 		if strcmp(p.tokens.lit, "!=") {
 			parser_next(p);
 			rhs = parse_relational(p);
 			if is_comparison_node(rhs) {
-				node = new_equality("ND_NE", node, rhs);
+				node = new_equality(ND_NE, node, rhs);
 			} else if is_comparison_node(node) {
-				node = new_relational("ND_NE", node, rhs);
+				node = new_relational(ND_NE, node, rhs);
 			} else {
-				node = new_binop("ND_NE", node, rhs);
+				node = new_binop(ND_NE, node, rhs);
 			}
-			goto again;
+			goto continue;
 		}
 		goto end;
-		again:
+		continue:
 	}
 	end:
 
@@ -1311,14 +1363,14 @@ func parse_expr(p *Parser) *Node {
 	node = parse_equality(p);
 	if strcmp(p.tokens.lit, "=") {
 		parser_skip(p);
-		node = new_binop("ND_ASSIGN", node, parse_expr(p));
+		node = new_binop(ND_ASSIGN, node, parse_expr(p));
 	}
 	return node;
 }
 
 func parse_expr_stmt(p *Parser) *Node {
 	var node *Node;
-	node = new_node("ND_EXPR_STMT");
+	node = new_node(ND_EXPR_STMT);
 	node.lhs = parse_expr(p);
 	parser_skip(p, ";");
 	return node;
@@ -1328,7 +1380,7 @@ func parse_stmt(p *Parser) *Node;
 
 func parse_block(p *Parser) *Node {
 	var node *Node;
-	node = new_node("ND_BLOCK");
+	node = new_node(ND_BLOCK);
 
 	var head Node;
 	head.next = nil;
@@ -1356,7 +1408,7 @@ func parse_block(p *Parser) *Node {
 func node_true() *Node {
 	var node *Node;
 	node = alloc(typesize(Node));
-	node.kind = "ND_NUM";
+	node.kind = ND_NUM;
 	node.int_val = 1;
 	return node;
 }
@@ -1370,13 +1422,13 @@ func parse_stmt(p *Parser) *Node {
 		var var_name_tok *Token = p.tokens;
 		parser_next(p);
 		var var_ty *Type = parse_ty(p);
-		var obj *Object = new_local_object(p, "OBJ_VAR", var_name, var_ty, var_name_tok);
+		var obj *Object = new_local_object(p, OBJ_VAR, var_name, var_ty, var_name_tok);
 		if strcmp(p.tokens.lit, "=") {
 			parser_skip(p, "=");
 			var node_var *Node;
-			node_var = new_node("ND_VAR");
+			node_var = new_node(ND_VAR);
 			node_var.obj = obj;
-			node = new_binop("ND_ASSIGN", node_var, parse_expr_stmt(p));
+			node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
 			return node;
 		} else {
 			parser_skip(p, ";");
@@ -1390,17 +1442,17 @@ func parse_stmt(p *Parser) *Node {
 		label_name = p.tokens.lit;
 		parser_next(p);
 		parser_skip(p, ";");
-		node = new_node("ND_GOTO");
+		node = new_node(ND_GOTO);
 		node.label_name = label_name;
 		return node;
 	}
 
-	if !strcmp(p.tokens.kind, "TK_EOF") {
+	if p.tokens.kind != TK_EOF {
 		if strcmp(p.tokens.next.lit, ":") {
 			label_name = p.tokens.lit;
 			parser_next(p);
 			parser_skip(p, ":");
-			node = new_node("ND_LABEL");
+			node = new_node(ND_LABEL);
 			node.label_name = label_name;
 			return node;
 		}
@@ -1408,7 +1460,7 @@ func parse_stmt(p *Parser) *Node {
 
 	if strcmp(p.tokens.lit, "if") {
 		parser_next(p);
-		node = new_node("ND_IF");
+		node = new_node(ND_IF);
 		node.cond = parse_expr(p);
 		node.then_block = parse_block(p);
 		if strcmp(p.tokens.lit, "else") {
@@ -1422,7 +1474,7 @@ func parse_stmt(p *Parser) *Node {
 
 	if strcmp(p.tokens.lit, "while") {
 		parser_next(p);
-		node = new_node("ND_WHILE");
+		node = new_node(ND_WHILE);
 		if !strcmp(p.tokens.lit, "{") {
 			node.cond = parse_expr(p);
 		} else {
@@ -1434,7 +1486,7 @@ func parse_stmt(p *Parser) *Node {
 
 	if strcmp(p.tokens.lit, "return") {
 		parser_next(p);
-		node = new_node("ND_RETURN");
+		node = new_node(ND_RETURN);
 		node.lhs = parse_expr_stmt(p);
 		return node;
 	}
@@ -1449,7 +1501,7 @@ func parse_stmt(p *Parser) *Node {
 func new_func_type(return_type *Type) *Type {
 	var ty *Type;
 	ty = alloc(typesize(Type));
-	ty.kind = "TY_FUNC";
+	ty.kind = TY_FUNC;
 	ty.size = 8;
 	ty.return_type = return_type;
 	return ty;
@@ -1466,7 +1518,7 @@ func parse_func_params(p *Parser) *Object {
 		name = p.tokens.lit;
 		name_tok = p.tokens;
 		parser_next(p);
-		cur = cur.next_param = new_local_object(p, "OBJ_VAR", name, parse_ty(p), name_tok);
+		cur = cur.next_param = new_local_object(p, OBJ_VAR, name, parse_ty(p), name_tok);
 		cur.is_func_param = true;
 
 		if strcmp(p.tokens.lit, ",") {
@@ -1519,7 +1571,7 @@ func parse_struct(p *Parser) i32 {
 	parser_next(p);
 
 	var struct_ty *Type = alloc(typesize(Type));
-	struct_ty.kind = "TY_STRUCT";
+	struct_ty.kind = TY_STRUCT;
 	struct_ty.name = name;
 
 	if strcmp(p.tokens.lit, ";") {
@@ -1611,7 +1663,7 @@ func parse_func(p *Parser) i32 {
 	parser_next(p);
 
 	var obj *Object = alloc(typesize(Object));
-	obj.kind = "OBJ_FUNC";
+	obj.kind = OBJ_FUNC;
 
 	var name *i8 = p.tokens.lit;
 	var name_tok *Token = p.tokens;
@@ -1672,7 +1724,7 @@ func parse_func(p *Parser) i32 {
 }
 
 func parse(p *Parser) i32 {
-	while !strcmp(p.tokens.kind, "TK_EOF") {
+	while p.tokens.kind != TK_EOF {
 		if strcmp(p.tokens.lit, "func") {
 			parse_func(p);
 		} else if strcmp(p.tokens.lit, "struct") {
@@ -1731,15 +1783,15 @@ func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32 {
 func gen_addr(g *Gen, node *Node) i32;
 
 func gen_addr(g *Gen, node *Node) i32 {
-	if strcmp(node.kind, "ND_MEMBER_ACCESS") {
+	if node.kind == ND_MEMBER_ACCESS {
 		gen_addr(g, node.lhs);
 		printf("\taddq $%d, %rax\n", node.offset);
-	} else if strcmp(node.kind, "ND_VAR") {
+	} else if node.kind == ND_VAR {
 		printf("\tleaq %d(%rbp), %rax\n", node.obj.offset);
-	} else if strcmp(node.kind, "ND_DEREF") {
+	} else if node.kind == ND_DEREF {
 		gen_expr(g, node.lhs);
 	} else {
-		printf("%s\n", node.kind);
+		printf("kind: %d\n", node.kind);
 		eprintf("unreachable\n");
 		exit(1);
 	}
@@ -1747,7 +1799,7 @@ func gen_addr(g *Gen, node *Node) i32 {
 }
 
 func gen_store(ty *Type) i32 {
-	if strcmp(ty.kind, "TY_STRUCT") {
+	if ty.kind == TY_STRUCT {
 		var idx i32 = 0;
 		while idx < ty.size {
 			printf("\tmovb %d(%rax), %r8b\n", idx);
@@ -1772,7 +1824,7 @@ func gen_store(ty *Type) i32 {
 }
 
 func gen_load(ty *Type) i32 {
-	if strcmp(ty.kind, "TY_STRUCT") {
+	if ty.kind == TY_STRUCT {
 		return 0;
 	}
 	if ty.size == 8 {
@@ -1807,7 +1859,7 @@ func gen_load_regi(g *Gen, ty *Type, idx i32) i32 {
 }
 
 func gen_binop(instr_name *i8, ty *Type) i32 {
-	if strcmp(ty.kind, "TY_PTR") {
+	if ty.kind == TY_PTR {
 		printf("\t%sq %rdi, %rax\n", instr_name);
 	} else {
 		printf("\t%sl %edi, %eax\n", instr_name);
@@ -1816,9 +1868,9 @@ func gen_binop(instr_name *i8, ty *Type) i32 {
 }
 
 func gen_condition_store(ty *Type) i32 {
-	if strcmp(ty.kind, "TY_PTR") {
+	if ty.kind == TY_PTR {
 		printf("\tmovzbq %al, %rax\n");
-	} else if strcmp(ty.kind, "TY_I64") {
+	} else if ty.kind == TY_I64 {
 		printf("\tmovzbq %al, %rax\n");
 	} else {
 		printf("\tmovzbl %al, %eax\n");
@@ -1901,12 +1953,12 @@ func gen_expr(g *Gen, node *Node) i32 {
 		eprintf("node == nil. this shoult not happen!\n");
 		exit(1);
 	}
-	if strcmp(node.kind, "ND_MEMBER_ACCESS") {
+	if node.kind == ND_MEMBER_ACCESS {
 		gen_addr(g, node);
 		gen_load(node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_STR") {
+	if node.kind == ND_STR {
 		c = g.str_label_count++;
 		printf(".data\n");
 		printf(".L.str.%d:\n", c);
@@ -1916,11 +1968,11 @@ func gen_expr(g *Gen, node *Node) i32 {
 		printf("\tleaq .L.str.%d(%rip), %rax\n", c);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_NUM") {
+	if node.kind == ND_NUM {
 		printf("\tmovq $%d, %rax\n", node.int_val);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_ASSIGN") {
+	if node.kind == ND_ASSIGN {
 		gen_addr(g, node.lhs);
 		printf("\tpush %rax\n");
 		gen_expr(g, node.rhs);
@@ -1929,12 +1981,12 @@ func gen_expr(g *Gen, node *Node) i32 {
 		return 0;
 	}
 
-	if strcmp(node.kind, "ND_VAR") {
+	if node.kind == ND_VAR {
 		gen_addr(g, node);
 		gen_load(node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_FUNC_CALL") {
+	if node.kind == ND_FUNC_CALL {
 		func_call_args_to_regi(g, node.args);
 		var stack i32 = func_call_args_to_stack(g, node.args);
 		printf("\tmovq $0, %rax\n");
@@ -1942,42 +1994,42 @@ func gen_expr(g *Gen, node *Node) i32 {
 		printf("\taddq $%d, %rsp\n", stack);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_EXPR_STMT") {
+	if node.kind == ND_EXPR_STMT {
 		gen_expr(g, node.lhs);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_REF") {
+	if node.kind == ND_REF {
 		gen_addr(g, node.lhs);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_DEREF") {
+	if node.kind == ND_DEREF {
 		gen_expr(g, node.lhs);
 		gen_load(node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_NOT") {
+	if node.kind == ND_NOT {
 		gen_expr(g, node.lhs);
 		printf("\tcmpq $0, %rax\n");
 		printf("\tsete %al\n");
 		printf("\tmovzbq %al, %rax\n");
 		return 0;
 	}
-	if strcmp(node.kind, "ND_ADD") {
+	if node.kind == ND_ADD {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("add", node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_SUB") {
+	if node.kind == ND_SUB {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("sub", node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_MUL") {
+	if node.kind == ND_MUL {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("imul", node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_DIV") {
+	if node.kind == ND_DIV {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		if node.lhs.ty.size == 8 {
 			printf("\tcqto\n");
@@ -1991,7 +2043,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		}
 		return 0;
 	}
-	if strcmp(node.kind, "ND_MOD") {
+	if node.kind == ND_MOD {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		if node.lhs.ty.size == 8 {
 			printf("\tcqto\n");
@@ -2006,21 +2058,21 @@ func gen_expr(g *Gen, node *Node) i32 {
 		printf("\tmovq %rdx, %rax\n");
 		return 0;
 	}
-	if strcmp(node.kind, "ND_EQ") {
+	if node.kind == ND_EQ {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		printf("\tsete %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_NE") {
+	if node.kind == ND_NE {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		printf("\tsetne %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_AND") {
+	if node.kind == ND_AND {
 		c = g.label_count++;
     	gen_expr(g, node.lhs);
     	printf("\tcmpq $0, %rax\n");
@@ -2035,35 +2087,35 @@ func gen_expr(g *Gen, node *Node) i32 {
     	printf(".L.end.%d:\n", c);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_GE") {
+	if node.kind == ND_GE {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		printf("\tsetge %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_GT") {
+	if node.kind == ND_GT {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		printf("\tsetg %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_LE") {
+	if node.kind == ND_LE {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		printf("\tsetle %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	if strcmp(node.kind, "ND_LT") {
+	if node.kind == ND_LT {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		printf("\tsetl %al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	printf("%s unreachable\n", node.kind);
+	printf("kind: %d unreachable\n", node.kind);
 	exit(1);
 }
 
@@ -2082,16 +2134,16 @@ func gen_node_block(g *Gen, node_block *Node) i32 {
 
 func gen_stmt(g *Gen, node *Node) i32 {
 	var c i32;
-	if strcmp(node.kind, "ND_BLOCK") {
+	if node.kind == ND_BLOCK {
 		gen_node_block(g, node);
-	} else if strcmp(node.kind, "ND_EXPR_STMT") {
+	} else if node.kind == ND_EXPR_STMT {
 		gen_expr(g, node.lhs);
-	} else if strcmp(node.kind, "ND_RETURN") {
+	} else if node.kind == ND_RETURN {
 		gen_expr(g, node.lhs);
 		printf("\tmovq %rbp, %rsp\n");
 		printf("\tpop %rbp\n");
 		printf("\tretq\n");
-	} else if strcmp(node.kind, "ND_IF") {
+	} else if node.kind == ND_IF {
 		c = g.label_count++;
 		gen_expr(g, node.cond);
 		printf("\tcmpq $1, %rax\n");
@@ -2103,11 +2155,11 @@ func gen_stmt(g *Gen, node *Node) i32 {
 			gen_stmt(g, node.else_block);
 		}
 		printf(".L.end.%d:\n", c);
-	} else if strcmp(node.kind, "ND_GOTO") {
+	} else if node.kind == ND_GOTO {
 		printf("\tjmp .L.%s.%s\n", g.cur_func_name, node.label_name);
-	} else if strcmp(node.kind, "ND_LABEL") {
+	} else if node.kind == ND_LABEL {
 		printf(".L.%s.%s:\n", g.cur_func_name, node.label_name);
-	} else if strcmp(node.kind, "ND_WHILE") {
+	} else if node.kind == ND_WHILE {
 		c = g.label_count++;
 		printf(".L.while.start.%d:\n", c);
 		gen_expr(g, node.cond);
@@ -2116,14 +2168,14 @@ func gen_stmt(g *Gen, node *Node) i32 {
 		gen_stmt(g, node.then_block);
 		printf("\tjmp .L.while.start.%d\n", c);
 		printf(".L.while.end.%d:\n", c);
-	} else if strcmp(node.kind, "ND_ASSIGN") {
+	} else if node.kind == ND_ASSIGN {
 		gen_addr(g, node.lhs);
 		printf("\tpush %rax\n");
 		gen_expr(g, node.rhs);
 		printf("\tpop %rdi\n");
 		gen_store(node.ty);
 	} else {
-		eprintf("%s\n", node.kind);
+		eprintf("kind: %d\n", node.kind);
 		eprintf("gen_stmt unreachable\n");
 		exit(1);
 	}
@@ -2132,7 +2184,7 @@ func gen_stmt(g *Gen, node *Node) i32 {
 func gen_func_params(g *Gen, params *Object) i32 {
 	var regi_idx i32 = 0;
 	while params != nil {
-		if strcmp(params.ty.kind, "TY_STRUCT") {
+		if params.ty.kind == TY_STRUCT {
 			if params.ty.size > 8 {
 				goto next;
 			} else {
@@ -2207,7 +2259,7 @@ func gen(g *Gen, globals *Object) i32 {
 	var object *Object = globals;
 
 	while object != nil {
-		if strcmp(object.kind, "OBJ_FUNC") {
+		if object.kind == OBJ_FUNC {
 			if object.is_declaration {
 				goto next;
 			}
@@ -2239,8 +2291,94 @@ func gen(g *Gen, globals *Object) i32 {
 }
 
 // ----------------------------------
+// Preprocessor
+// ----------------------------------
+
+struct Macro;
+struct Macro {
+	name *i8;
+	tok *Token;
+	next *Macro;
+}
+
+struct Preprocessor {
+	macros *Macro;
+}
+
+func new_macro(name *i8, tok *Token) *Macro {
+	var macro *Macro = alloc(typesize(Macro));
+	macro.name = name;
+	macro.tok = tok;
+	macro.next = nil;
+	return macro;
+}
+
+func find_macro(name *i8, p *Preprocessor) *Macro {
+	var m *Macro = p.macros;
+	while m != nil {
+		if strcmp(m.name, name) {
+			return m;
+		}
+		m = m.next;
+	}
+	return nil;
+}
+
+func copy_token(source *Token, dest *Token) *Token {
+	var tok *Token = *dest;
+	tok.lit = source.lit;
+	tok.kind = source.kind;
+	tok.start = source.start;
+	tok.len = source.len;
+	return dest;
+}
+
+func preprocess(tok *Token, p *Preprocessor) i32;
+func preprocess(tok *Token, p *Preprocessor) i32 {
+	var new_macro *Macro;
+	while {
+		if tok.next == nil {
+			goto next;
+		}
+		if !strcmp(tok.lit, "#") {
+			goto next;
+		}
+		if !strcmp(tok.next.lit, "define") {
+			goto next;
+		}
+		new_macro = new_macro(tok.next.next.lit, tok.next.next.next);
+		new_macro.next = p.macros;
+		p.macros = new_macro;
+		*tok = *tok.next.next.next.next;
+	}
+
+next:
+	var m *Macro = find_macro(tok.lit, p);
+	if m != nil {
+		copy_token(m.tok, tok);
+	}
+
+	if tok.next != nil {
+		preprocess(tok.next, p);
+	}
+
+	return 0;
+}
+
+func print_all_macros(p *Preprocessor) i32 {
+	var m *Macro = p.macros;
+	while m != nil {
+		eprintf("name: %s, token lit: %s\n", m.name, m.tok.lit);
+		m = m.next;
+	}
+	return 0;
+}
+
+// ----------------------------------
 // Start
 // ----------------------------------
+
+#define PROGRAM_MAX_SIZE 55000
 
 func main(argc i32, argv **i8) i32 {
 	if argc != 2 {
@@ -2253,12 +2391,17 @@ func main(argc i32, argv **i8) i32 {
 		eprintf("error: opening file %s\n", argv[1]);
 		exit(1);
 	}
-	var buf *i8 = alloc(55000);
-	read(fd, buf, 55000);
+
+	var buf *i8 = alloc(PROGRAM_MAX_SIZE);
+	read(fd, buf, PROGRAM_MAX_SIZE);
 	close(fd);
 
 	var t *Tokenizer = new_tokenizer(buf);
 	var tokens *Token = tokenize(t);
+
+	var preprocessor *Preprocessor = alloc(typesize(Preprocessor));
+	preprocessor.macros = nil;
+	preprocess(tokens, preprocessor);
 
 	var p *Parser = new_parser(buf, tokens);
 	parse(p);

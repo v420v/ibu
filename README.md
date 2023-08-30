@@ -5,7 +5,6 @@
 
 - No strict type checker
 - No global variables
-- No macros
 - No hidden control flow
 - No C-like pointer arithmetic
 - No `break`, `continue` stmt. Use `goto`
