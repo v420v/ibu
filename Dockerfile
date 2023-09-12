@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM --platform=linux/x86_64 ubuntu:latest
 
 RUN apt-get update
 RUN apt-get -y install sudo && \
