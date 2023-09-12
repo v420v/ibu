@@ -1,9 +1,4 @@
 
-// https://templeos.org/
-// https://en.wikipedia.org/wiki/TempleOS
-// https://tinkeros.github.io/WbGit/Doc/HolyC.html
-// https://github.com/cia-foundation/TempleOS
-
 // ----------------------------------
 // Tokenizer
 // ----------------------------------
@@ -83,8 +78,7 @@ func is_two_c_punct(a *i8) bool {
 				return true;
 			}
 		}
-		idx++;
-		idx++;
+		idx = idx + 1;
 	}
 }
 
@@ -149,13 +143,13 @@ func ispunct(c i8) bool {
 }
 
 func new_tokenizer(program *i8) *Tokenizer {
-	var tokenizer *Tokenizer = alloc(typesize(Tokenizer));
-	if tokenizer == nil {
+	var t *Tokenizer = alloc(typesize(Tokenizer));
+	if t == nil {
 		eprintf("nil");
 		exit(1);
 	}
-	tokenizer.program = program;
-	return tokenizer;
+	t.program = program;
+	return t;
 }
 
 func tokenize_number(t *Tokenizer) *Token {
@@ -166,20 +160,22 @@ func tokenize_number(t *Tokenizer) *Token {
 	return new_token(TK_NUM, digit_start, t.program-digit_start);
 }
 
-func skip_comment(t *Tokenizer) i32 {
-	t.program++;
-	if *t.program == 47 {
-		t.program++;
+func skip_single_line_comment(t *Tokenizer) i32 {
+	if *t.program != 47 {
+		return 0;
+	}
+
+	if *(t.program+1) == 47 {
+		t.program++; // skip first `/`
+		t.program++; // skip second `/`
 		while *t.program != 10 {
 			if *t.program == 0 {
 				goto end;
 			}
 			t.program++;
 		}
-	} else {
-		t.program--;
 	}
-	end:
+end:
 	return 0;
 }
 
@@ -215,45 +211,29 @@ func tokenize(t *Tokenizer) *Token {
 	var cur *Token = &head;
 
 	while *t.program != nil {
+		skip_single_line_comment(t);
+
 		if isdigit(*t.program) {
 			cur = cur.next = tokenize_number(t);
-			goto again;
-		}
-		if isalpha(*t.program) {
+		} else if isalpha(*t.program) {
 			cur = cur.next = tokenize_ident(t);
-			goto again;
-		}
-		if *t.program == 47 {
-			skip_comment(t);
-		}
-		if *t.program == 34 {
+		} else if *t.program == 34 {
 			cur = cur.next = tokenize_string(t);
-			goto again;
-		}
-		if is_two_c_punct(t.program) {
+		} else if is_two_c_punct(t.program) {
 			cur = cur.next = new_token(TK_PUNCT, t.program, 2);
 			t.program = t.program + 2;
-			goto again;
-		}
-		if ispunct(*t.program) {
+		} else if ispunct(*t.program) {
 			cur = cur.next = new_token(TK_PUNCT, t.program, 1);
 			t.program++;
-			goto again;
-		}
-		if *t.program == 32 {
+		} else if *t.program == 32 { // Space
 			t.program++;
-			goto again;
-		}
-		if *t.program == 10 {
+		} else if *t.program == 10 { // New line
 			t.program++;
-			goto again;
-		}
-		if *t.program == 9 {
+		} else if *t.program == 9 { // Tab
 			t.program++;
-			goto again;
+		} else {
+			print_error(save, new_token(TK_UNKOWN, t.program, 1), "unkown character found");
 		}
-		print_error(save, new_token(TK_UNKOWN, t.program, 1), "unkown character found");
-		again:
 	}
 
 	cur = cur.next = new_token(TK_EOF, t.program, 1);
@@ -1168,8 +1148,7 @@ func parse_mul(p *Parser) *Node {
 }
 
 func parse_add(p *Parser) *Node {
-	var node *Node;
-	node = parse_mul(p);
+	var node *Node = parse_mul(p);
 
 	while {
 		if strcmp(p.tokens.lit, "+") {
@@ -1216,8 +1195,7 @@ func is_comparison_node(node *Node) i8 {
 }
 
 func search_relational_rhs(node *Node) *Node {
-	var rel_node *Node;
-	rel_node = node;
+	var rel_node *Node = node;
 	while is_comparison_node(rel_node) {
 		rel_node = rel_node.rhs;
 	}
@@ -1226,8 +1204,7 @@ func search_relational_rhs(node *Node) *Node {
 }
 
 func search_relational_lhs(node *Node) *Node {
-	var rel_node *Node;
-	rel_node = node;
+	var rel_node *Node = node;
 	while is_comparison_node(rel_node) {
 		rel_node = rel_node.lhs;
 	}
@@ -1369,8 +1346,7 @@ func parse_expr(p *Parser) *Node {
 }
 
 func parse_expr_stmt(p *Parser) *Node {
-	var node *Node;
-	node = new_node(ND_EXPR_STMT);
+	var node *Node = new_node(ND_EXPR_STMT);
 	node.lhs = parse_expr(p);
 	parser_skip(p, ";");
 	return node;
@@ -1379,19 +1355,16 @@ func parse_expr_stmt(p *Parser) *Node {
 func parse_stmt(p *Parser) *Node;
 
 func parse_block(p *Parser) *Node {
-	var node *Node;
-	node = new_node(ND_BLOCK);
+	var node *Node = new_node(ND_BLOCK);
 
 	var head Node;
 	head.next = nil;
-	var cur *Node;
-	cur = &head;
+	var cur *Node = &head;
 
 	parser_skip(p, "{");
 
 	while !strcmp(p.tokens.lit, "}") {
-		var stmt *Node;
-		stmt = parse_stmt(p);
+		var stmt *Node = parse_stmt(p);
 		add_type(p, stmt);
 		if stmt != nil {
 			cur = cur.next = stmt;
@@ -1406,8 +1379,7 @@ func parse_block(p *Parser) *Node {
 }
 
 func node_true() *Node {
-	var node *Node;
-	node = alloc(typesize(Node));
+	var node *Node = alloc(typesize(Node));
 	node.kind = ND_NUM;
 	node.int_val = 1;
 	return node;
@@ -2133,7 +2105,7 @@ func gen_node_block(g *Gen, node_block *Node) i32 {
 }
 
 func gen_stmt(g *Gen, node *Node) i32 {
-	var c i32;
+	var c i32 = 0;
 	if node.kind == ND_BLOCK {
 		gen_node_block(g, node);
 	} else if node.kind == ND_EXPR_STMT {

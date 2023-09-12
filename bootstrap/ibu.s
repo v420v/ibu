@@ -1844,6 +1844,11 @@ gen_stmt:
 	subq $20, %rsp
 	movq %rdi, -20(%rbp)
 	movq %rsi, -12(%rbp)
+	leaq -4(%rbp), %rax
+	push %rax
+	movq $0, %rax
+	pop %rdi
+	movl %eax, (%rdi)
 	movq $21, %rax
 	push %rax
 	leaq -12(%rbp), %rax
@@ -15946,6 +15951,13 @@ tokenize:
 	jne .L.while.end.281
 	leaq -56(%rbp), %rax
 	movq (%rax), %rax
+	push %rax
+	pop %rdi
+	movq $0, %rax
+	call skip_single_line_comment
+	addq $0, %rsp
+	leaq -56(%rbp), %rax
+	movq (%rax), %rax
 	addq $0, %rax
 	movq (%rax), %rax
 	movsbl (%rax), %eax
@@ -15973,10 +15985,8 @@ tokenize:
 	movq %rax, (%rdi)
 	pop %rdi
 	movq %rax, (%rdi)
-	jmp .L.tokenize.again
 	jmp .L.end.282
 .L.else.282:
-.L.end.282:
 	leaq -56(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -16006,33 +16016,8 @@ tokenize:
 	movq %rax, (%rdi)
 	pop %rdi
 	movq %rax, (%rdi)
-	jmp .L.tokenize.again
 	jmp .L.end.283
 .L.else.283:
-.L.end.283:
-	movq $47, %rax
-	push %rax
-	leaq -56(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	movq (%rax), %rax
-	movsbl (%rax), %eax
-	pop %rdi
-	cmpl %edi, %eax
-	sete %al
-	movzbl %al, %eax
-	cmpq $1, %rax
-	jne .L.else.284
-	leaq -56(%rbp), %rax
-	movq (%rax), %rax
-	push %rax
-	pop %rdi
-	movq $0, %rax
-	call skip_comment
-	addq $0, %rsp
-	jmp .L.end.284
-.L.else.284:
-.L.end.284:
 	movq $34, %rax
 	push %rax
 	leaq -56(%rbp), %rax
@@ -16045,7 +16030,7 @@ tokenize:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.285
+	jne .L.else.284
 	leaq -8(%rbp), %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -16063,10 +16048,8 @@ tokenize:
 	movq %rax, (%rdi)
 	pop %rdi
 	movq %rax, (%rdi)
-	jmp .L.tokenize.again
-	jmp .L.end.285
-.L.else.285:
-.L.end.285:
+	jmp .L.end.284
+.L.else.284:
 	leaq -56(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -16077,7 +16060,7 @@ tokenize:
 	call is_two_c_punct
 	addq $0, %rsp
 	cmpq $1, %rax
-	jne .L.else.286
+	jne .L.else.285
 	leaq -8(%rbp), %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -16117,10 +16100,8 @@ tokenize:
 	addq %rdi, %rax
 	pop %rdi
 	movq %rax, (%rdi)
-	jmp .L.tokenize.again
-	jmp .L.end.286
-.L.else.286:
-.L.end.286:
+	jmp .L.end.285
+.L.else.285:
 	leaq -56(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -16132,7 +16113,7 @@ tokenize:
 	call ispunct
 	addq $0, %rsp
 	cmpq $1, %rax
-	jne .L.else.287
+	jne .L.else.286
 	leaq -8(%rbp), %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -16176,11 +16157,42 @@ tokenize:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	jmp .L.tokenize.again
+	jmp .L.end.286
+.L.else.286:
+	movq $32, %rax
+	push %rax
+	leaq -56(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	movsbl (%rax), %eax
+	pop %rdi
+	cmpl %edi, %eax
+	sete %al
+	movzbl %al, %eax
+	cmpq $1, %rax
+	jne .L.else.287
+	movq $1, %rax
+	push %rax
+	leaq -56(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	push %rax
+	movq $1, %rax
+	push %rax
+	leaq -56(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
+	pop %rdi
+	movq %rax, (%rdi)
+	pop %rdi
+	subq %rdi, %rax
 	jmp .L.end.287
 .L.else.287:
-.L.end.287:
-	movq $32, %rax
+	movq $10, %rax
 	push %rax
 	leaq -56(%rbp), %rax
 	movq (%rax), %rax
@@ -16211,11 +16223,9 @@ tokenize:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	jmp .L.tokenize.again
 	jmp .L.end.288
 .L.else.288:
-.L.end.288:
-	movq $10, %rax
+	movq $9, %rax
 	push %rax
 	leaq -56(%rbp), %rax
 	movq (%rax), %rax
@@ -16246,45 +16256,8 @@ tokenize:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	jmp .L.tokenize.again
 	jmp .L.end.289
 .L.else.289:
-.L.end.289:
-	movq $9, %rax
-	push %rax
-	leaq -56(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	movq (%rax), %rax
-	movsbl (%rax), %eax
-	pop %rdi
-	cmpl %edi, %eax
-	sete %al
-	movzbl %al, %eax
-	cmpq $1, %rax
-	jne .L.else.290
-	movq $1, %rax
-	push %rax
-	leaq -56(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	push %rax
-	movq $1, %rax
-	push %rax
-	leaq -56(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	movq (%rax), %rax
-	pop %rdi
-	addq %rdi, %rax
-	pop %rdi
-	movq %rax, (%rdi)
-	pop %rdi
-	subq %rdi, %rax
-	jmp .L.tokenize.again
-	jmp .L.end.290
-.L.else.290:
-.L.end.290:
 	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
@@ -16316,7 +16289,14 @@ tokenize:
 	movq $0, %rax
 	call print_error
 	addq $0, %rsp
-.L.tokenize.again:
+.L.end.289:
+.L.end.288:
+.L.end.287:
+.L.end.286:
+.L.end.285:
+.L.end.284:
+.L.end.283:
+.L.end.282:
 	jmp .L.while.start.281
 .L.while.end.281:
 	leaq -8(%rbp), %rax
@@ -16377,10 +16357,10 @@ tokenize_ident:
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-.L.while.start.291:
+.L.while.start.290:
 	movq $1, %rax
 	cmpq $1, %rax
-	jne .L.while.end.291
+	jne .L.while.end.290
 	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -16395,7 +16375,7 @@ tokenize_ident:
 	sete %al
 	movzbq %al, %rax
 	cmpq $1, %rax
-	jne .L.else.292
+	jne .L.else.291
 	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
@@ -16410,7 +16390,7 @@ tokenize_ident:
 	sete %al
 	movzbq %al, %rax
 	cmpq $1, %rax
-	jne .L.else.293
+	jne .L.else.292
 	movq $95, %rax
 	push %rax
 	leaq -16(%rbp), %rax
@@ -16423,17 +16403,17 @@ tokenize_ident:
 	setne %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.294
+	jne .L.else.293
 	jmp .L.tokenize_ident.ident_end
-	jmp .L.end.294
-.L.else.294:
-.L.end.294:
 	jmp .L.end.293
 .L.else.293:
 .L.end.293:
 	jmp .L.end.292
 .L.else.292:
 .L.end.292:
+	jmp .L.end.291
+.L.else.291:
+.L.end.291:
 	movq $1, %rax
 	push %rax
 	leaq -16(%rbp), %rax
@@ -16452,8 +16432,8 @@ tokenize_ident:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	jmp .L.while.start.291
-.L.while.end.291:
+	jmp .L.while.start.290
+.L.while.end.290:
 .L.tokenize_ident.ident_end:
 	movq $1, %rax
 	push %rax
@@ -16513,7 +16493,7 @@ tokenize_string:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-.L.while.start.295:
+.L.while.start.294:
 	movq $34, %rax
 	push %rax
 	leaq -16(%rbp), %rax
@@ -16526,7 +16506,7 @@ tokenize_string:
 	setne %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.while.end.295
+	jne .L.while.end.294
 	movq $1, %rax
 	push %rax
 	leaq -16(%rbp), %rax
@@ -16545,8 +16525,8 @@ tokenize_string:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	jmp .L.while.start.295
-.L.while.end.295:
+	jmp .L.while.start.294
+.L.while.end.294:
 	movq $1, %rax
 	push %rax
 	leaq -16(%rbp), %rax
@@ -16591,12 +16571,49 @@ tokenize_string:
 	retq
 	leave
 	ret
-.global skip_comment
-skip_comment:
+.global skip_single_line_comment
+skip_single_line_comment:
 	push %rbp
 	movq %rsp, %rbp
 	subq $8, %rsp
 	movq %rdi, -8(%rbp)
+	movq $47, %rax
+	push %rax
+	leaq -8(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	movsbl (%rax), %eax
+	pop %rdi
+	cmpl %edi, %eax
+	setne %al
+	movzbl %al, %eax
+	cmpq $1, %rax
+	jne .L.else.295
+	movq $0, %rax
+	movq %rbp, %rsp
+	pop %rbp
+	retq
+	jmp .L.end.295
+.L.else.295:
+.L.end.295:
+	movq $47, %rax
+	push %rax
+	movq $1, %rax
+	push %rax
+	leaq -8(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
+	movsbl (%rax), %eax
+	pop %rdi
+	cmpl %edi, %eax
+	sete %al
+	movzbl %al, %eax
+	cmpq $1, %rax
+	jne .L.else.296
 	movq $1, %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -16615,19 +16632,6 @@ skip_comment:
 	movq %rax, (%rdi)
 	pop %rdi
 	subq %rdi, %rax
-	movq $47, %rax
-	push %rax
-	leaq -8(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	movq (%rax), %rax
-	movsbl (%rax), %eax
-	pop %rdi
-	cmpl %edi, %eax
-	sete %al
-	movzbl %al, %eax
-	cmpq $1, %rax
-	jne .L.else.296
 	movq $1, %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -16673,7 +16677,7 @@ skip_comment:
 	movzbl %al, %eax
 	cmpq $1, %rax
 	jne .L.else.298
-	jmp .L.skip_comment.end
+	jmp .L.skip_single_line_comment.end
 	jmp .L.end.298
 .L.else.298:
 .L.end.298:
@@ -16699,26 +16703,8 @@ skip_comment:
 .L.while.end.297:
 	jmp .L.end.296
 .L.else.296:
-	movq $1, %rax
-	push %rax
-	leaq -8(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	push %rax
-	movq $1, %rax
-	push %rax
-	leaq -8(%rbp), %rax
-	movq (%rax), %rax
-	addq $0, %rax
-	movq (%rax), %rax
-	pop %rdi
-	subq %rdi, %rax
-	pop %rdi
-	movq %rax, (%rdi)
-	pop %rdi
-	addq %rdi, %rax
 .L.end.296:
-.L.skip_comment.end:
+.L.skip_single_line_comment.end:
 	movq $0, %rax
 	movq %rbp, %rsp
 	pop %rbp
@@ -17394,8 +17380,6 @@ is_two_c_punct:
 	jmp .L.end.314
 .L.else.314:
 .L.end.314:
-	movq $1, %rax
-	push %rax
 	leaq -4(%rbp), %rax
 	push %rax
 	movq $1, %rax
@@ -17406,22 +17390,6 @@ is_two_c_punct:
 	addl %edi, %eax
 	pop %rdi
 	movl %eax, (%rdi)
-	pop %rdi
-	subl %edi, %eax
-	movq $1, %rax
-	push %rax
-	leaq -4(%rbp), %rax
-	push %rax
-	movq $1, %rax
-	push %rax
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
-	pop %rdi
-	addl %edi, %eax
-	pop %rdi
-	movl %eax, (%rdi)
-	pop %rdi
-	subl %edi, %eax
 	jmp .L.while.start.312
 .L.while.end.312:
 	leave
