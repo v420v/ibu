@@ -312,6 +312,7 @@ struct Object {
 	is_declaration bool;
 	is_func_param bool;
 	is_builtin bool;
+	is_global bool;
 	next *Object;
 	next_param *Object;
 }
@@ -406,6 +407,7 @@ func add_builtin_object(p *Parser, name *i8, kind ObjectKind, params *Object, ty
 	obj.params = params;
 	obj.ty = ty;
 	obj.is_builtin = true;
+	obj.is_global = true;
 
 	obj.next = p.globals;
 	p.globals = obj;
@@ -722,6 +724,7 @@ func add_type(p *Parser, node *Node) i32 {
 	}
 
 	if node.kind == ND_FUNC_CALL {
+		node.ty = node.lhs.ty.return_type;
 		return 0;
 	}
 
@@ -846,12 +849,17 @@ func parse_ty(p *Parser) *Type {
 		ty = p.ty_bool;
 	} else if strcmp(name, "*") {
 		ty = new_pointer_type(parse_ty(p));
+	} else if strcmp(name, "func") {
+		parser_skip(p, "(");
+		parser_skip(p, ")");
+		ty = new_func_type(parse_ty(p));
 	} else {
 		ty = get_user_defined_type(p, name);
 		if ty == nil {
 			print_error(p.program, ty_token, "unkown type found");
 		}
 	}
+
 	return ty;
 }
 
@@ -892,35 +900,43 @@ func parse_sizeof(p *Parser) *Node {
 	return node;
 }
 
+func find_object(p *Parser, name *i8) *Object {
+	var obj *Object = find_locals(p, name);
+	if obj == nil {
+		obj = find_globals(p, name);
+	}
+	return obj;
+}
+
 func parse_ident(p *Parser) *Node {
-	var node *Node;
-	var obj *Object;
+	var var_tok *Token = p.tokens;
+	var var_node *Node = new_node(ND_VAR);
+	var obj *Object = find_object(p, p.tokens.lit);
 
-	var name *i8 = p.tokens.lit;
-	var ident_tok *Token = p.tokens;
-	parser_next(p);
-
-	if strcmp(p.tokens.lit, "(") {
-		node = new_node(ND_FUNC_CALL);
-		parser_skip(p, "(");
-		node.func_name = name;
-		node.args = parse_args(p);
-		parser_skip(p, ")");
-
-		obj = find_globals(p, node.func_name);
-		if obj == nil {
-			print_error(p.program, ident_tok, "unkown function");
-		}
-		node.ty = obj.ty.return_type;
-	} else {
-		node = new_node(ND_VAR);
-		obj = find_locals(p, name);
-		if obj == nil {
-			print_error(p.program, ident_tok, "unkown object");
-		}
-		node.obj = obj;
+	if obj == nil {
+		print_error(p.program, var_tok, "unkown object");
 	}
 
+	var_node.obj = obj;
+
+	parser_next(p);
+
+	if !strcmp(p.tokens.lit, "(") {
+		return var_node;
+	}
+
+	var node *Node = new_node(ND_FUNC_CALL);
+	parser_skip(p, "(");
+	node.args = parse_args(p);
+	parser_skip(p, ")");
+
+	add_type(p, var_node);
+
+	if var_node.obj.ty.kind != TY_FUNC {
+		print_error(p.program, var_tok, "cannot call a none function object");
+	}
+
+	node.lhs = var_node;
 	return node;
 }
 
@@ -1127,20 +1143,15 @@ func parse_mul(p *Parser) *Node {
 		if strcmp(p.tokens.lit, "*") {
 			parser_next(p);
 			node = new_binop(ND_MUL, node, parse_unary(p));
-			goto again;
-		}
-		if strcmp(p.tokens.lit, "/") {
+		} else if strcmp(p.tokens.lit, "/") {
 			parser_next(p);
 			node = new_binop(ND_DIV, node, parse_unary(p));
-			goto again;
-		}
-		if strcmp(p.tokens.lit, "%") {
+		} else if strcmp(p.tokens.lit, "%") {
 			parser_next(p);
 			node = new_binop(ND_MOD, node, parse_unary(p));
-			goto again;
+		} else {
+			goto end;
 		}
-		goto end;
-		again:
 	}
 	end:
 
@@ -1154,15 +1165,12 @@ func parse_add(p *Parser) *Node {
 		if strcmp(p.tokens.lit, "+") {
 			parser_next(p);
 			node = new_binop(ND_ADD, node, parse_mul(p));
-			goto again;
-		}
-		if strcmp(p.tokens.lit, "-") {
+		} else if strcmp(p.tokens.lit, "-") {
 			parser_next(p);
 			node = new_binop(ND_SUB, node, parse_mul(p));
-			goto again;
+		} else {
+			goto end;
 		}
-		goto end;
-		again:
 	}
 	end:
 
@@ -1257,9 +1265,7 @@ func parse_relational(p *Parser) *Node {
 			} else {
 				node = new_binop(ND_LE, node, rhs);
 			}
-			goto again;
-		}
-		if strcmp(p.tokens.lit, ">=") {
+		} else if strcmp(p.tokens.lit, ">=") {
 			parser_next(p);
 			rhs = parse_add(p);
 			if is_comparison_node(node) {
@@ -1267,9 +1273,7 @@ func parse_relational(p *Parser) *Node {
 			} else {
 				node = new_binop(ND_GE, node, rhs);
 			}
-			goto again;
-		}
-		if strcmp(p.tokens.lit, "<") {
+		} else if strcmp(p.tokens.lit, "<") {
 			parser_next(p);
 			rhs = parse_add(p);
 			if is_comparison_node(node) {
@@ -1277,9 +1281,7 @@ func parse_relational(p *Parser) *Node {
 			} else {
 				node = new_binop(ND_LT, node, rhs);
 			}
-			goto again;
-		}
-		if strcmp(p.tokens.lit, ">") {
+		} else if strcmp(p.tokens.lit, ">") {
 			parser_next(p);
 			rhs = parse_add(p);
 			if is_comparison_node(node) {
@@ -1287,10 +1289,9 @@ func parse_relational(p *Parser) *Node {
 			} else {
 				node = new_binop(ND_GT, node, rhs);
 			}
-			goto again;
+		} else {
+			goto end;
 		}
-		goto end;
-		again:
 	}
 	end:
 
@@ -1298,9 +1299,8 @@ func parse_relational(p *Parser) *Node {
 }
 
 func parse_equality(p *Parser) *Node {
-	var node *Node;
+	var node *Node = parse_relational(p);
 	var rhs *Node;
-	node = parse_relational(p);
 
 	while {
 		if strcmp(p.tokens.lit, "==") {
@@ -1313,9 +1313,7 @@ func parse_equality(p *Parser) *Node {
 			} else {
 				node = new_binop(ND_EQ, node, rhs);
 			}
-			goto continue;
-		}
-		if strcmp(p.tokens.lit, "!=") {
+		} else if strcmp(p.tokens.lit, "!=") {
 			parser_next(p);
 			rhs = parse_relational(p);
 			if is_comparison_node(rhs) {
@@ -1325,10 +1323,9 @@ func parse_equality(p *Parser) *Node {
 			} else {
 				node = new_binop(ND_NE, node, rhs);
 			}
-			goto continue;
+		} else {
+			goto end;
 		}
-		goto end;
-		continue:
 	}
 	end:
 
@@ -1336,8 +1333,7 @@ func parse_equality(p *Parser) *Node {
 }
 
 func parse_expr(p *Parser) *Node {
-	var node *Node;
-	node = parse_equality(p);
+	var node *Node = parse_equality(p);
 	if strcmp(p.tokens.lit, "=") {
 		parser_skip(p);
 		node = new_binop(ND_ASSIGN, node, parse_expr(p));
@@ -1482,13 +1478,10 @@ func new_func_type(return_type *Type) *Type {
 func parse_func_params(p *Parser) *Object {
 	var head Object;
 	var cur *Object = &head;
-	var name_tok *Token;
-
-	var name *i8;
 
 	while !strcmp(p.tokens.lit, ")") {
-		name = p.tokens.lit;
-		name_tok = p.tokens;
+		var name *i8 = p.tokens.lit;
+		var name_tok *Token = p.tokens;
 		parser_next(p);
 		cur = cur.next_param = new_local_object(p, OBJ_VAR, name, parse_ty(p), name_tok);
 		cur.is_func_param = true;
@@ -1531,11 +1524,10 @@ func calc_sizof_struct_members(members *Member) i32 {
 }
 
 func parse_struct(p *Parser) i32 {
-	var head Member; 
-	var cur *Member;
-
+	var head Member;
 	head.next = nil;
-	cur = &head;
+
+	var cur *Member = &head;
 
 	parser_skip(p, "struct");
 	var name *i8 = p.tokens.lit;
@@ -1585,8 +1577,6 @@ func parse_struct(p *Parser) i32 {
 
 	return 0;
 }
-
-func foo(a i32) i32;
 
 func cmp_func_param(p1 *Object, p2 *Object) bool {
 	if p1 == p2 {
@@ -1641,6 +1631,8 @@ func parse_func(p *Parser) i32 {
 	var name_tok *Token = p.tokens;
 
 	obj.name = name;
+
+	obj.is_global = true;
 
 	parser_next(p);
 	parser_skip(p, "(");
@@ -1759,7 +1751,11 @@ func gen_addr(g *Gen, node *Node) i32 {
 		gen_addr(g, node.lhs);
 		printf("\taddq $%d, %rax\n", node.offset);
 	} else if node.kind == ND_VAR {
-		printf("\tleaq %d(%rbp), %rax\n", node.obj.offset);
+		if node.obj.is_global {
+			printf("\tleaq %s@GOTPCREL(%rip), %rax\n", node.obj.name);
+		} else {
+			printf("\tleaq %d(%rbp), %rax\n", node.obj.offset);
+		}
 	} else if node.kind == ND_DEREF {
 		gen_expr(g, node.lhs);
 	} else {
@@ -1891,7 +1887,7 @@ func func_call_args_to_stack(g *Gen, arg *Node) i32 {
 		}
 		arg2 = arg2.next;
 	}
-	
+
 	return stack;
 }
 
@@ -1961,9 +1957,14 @@ func gen_expr(g *Gen, node *Node) i32 {
 	if node.kind == ND_FUNC_CALL {
 		func_call_args_to_regi(g, node.args);
 		var stack i32 = func_call_args_to_stack(g, node.args);
+
+		gen_addr(g, node.lhs);
+		printf("\tmovq (%rax), %r10\n");
 		printf("\tmovq $0, %rax\n");
-		printf("\tcall %s\n", node.func_name);
+
+		printf("\tcallq *%r10\n");
 		printf("\taddq $%d, %rsp\n", stack);
+
 		return 0;
 	}
 	if node.kind == ND_EXPR_STMT {
@@ -2046,17 +2047,17 @@ func gen_expr(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_AND {
 		c = g.label_count++;
-    	gen_expr(g, node.lhs);
-    	printf("\tcmpq $0, %rax\n");
-    	printf("\tje .L.false.%d\n", c);
-    	gen_expr(g, node.rhs);
-    	printf("\tcmpq $0, %rax\n");
-    	printf("\tje .L.false.%d\n", c);
-    	printf("\tmovq $1, %rax\n");
-    	printf("\tjmp .L.end.%d\n", c);
-    	printf(".L.false.%d:\n", c);
-    	printf("\tmovq $0, %rax\n");
-    	printf(".L.end.%d:\n", c);
+		gen_expr(g, node.lhs);
+		printf("\tcmpq $0, %rax\n");
+		printf("\tje .L.false.%d\n", c);
+		gen_expr(g, node.rhs);
+		printf("\tcmpq $0, %rax\n");
+		printf("\tje .L.false.%d\n", c);
+		printf("\tmovq $1, %rax\n");
+		printf("\tjmp .L.end.%d\n", c);
+		printf(".L.false.%d:\n", c);
+		printf("\tmovq $0, %rax\n");
+		printf(".L.end.%d:\n", c);
 		return 0;
 	}
 	if node.kind == ND_GE {
@@ -2307,7 +2308,6 @@ func copy_token(source *Token, dest *Token) *Token {
 
 func preprocess(tok *Token, p *Preprocessor) i32;
 func preprocess(tok *Token, p *Preprocessor) i32 {
-	var new_macro *Macro;
 	while {
 		if tok.next == nil {
 			goto next;
@@ -2318,9 +2318,9 @@ func preprocess(tok *Token, p *Preprocessor) i32 {
 		if !strcmp(tok.next.lit, "define") {
 			goto next;
 		}
-		new_macro = new_macro(tok.next.next.lit, tok.next.next.next);
-		new_macro.next = p.macros;
-		p.macros = new_macro;
+		var macro *Macro = new_macro(tok.next.next.lit, tok.next.next.next);
+		macro.next = p.macros;
+		p.macros = macro;
 		*tok = *tok.next.next.next.next;
 	}
 
