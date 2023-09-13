@@ -67,10 +67,10 @@ func print_error(program *i8, tok *Token, msg *i8) i32 {
 }
 
 func is_two_c_punct(a *i8) bool {
-	var puncts *i8 = "==<=>=!=++--";
+	var puncts *i8 = "==<=>=!=++--||&&";
 	var idx i32 = 0;
 	while {
-		if idx >= 11 {
+		if idx >= 15 {
 			return false;
 		}
 		if a[0] == puncts[idx] {
@@ -83,10 +83,8 @@ func is_two_c_punct(a *i8) bool {
 }
 
 func isalpha(c i8) bool {
-	if 65 <= c <= 90 { // A .. Z
-		return true;
-	}
-	if 97 <= c <= 122 { // a .. z
+	//  A .. Z             a .. z
+	if (65 <= c <= 90) || (97 <= c <= 122) {
 		return true;
 	}
 	return false;
@@ -161,21 +159,13 @@ func tokenize_number(t *Tokenizer) *Token {
 }
 
 func skip_single_line_comment(t *Tokenizer) i32 {
-	if *t.program != 47 {
-		return 0;
-	}
-
-	if *(t.program+1) == 47 {
+	if (*t.program == 47) && (*(t.program+1) == 47) {
 		t.program++; // skip first `/`
 		t.program++; // skip second `/`
-		while *t.program != 10 {
-			if *t.program == 0 {
-				goto end;
-			}
+		while (*t.program != 10) && (*t.program != 0) {
 			t.program++;
 		}
 	}
-end:
 	return 0;
 }
 
@@ -191,14 +181,7 @@ func tokenize_string(t *Tokenizer) *Token {
 
 func tokenize_ident(t *Tokenizer) *Token {
 	var ident_start *i8 = t.program;
-	while {
-		if !isalpha(*t.program) {
-			if !isdigit(*t.program) {
-				if *t.program != 95 {
-					goto ident_end;
-				}
-			}
-		}
+	while isalpha(*t.program) || isdigit(*t.program) || *t.program == 95 {
 		t.program++;
 	}
 	ident_end:
@@ -344,8 +327,9 @@ struct Object {
 #define ND_GOTO				23
 #define ND_LABEL			24
 #define ND_FUNC_CALL		25
-#define ND_AND				26
-#define ND_MEMBER_ACCESS	27
+#define ND_LOGAND			26
+#define ND_LOGOR			27
+#define ND_MEMBER_ACCESS	28
 
 struct Node {
 	kind NodeKind;
@@ -715,11 +699,9 @@ func add_type(p *Parser, node *Node) i32 {
 		return 0;
 	}
 
-	if node.kind == ND_GOTO {
-		return 0;
-	}
-
-	if node.kind == ND_LABEL {
+	if node.kind == ND_GOTO || node.kind == ND_LABEL
+		|| node.kind == ND_IF || node.kind == ND_WHILE
+		|| node.kind == ND_RETURN {
 		return 0;
 	}
 
@@ -728,80 +710,18 @@ func add_type(p *Parser, node *Node) i32 {
 		return 0;
 	}
 
-	if node.kind == ND_IF {
-		return 0;
-	}
-
-	if node.kind == ND_WHILE {
-		return 0;
-	}
-
-	if node.kind == ND_RETURN {
-		return 0;
-	}
-
-	if node.kind == ND_ADD {
-		node.ty = node.lhs.ty;
-		return 0;
-	}
-	if node.kind == ND_SUB {
-		node.ty = node.lhs.ty;
-		return 0;
-	}
-	if node.kind == ND_MUL {
-		node.ty = node.lhs.ty;
-		return 0;
-	}
-	if node.kind == ND_DIV {
-		node.ty = node.lhs.ty;
-		return 0;
-	}
-	if node.kind == ND_MOD {
-		node.ty = node.lhs.ty;
-		return 0;
-	}
-	if node.kind == ND_ASSIGN {
-		node.ty = node.lhs.ty;
-		return 0;
-	}
-	if node.kind == ND_ADD {
+	if (node.kind == ND_ADD || node.kind == ND_SUB
+		|| node.kind == ND_MUL || node.kind == ND_DIV
+		|| node.kind == ND_MOD || node.kind == ND_ASSIGN) {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
 
-	if node.kind == ND_NOT {
-		node.ty = p.ty_i32;
-		return 0;
-	}
-	if node.kind == ND_EQ {
-		node.ty = p.ty_i32;
-		return 0;
-	}
-	if node.kind == ND_NE {
-		node.ty = p.ty_i32;
-		return 0;
-	}
-	if node.kind == ND_LE {
-		node.ty = p.ty_i32;
-		return 0;
-	}
-	if node.kind == ND_LT {
-		node.ty = p.ty_i32;
-		return 0;
-	}
-	if node.kind == ND_GT {
-		node.ty = p.ty_i32;
-		return 0;
-	}
-	if node.kind == ND_GE {
-		node.ty = p.ty_i32;
-		return 0;
-	}
-	if node.kind == ND_AND {
-		node.ty = p.ty_i32;
-		return 0;
-	}
-	if node.kind == ND_NUM {
+	if node.kind == ND_NOT || node.kind == ND_EQ
+	|| node.kind == ND_NE || node.kind == ND_LE
+	|| node.kind == ND_LT || node.kind == ND_GT
+	|| node.kind == ND_GE || node.kind == ND_LOGAND
+	|| node.kind == ND_LOGOR || node.kind == ND_NUM {
 		node.ty = p.ty_i32;
 		return 0;
 	}
@@ -1196,7 +1116,7 @@ func is_comparison_node(node *Node) i8 {
 	if node.kind == ND_NE {
 		return 1;
 	}
-	if node.kind == ND_AND {
+	if node.kind == ND_LOGAND {
 		return 1;
 	}
 	return 0;
@@ -1226,14 +1146,14 @@ func new_relational(kind NodeKind, lhs *Node, rhs *Node) *Node {
 	if is_comparison_node(lhs) {
 		if is_comparison_node(rhs) {
 			node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
-			node = new_binop(ND_AND, node, rhs);
-			node = new_binop(ND_AND, lhs, node);
+			node = new_binop(ND_LOGAND, node, rhs);
+			node = new_binop(ND_LOGAND, lhs, node);
 			return node;
 		}
 	}
 
 	node = new_binop(kind, search_relational_rhs(lhs.rhs), rhs);
-	node = new_binop(ND_AND, lhs, node);
+	node = new_binop(ND_LOGAND, lhs, node);
 	return node;
 }
 
@@ -1242,13 +1162,13 @@ func new_equality(kind NodeKind, lhs *Node, rhs *Node) *Node {
 	if is_comparison_node(lhs) {
 		if is_comparison_node(rhs) {
 			node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
-			node = new_binop(ND_AND, lhs, node);
-			node = new_binop(ND_AND, node, rhs);
+			node = new_binop(ND_LOGAND, lhs, node);
+			node = new_binop(ND_LOGAND, node, rhs);
 			return node;
 		}
 	}
 	node = new_binop(kind, lhs, search_relational_lhs(rhs.lhs));
-	node = new_binop(ND_AND, node, rhs);
+	node = new_binop(ND_LOGAND, node, rhs);
 	return node;
 }
 
@@ -1332,8 +1252,26 @@ func parse_equality(p *Parser) *Node {
 	return node;
 }
 
-func parse_expr(p *Parser) *Node {
+func parse_logand(p *Parser) *Node {
 	var node *Node = parse_equality(p);
+	while strcmp(p.tokens.lit, "&&") {
+		parser_skip(p);
+		node = new_binop(ND_LOGAND, node, parse_equality(p));
+	}
+	return node;
+}
+
+func parse_logor(p *Parser) *Node {
+	var node *Node = parse_logand(p);
+	while strcmp(p.tokens.lit, "||") {
+		parser_skip(p);
+		node = new_binop(ND_LOGOR, node, parse_logand(p));
+	}
+	return node;
+}
+
+func parse_expr(p *Parser) *Node {
+	var node *Node = parse_logor(p);
 	if strcmp(p.tokens.lit, "=") {
 		parser_skip(p);
 		node = new_binop(ND_ASSIGN, node, parse_expr(p));
@@ -1500,19 +1438,16 @@ func parse_func_params(p *Parser) *Object {
 }
 
 func new_member(name *i8, ty *Type) *Member {
-	var member *Member;
-	member = alloc(typesize(Member));
+	var member *Member = alloc(typesize(Member));
 	member.name = name;
 	member.ty = ty;
 	return member;
 }
 
 func calc_sizof_struct_members(members *Member) i32 {
-	var offset i32;
-	offset = 0;
+	var offset i32 = 0;
 
-	var member *Member;
-	member = members;
+	var member *Member = members;
 
 	while member != nil {
 		member.offset = offset;
@@ -1534,18 +1469,18 @@ func parse_struct(p *Parser) i32 {
 	var name_token *Token = p.tokens;
 	parser_next(p);
 
-	var struct_ty *Type = alloc(typesize(Type));
-	struct_ty.kind = TY_STRUCT;
-	struct_ty.name = name;
+	var ty *Type = alloc(typesize(Type));
+	ty.kind = TY_STRUCT;
+	ty.name = name;
 
 	if strcmp(p.tokens.lit, ";") {
-		struct_ty.is_declaration = true;
-		struct_ty.members = nil;
-		struct_ty.size = 0;
+		ty.is_declaration = true;
+		ty.members = nil;
+		ty.size = 0;
 		parser_skip(p, ";");
 
 		if get_user_defined_type(p, name) == nil {
-			add_user_defined_type(p, struct_ty);
+			add_user_defined_type(p, ty);
 		}
 	} else {
 		parser_skip(p, "{");
@@ -1559,12 +1494,12 @@ func parse_struct(p *Parser) i32 {
 
 		parser_skip(p, "}");
 
-		struct_ty.members = head.next;
-		struct_ty.size = calc_sizof_struct_members(head.next);
+		ty.members = head.next;
+		ty.size = calc_sizof_struct_members(head.next);
 
 		var user_defined_struct *Type = get_user_defined_type(p, name); 
 		if user_defined_struct == nil {
-			add_user_defined_type(p, struct_ty);
+			add_user_defined_type(p, ty);
 		} else {
 			if !user_defined_struct.is_declaration {
 				print_error(p.program, name_token, "struct is already defined somewhere");
@@ -1659,22 +1594,21 @@ func parse_func(p *Parser) i32 {
 		obj.next = p.globals;
 		p.globals = obj;
 	} else {
-		var got_user_defined_func *Object;
-		got_user_defined_func = find_globals(p, name);
-		if got_user_defined_func != nil {
-			if !got_user_defined_func.is_declaration {
+		var found_func *Object = find_globals(p, name);
+		if found_func != nil {
+			if !found_func.is_declaration {
 				print_error(p.program, name_tok, "function is already defined somewhere");
 			}
-			if !cmp_func_params(got_user_defined_func.params, obj.params) {
+			if !cmp_func_params(found_func.params, obj.params) {
 				print_error(p.program, name_tok, "function declaration paramaters does not match to definition");
 			}
-			if !cmp_type(func_return_ty, got_user_defined_func.ty.return_type) {
+			if !cmp_type(func_return_ty, found_func.ty.return_type) {
 				print_error(p.program, name_tok, "function declaration return type does not match to definition");
 			}
-			got_user_defined_func.body = parse_block(p);
-			got_user_defined_func.locals = p.locals;
-			got_user_defined_func.is_declaration = false;
-			got_user_defined_func.params = obj.params;
+			found_func.body = parse_block(p);
+			found_func.locals = p.locals;
+			found_func.is_declaration = false;
+			found_func.params = obj.params;
 		} else {
 			obj.ty = new_func_type(func_return_ty);
 			obj.body = parse_block(p);
@@ -2045,7 +1979,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	if node.kind == ND_AND {
+	if node.kind == ND_LOGAND {
 		c = g.label_count++;
 		gen_expr(g, node.lhs);
 		printf("\tcmpq $0, %rax\n");
@@ -2057,6 +1991,21 @@ func gen_expr(g *Gen, node *Node) i32 {
 		printf("\tjmp .L.end.%d\n", c);
 		printf(".L.false.%d:\n", c);
 		printf("\tmovq $0, %rax\n");
+		printf(".L.end.%d:\n", c);
+		return 0;
+	}
+	if node.kind == ND_LOGOR {
+		c = g.label_count++;
+		gen_expr(g, node.lhs);
+		printf("\tcmpq $0, %rax\n");
+		printf("\tjne .L.true.%d\n", c);
+		gen_expr(g, node.rhs);
+		printf("\tcmp $0, %rax\n");
+		printf("\tjne .L.true.%d\n", c);
+		printf("\tmov $0, %rax\n");
+		printf("\tjmp .L.end.%d\n", c);
+		printf(".L.true.%d:\n", c);
+		printf("\tmov $1, %rax\n");
 		printf(".L.end.%d:\n", c);
 		return 0;
 	}
@@ -2201,16 +2150,13 @@ func assign_offset(objects *Object) i32 {
 	var stack_offset i32 = 16;
 
 	while obj != nil {
-		if obj.is_func_param {
-			if obj.ty.size > 8 {
-				obj.offset = stack_offset;
-				stack_offset = stack_offset + obj.ty.size;
-				goto next;
-			}
+		if obj.is_func_param && obj.ty.size > 8 {
+			obj.offset = stack_offset;
+			stack_offset = stack_offset + obj.ty.size;
+		} else {
+			offset = offset + obj.ty.size;
+			obj.offset = offset - offset * 2;
 		}
-		offset = offset + obj.ty.size;
-		obj.offset = offset - offset * 2;
-	next:
 		obj = obj.next;
 	}
 	return offset;
@@ -2309,14 +2255,8 @@ func copy_token(source *Token, dest *Token) *Token {
 func preprocess(tok *Token, p *Preprocessor) i32;
 func preprocess(tok *Token, p *Preprocessor) i32 {
 	while {
-		if tok.next == nil {
-			goto next;
-		}
-		if !strcmp(tok.lit, "#") {
-			goto next;
-		}
-		if !strcmp(tok.next.lit, "define") {
-			goto next;
+		if tok.next == nil || !strcmp(tok.lit, "#") || !strcmp(tok.next.lit, "define") {
+			goto break;
 		}
 		var macro *Macro = new_macro(tok.next.next.lit, tok.next.next.next);
 		macro.next = p.macros;
@@ -2324,7 +2264,8 @@ func preprocess(tok *Token, p *Preprocessor) i32 {
 		*tok = *tok.next.next.next.next;
 	}
 
-next:
+break:
+
 	var m *Macro = find_macro(tok.lit, p);
 	if m != nil {
 		copy_token(m.tok, tok);
