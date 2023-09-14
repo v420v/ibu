@@ -4,6 +4,9 @@
 // ----------------------------------
 
 struct Tokenizer {
+	file_name *i8;
+	col i32;
+	line i32;
 	program *i8;
 }
 
@@ -19,10 +22,24 @@ struct Token;
 
 struct Token {
 	kind TokenKind;
-	start *i8;
-	len i32;
+	file_name *i8;
+	line i32;
+	col i32;
 	lit *i8;
 	next *Token;
+}
+
+func new_tokenizer(file_name *i8, program *i8) *Tokenizer {
+	var t *Tokenizer = alloc(typesize(Tokenizer));
+	if t == nil {
+		eprintf("alloc() returned nil\n");
+		exit(1);
+	}
+	t.line = 1;
+	t.col = 0;
+	t.program = program;
+	t.file_name = file_name;
+	return t;
 }
 
 func strlen(s *i8) i32 {
@@ -33,36 +50,8 @@ func strlen(s *i8) i32 {
 	return s - start;
 }
 
-func get_line_number(program *i8, start *i8) i32 {
-	var line i32 = 1;
-
-	while program != start {
-		start--;
-		if *start == 10 {
-			line++;
-		}
-	}
-
-	return line;
-}
-
-func get_column_number(program *i8, start *i8) i32 {
-	var col i32 = 0;
-
-	while *start != 10 {
-		if program == start {
-			goto end;
-		}
-		start--;
-		col++;
-	}
-	end:
-
-	return col;
-}
-
 func print_error(program *i8, tok *Token, msg *i8) i32 {
-	eprintf("error:%d:%d: %s\n", get_line_number(program, tok.start), get_column_number(program, tok.start), msg);
+	eprintf("%s:%d:%d: error: %s\n", tok.file_name, tok.line, tok.col, msg);
 	exit(1);
 }
 
@@ -84,7 +73,7 @@ func is_two_c_punct(a *i8) bool {
 
 func isalpha(c i8) bool {
 	//  A .. Z             a .. z
-	if (65 <= c <= 90) || (97 <= c <= 122) {
+	if 65 <= c <= 90 || 97 <= c <= 122 {
 		return true;
 	}
 	return false;
@@ -100,7 +89,7 @@ func isdigit(c i8) bool {
 func strndup(str *i8, n i32) *i8 {
 	var r *i8 = alloc(n+1);
 	if r == nil {
-		eprintf("nil");
+		eprintf("alloc() returned nil\n");
 		exit(1);
 	}
 	var idx i32 = 0;
@@ -112,17 +101,29 @@ func strndup(str *i8, n i32) *i8 {
 	return r;
 }
 
-func new_token(kind TokenKind, start *i8, len i32) *Token {
+func tokenizer_next(t *Tokenizer) i32 {
+	if *t.program == 10 { // new line
+		t.line = t.line + 1;
+		t.col = 0;
+	} else {
+		t.col = t.col + 1;
+	}
+	t.program++;
+	return 0;
+}
+
+func new_token(t *Tokenizer, kind TokenKind, start *i8, len i32) *Token {
 	var tok *Token = alloc(typesize(Token));
 	if tok == nil {
-		eprintf("nil");
+		eprintf("alloc() returned nil\n");
 		exit(1);
 	}
 
+	tok.line = t.line;
+	tok.col = t.col;
+	tok.file_name = t.file_name;
 	tok.kind = kind;
 	tok.lit = strndup(start, len);
-	tok.start = start;
-	tok.len = len;
 
 	return tok;
 }
@@ -140,30 +141,20 @@ func ispunct(c i8) bool {
 	return false;
 }
 
-func new_tokenizer(program *i8) *Tokenizer {
-	var t *Tokenizer = alloc(typesize(Tokenizer));
-	if t == nil {
-		eprintf("nil");
-		exit(1);
-	}
-	t.program = program;
-	return t;
-}
-
 func tokenize_number(t *Tokenizer) *Token {
 	var digit_start *i8 = t.program;
 	while isdigit(*t.program) {
-		t.program++;
+		tokenizer_next(t);
 	}
-	return new_token(TK_NUM, digit_start, t.program-digit_start);
+	return new_token(t, TK_NUM, digit_start, t.program-digit_start);
 }
 
 func skip_single_line_comment(t *Tokenizer) i32 {
 	if (*t.program == 47) && (*(t.program+1) == 47) {
-		t.program++; // skip first `/`
-		t.program++; // skip second `/`
+		tokenizer_next(t); // skip first `/`
+		tokenizer_next(t); // skip second `/`
 		while (*t.program != 10) && (*t.program != 0) {
-			t.program++;
+			tokenizer_next(t);
 		}
 	}
 	return 0;
@@ -171,21 +162,21 @@ func skip_single_line_comment(t *Tokenizer) i32 {
 
 func tokenize_string(t *Tokenizer) *Token {
 	var string_start *i8 = t.program;
-	t.program++;
+	tokenizer_next(t);
 	while *t.program != 34 {
-		t.program++;
+		tokenizer_next(t);
 	}
-	t.program++;
-	return new_token(TK_STR, string_start, t.program-string_start);
+	tokenizer_next(t);
+	return new_token(t, TK_STR, string_start, t.program-string_start);
 }
 
 func tokenize_ident(t *Tokenizer) *Token {
 	var ident_start *i8 = t.program;
 	while isalpha(*t.program) || isdigit(*t.program) || *t.program == 95 {
-		t.program++;
+		tokenizer_next(t);
 	}
 	ident_end:
-	return new_token(TK_IDENT, ident_start, t.program-ident_start);
+	return new_token(t, TK_IDENT, ident_start, t.program-ident_start);
 }
 
 func tokenize(t *Tokenizer) *Token {
@@ -203,23 +194,23 @@ func tokenize(t *Tokenizer) *Token {
 		} else if *t.program == 34 {
 			cur = cur.next = tokenize_string(t);
 		} else if is_two_c_punct(t.program) {
-			cur = cur.next = new_token(TK_PUNCT, t.program, 2);
+			cur = cur.next = new_token(t, TK_PUNCT, t.program, 2);
 			t.program = t.program + 2;
 		} else if ispunct(*t.program) {
-			cur = cur.next = new_token(TK_PUNCT, t.program, 1);
-			t.program++;
+			cur = cur.next = new_token(t, TK_PUNCT, t.program, 1);
+			tokenizer_next(t);
 		} else if *t.program == 32 { // Space
-			t.program++;
+			tokenizer_next(t);
 		} else if *t.program == 10 { // New line
-			t.program++;
+			tokenizer_next(t);
 		} else if *t.program == 9 { // Tab
-			t.program++;
+			tokenizer_next(t);
 		} else {
-			print_error(save, new_token(TK_UNKOWN, t.program, 1), "unkown character found");
+			print_error(save, new_token(t, TK_UNKOWN, t.program, 1), "unkown character found");
 		}
 	}
 
-	cur = cur.next = new_token(TK_EOF, t.program, 1);
+	cur = cur.next = new_token(t, TK_EOF, t.program, 1);
 	cur.lit = "EOF";
 
 	return head.next;
@@ -383,7 +374,7 @@ func strcmp(a *i8, b *i8) bool {
 func add_builtin_object(p *Parser, name *i8, kind ObjectKind, params *Object, ty *Type) i32 {
 	var obj *Object = alloc(typesize(Object));
 	if obj == nil {
-		eprintf("nil");
+		eprintf("alloc() returned nil\n");
 		exit(1);
 	}
 	obj.kind = kind;
@@ -445,7 +436,7 @@ func new_func_type(return_type *Type) *Type;
 func new_parser(program *i8, tokens *Token) *Parser {
 	var p *Parser = alloc(typesize(Parser));
 	if p == nil {
-		eprintf("nil");
+		eprintf("alloc() returned nil\n");
 		exit(1);
 	}
 	p.tokens = tokens;
@@ -543,7 +534,7 @@ func parser_next(p *Parser) i32 {
 func new_node(kind NodeKind) *Node {
 	var node *Node = alloc(typesize(Node));
 	if node == nil {
-		eprintf("nil");
+		eprintf("alloc() returned nil\n");
 		exit(1);
 	}
 	node.kind = kind;
@@ -633,7 +624,7 @@ func new_local_object(p *Parser, kind ObjectKind, name *i8, ty *Type, tok *Token
 
 	var obj *Object = alloc(typesize(Object));
 	if obj == nil {
-		eprintf("nil");
+		eprintf("alloc() returned nil\n");
 		exit(1);
 	}
 
@@ -717,11 +708,11 @@ func add_type(p *Parser, node *Node) i32 {
 		return 0;
 	}
 
-	if node.kind == ND_NOT || node.kind == ND_EQ
-	|| node.kind == ND_NE || node.kind == ND_LE
-	|| node.kind == ND_LT || node.kind == ND_GT
-	|| node.kind == ND_GE || node.kind == ND_LOGAND
-	|| node.kind == ND_LOGOR || node.kind == ND_NUM {
+	if (node.kind == ND_NOT || node.kind == ND_EQ
+		|| node.kind == ND_NE || node.kind == ND_LE
+		|| node.kind == ND_LT || node.kind == ND_GT
+		|| node.kind == ND_GE || node.kind == ND_LOGAND
+		|| node.kind == ND_LOGOR || node.kind == ND_NUM) {
 		node.ty = p.ty_i32;
 		return 0;
 	}
@@ -1628,7 +1619,7 @@ func parse(p *Parser) i32 {
 		} else if strcmp(p.tokens.lit, "struct") {
 			parse_struct(p);
 		} else {
-			print_error(p.program, p.tokens, "expected `func` or `struct`");
+			print_error(p.program, p.tokens, "non-declaration statement outside function body");
 		}
 	}
 
@@ -1653,16 +1644,36 @@ func new_gen() *Gen {
 	var g *Gen = alloc(typesize(Gen));
 
 	g.regi64 = alloc(typesize(*i8)*6);
-	g.regi64[0] = "%rdi"; g.regi64[1] = "%rsi"; g.regi64[2] = "%rdx"; g.regi64[3] = "%rcx"; g.regi64[4] = "%r8"; g.regi64[5] = "%r9";
+	g.regi64[0] = "%rdi";
+	g.regi64[1] = "%rsi";
+	g.regi64[2] = "%rdx";
+	g.regi64[3] = "%rcx";
+	g.regi64[4] = "%r8";
+	g.regi64[5] = "%r9";
 
 	g.regi32 = alloc(typesize(*i8)*6);
-	g.regi32[0] = "%edi"; g.regi32[1] = "%esi"; g.regi32[2] = "%edx"; g.regi32[3] = "%ecx"; g.regi32[4] = "%r8d"; g.regi32[5] = "%r9d";
+	g.regi32[0] = "%edi";
+	g.regi32[1] = "%esi";
+	g.regi32[2] = "%edx";
+	g.regi32[3] = "%ecx";
+	g.regi32[4] = "%r8d";
+	g.regi32[5] = "%r9d";
 
 	g.regi16 = alloc(typesize(*i8)*6);
-	g.regi16[0] = "%di"; g.regi16[1] = "%si"; g.regi16[2] = "%dx"; g.regi16[3] = "%cx"; g.regi16[4] = "%r8w"; g.regi16[5] = "%r9w";
+	g.regi16[0] = "%di";
+	g.regi16[1] = "%si";
+	g.regi16[2] = "%dx";
+	g.regi16[3] = "%cx";
+	g.regi16[4] = "%r8w";
+	g.regi16[5] = "%r9w";
 
 	g.regi8 = alloc(typesize(*i8)*6);
-	g.regi8[0] = "%dil"; g.regi8[1] = "%sil"; g.regi8[2] = "%dl"; g.regi8[3] = "%cl"; g.regi8[4] = "%r8b"; g.regi8[5] = "%r9b";
+	g.regi8[0] = "%dil";
+	g.regi8[1] = "%sil";
+	g.regi8[2] = "%dl";
+	g.regi8[3] = "%cl";
+	g.regi8[4] = "%r8b";
+	g.regi8[5] = "%r9b";
 
 	g.label_count = 0;
 	g.str_label_count = 0;
@@ -1850,9 +1861,9 @@ func func_call_args_to_regi(g *Gen, arg *Node) i32 {
 }
 
 func gen_expr(g *Gen, node *Node) i32 {
-	var c i32;
+	var c i32 = 0;
 	if node == nil {
-		eprintf("node == nil. this shoult not happen!\n");
+		eprintf("internal error: gen_expr() node == nil. this should not happen.\n");
 		exit(1);
 	}
 	if node.kind == ND_MEMBER_ACCESS {
@@ -2147,12 +2158,12 @@ func gen_func_params(g *Gen, params *Object) i32 {
 func assign_offset(objects *Object) i32 {
 	var obj *Object = objects;
 	var offset i32 = 0;
-	var stack_offset i32 = 16;
+	var stack_top i32 = 16;
 
 	while obj != nil {
 		if obj.is_func_param && obj.ty.size > 8 {
-			obj.offset = stack_offset;
-			stack_offset = stack_offset + obj.ty.size;
+			obj.offset = stack_top;
+			stack_top = stack_top + obj.ty.size;
 		} else {
 			offset = offset + obj.ty.size;
 			obj.offset = offset - offset * 2;
@@ -2178,13 +2189,7 @@ func gen(g *Gen, globals *Object) i32 {
 	var object *Object = globals;
 
 	while object != nil {
-		if object.kind == OBJ_FUNC {
-			if object.is_declaration {
-				goto next;
-			}
-			if object.is_builtin {
-				goto next;
-			}
+		if object.kind == OBJ_FUNC && !object.is_declaration && !object.is_builtin {
 			object.stack_size = assign_offset(object.locals);
 			g.cur_func_name = object.name;
 			printf(".global %s\n", object.name);
@@ -2198,11 +2203,7 @@ func gen(g *Gen, globals *Object) i32 {
 			gen_node_block(g, object.body);
 			printf("\tleave\n");
 			printf("\tret\n");
-		} else {
-			eprintf("unreachable\n");
-			exit(1);
 		}
-	next:
 		object = object.next;
 	}
 
@@ -2243,28 +2244,24 @@ func find_macro(name *i8, p *Preprocessor) *Macro {
 	return nil;
 }
 
-func copy_token(source *Token, dest *Token) *Token {
+func copy_token(source *Token, dest *Token) i32 {
 	var tok *Token = *dest;
 	tok.lit = source.lit;
 	tok.kind = source.kind;
-	tok.start = source.start;
-	tok.len = source.len;
-	return dest;
+	tok.file_name = source.file_name;
+	tok.line = source.line;
+	tok.col = source.col;
+	return 0;
 }
 
 func preprocess(tok *Token, p *Preprocessor) i32;
 func preprocess(tok *Token, p *Preprocessor) i32 {
-	while {
-		if tok.next == nil || !strcmp(tok.lit, "#") || !strcmp(tok.next.lit, "define") {
-			goto break;
-		}
+	while tok.next != nil && strcmp(tok.lit, "#") && strcmp(tok.next.lit, "define") {
 		var macro *Macro = new_macro(tok.next.next.lit, tok.next.next.next);
 		macro.next = p.macros;
 		p.macros = macro;
 		*tok = *tok.next.next.next.next;
 	}
-
-break:
 
 	var m *Macro = find_macro(tok.lit, p);
 	if m != nil {
@@ -2309,7 +2306,7 @@ func main(argc i32, argv **i8) i32 {
 	read(fd, buf, PROGRAM_MAX_SIZE);
 	close(fd);
 
-	var t *Tokenizer = new_tokenizer(buf);
+	var t *Tokenizer = new_tokenizer(argv[1], buf);
 	var tokens *Token = tokenize(t);
 
 	var preprocessor *Preprocessor = alloc(typesize(Preprocessor));
