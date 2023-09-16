@@ -1,0 +1,91 @@
+
+func isalpha(c i8) bool {
+	//  A .. Z             a .. z
+	if 65 <= c <= 90 || 97 <= c <= 122 {
+		return true;
+	}
+	return false;
+}
+
+func isdigit(c i8) bool {
+	if 48 <= c <= 57 { // 0 .. 9
+		return true;
+	}
+	return false;
+}
+
+func atoi(str *i8) i32 {
+	var i i32 = 0;
+	var n i32 = 0;
+	var is_neg bool = 0;
+
+	if str[i] == 45 {
+		is_neg = true;
+		i++;
+	}
+
+	while str[i] != 0 {
+		n = n * 10 + str[i++] - 48;
+	}
+
+	if is_neg {
+	    n = n - n*2;
+	}
+
+	return n;
+}
+
+func strndup(str *i8, n i32) *i8 {
+	var r *i8 = alloc(n+1);
+	if r == nil {
+		eprintf("alloc() returned nil\n");
+		exit(1);
+	}
+	var idx i32 = 0;
+	while idx < n {
+		r[idx] = str[idx];
+		idx++;
+	}
+	r[n] = 0;
+	return r;
+}
+
+func reverse(str *i8, length i32) i32 {
+	var start i32 = 0;
+	var end i32 = length - 1;
+
+    while start < end {
+		var temp i8 = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+        end--;
+        start++;
+    }
+}
+
+func itoa(num i32, str *i8, base i32) *i8 {
+	var i i32 = 0;
+
+    if (num == 0) {
+        str[i++] = 48;
+        str[i] = 0;
+        return str;
+    }
+ 
+    while num != 0 {
+        var rem i32 = num % base;
+		if (rem > 9) {
+			str[i++] = (rem - 10) + 97;
+		} else {
+			str[i++] = rem + 48;
+		}
+        num = num / base;
+    }
+ 
+    str[i] = 0;
+
+    reverse(str, i);
+ 
+    return str;
+}
+

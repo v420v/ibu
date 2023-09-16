@@ -27,7 +27,7 @@ exit:
 # Allocator
 .bss
 heap:
-	.zero	5040000
+	.zero	8040000
 heap_size:
 	.zero	8
 .text
@@ -39,7 +39,7 @@ alloc:
 	movq	heap_size(%rip), %rdx
 	movq	-24(%rbp), %rax
 	addq	%rdx, %rax
-	cmpq	$5039999, %rax
+	cmpq	$8039999, %rax
 	jbe	.L.alloc.2
 	movl	$0, %eax
 	jmp	.L.alloc_ret_null

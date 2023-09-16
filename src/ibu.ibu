@@ -1,4 +1,8 @@
 
+#include "src/std.ibu"
+
+#define PROGRAM_MAX_SIZE 55000
+
 // ----------------------------------
 // Tokenizer
 // ----------------------------------
@@ -26,6 +30,7 @@ struct Token {
 	line i32;
 	col i32;
 	lit *i8;
+	str_val *i8;
 	next *Token;
 }
 
@@ -69,36 +74,6 @@ func is_two_c_punct(a *i8) bool {
 		}
 		idx = idx + 1;
 	}
-}
-
-func isalpha(c i8) bool {
-	//  A .. Z             a .. z
-	if 65 <= c <= 90 || 97 <= c <= 122 {
-		return true;
-	}
-	return false;
-}
-
-func isdigit(c i8) bool {
-	if 48 <= c <= 57 { // 0 .. 9
-		return true;
-	}
-	return false;
-}
-
-func strndup(str *i8, n i32) *i8 {
-	var r *i8 = alloc(n+1);
-	if r == nil {
-		eprintf("alloc() returned nil\n");
-		exit(1);
-	}
-	var idx i32 = 0;
-	while idx < n {
-		r[idx] = str[idx];
-		idx++;
-	}
-	r[n] = 0;
-	return r;
 }
 
 func tokenizer_next(t *Tokenizer) i32 {
@@ -160,14 +135,59 @@ func skip_single_line_comment(t *Tokenizer) i32 {
 	return 0;
 }
 
+func string_end(str *i8) *i8 {
+	while *str != 34 {
+		if *str == 10 || *str == 0 {
+			eprintf("unclosed string literal\n");
+			exit(1);
+		}
+		if *str == 92 { // back slash
+			str++;
+		}
+		str++;
+	}
+	return str;
+}
+
+func read_escaped_char(t *Tokenizer) i8 {
+	tokenizer_next(t);
+	var c i8 = *t.program;
+	if c == 110 {
+		return 10;
+	}
+	if c == 116 {
+		return 9;
+	}
+	return c;
+}
+
 func tokenize_string(t *Tokenizer) *Token {
 	var string_start *i8 = t.program;
-	tokenizer_next(t);
-	while *t.program != 34 {
+
+	tokenizer_next(t); // skip start `"`
+
+	var end *i8 = string_end(t.program);
+	var buf *i8 = alloc(end - t.program + 1);
+	var len i32 = 0;
+
+	while t.program < end {
+		if *t.program == 92 {
+			buf[len++] = read_escaped_char(t);
+		} else {
+			buf[len++] = *t.program;
+		}
+
 		tokenizer_next(t);
 	}
-	tokenizer_next(t);
-	return new_token(t, TK_STR, string_start, t.program-string_start);
+	buf[len] = 0; // null terminator
+
+	tokenizer_next(t); // skip end `"`
+
+	var tok *Token = new_token(t, TK_STR, string_start, t.program - string_start);
+
+	tok.str_val = buf;
+
+	return tok;
 }
 
 func tokenize_ident(t *Tokenizer) *Token {
@@ -217,13 +237,12 @@ func tokenize(t *Tokenizer) *Token {
 }
 
 func print_all_tokens(tok *Token) i32;
-
 func print_all_tokens(tok *Token) i32 {
 	if tok == nil {
 		return 1;
 	}
 
-	printf("kind = %d\n lit = %s\n----------\n", tok.kind, tok.lit);
+	printf("kind = %d\nlit = %s\n----------\n", tok.kind, tok.lit);
 
 	if tok.next != nil {
 		print_all_tokens(tok.next);
@@ -460,66 +479,6 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	p.program = program;
 
 	return p;
-}
-
-func reverse(str *i8, length i32) i32 {
-	var start i32 = 0;
-	var end i32 = length - 1;
-
-    while start < end {
-		var temp i8 = str[start];
-        str[start] = str[end];
-        str[end] = temp;
-        end--;
-        start++;
-    }
-}
-
-func itoa(num i32, str *i8, base i32) *i8 {
-	var i i32 = 0;
-
-    if (num == 0) {
-        str[i++] = 48;
-        str[i] = 0;
-        return str;
-    }
- 
-    while num != 0 {
-        var rem i32 = num % base;
-		if (rem > 9) {
-			str[i++] = (rem - 10) + 97;
-		} else {
-			str[i++] = rem + 48;
-		}
-        num = num / base;
-    }
- 
-    str[i] = 0;
-
-    reverse(str, i);
- 
-    return str;
-}
-
-func atoi(str *i8) i32 {
-	var i i32 = 0;
-	var n i32 = 0;
-	var is_neg bool = 0;
-
-	if str[i] == 45 {
-		is_neg = true;
-		i++;
-	}
-
-	while str[i] != 0 {
-		n = n * 10 + str[i++] - 48;
-	}
-
-	if is_neg {
-	    n = n - n*2;
-	}
-
-	return n;
 }
 
 func parser_next(p *Parser) i32 {
@@ -860,7 +819,7 @@ func parse_number(p *Parser) *Node {
 		parser_next(p);
 	} else if p.tokens.kind == TK_STR {
 		node = new_node(ND_STR);
-		node.str_val = p.tokens.lit;
+		node.str_val = p.tokens.str_val;
 		parser_next(p);
 	} else if strcmp(p.tokens.lit, "nil") {
 		parser_next(p);
@@ -893,6 +852,7 @@ func parse_number(p *Parser) *Node {
 		node = parse_expr(p);
 		parser_skip(p, ")");
 	} else {
+		eprintf("kind: %d lit: %s\n", p.tokens.kind, p.tokens.lit);
 		print_error(p.program, p.tokens, "expected number or identifier");
 		exit(1);
 	}
@@ -1047,8 +1007,7 @@ func parse_unary(p *Parser) *Node {
 }
 
 func parse_mul(p *Parser) *Node {
-	var node *Node;
-	node = parse_unary(p);
+	var node *Node = parse_unary(p);
 
 	while {
 		if strcmp(p.tokens.lit, "*") {
@@ -1164,9 +1123,9 @@ func new_equality(kind NodeKind, lhs *Node, rhs *Node) *Node {
 }
 
 func parse_relational(p *Parser) *Node {
-	var node *Node;
+	var node *Node = parse_add(p);
 	var rhs *Node;
-	node = parse_add(p);
+
 	while {
 		if strcmp(p.tokens.lit, "<=") {
 			parser_next(p);
@@ -1304,8 +1263,7 @@ func parse_block(p *Parser) *Node {
 }
 
 func node_true() *Node {
-	var node *Node = alloc(typesize(Node));
-	node.kind = ND_NUM;
+	var node *Node = new_node(ND_NUM);
 	node.int_val = 1;
 	return node;
 }
@@ -1875,7 +1833,13 @@ func gen_expr(g *Gen, node *Node) i32 {
 		c = g.str_label_count++;
 		printf(".data\n");
 		printf(".L.str.%d:\n", c);
-		printf("\t.string %s\n", node.str_val);
+
+		var str *i8 = node.str_val;
+		while *str != nil {
+			printf("\t.byte %d\n", *str);
+			str++;
+		}
+		printf("\t.byte 0\n");
 
 		printf(".text\n");
 		printf("\tleaq .L.str.%d(%rip), %rax\n", c);
@@ -2254,14 +2218,43 @@ func copy_token(source *Token, dest *Token) i32 {
 	return 0;
 }
 
+func get_eof_from_tokens(tokens *Token) *Token {
+	while tokens.kind != TK_EOF {
+		tokens = tokens.next;
+	}
+	return tokens;
+}
+
 func preprocess(tok *Token, p *Preprocessor) i32;
 func preprocess(tok *Token, p *Preprocessor) i32 {
-	while tok.next != nil && strcmp(tok.lit, "#") && strcmp(tok.next.lit, "define") {
-		var macro *Macro = new_macro(tok.next.next.lit, tok.next.next.next);
-		macro.next = p.macros;
-		p.macros = macro;
-		*tok = *tok.next.next.next.next;
+	while {
+		if tok.next != nil && strcmp(tok.lit, "#") && strcmp(tok.next.lit, "define") {
+			var macro *Macro = new_macro(tok.next.next.lit, tok.next.next.next);
+			macro.next = p.macros;
+			p.macros = macro;
+			*tok = *tok.next.next.next.next;
+		} else if tok.next != nil && strcmp(tok.lit, "#") && strcmp(tok.next.lit, "include") {
+			var file_name *i8 = tok.next.next.str_val;
+
+			var fd i32 = open(file_name, 0, 420);
+			if fd < 0 {
+				eprintf("error: opening file %s\n", file_name);
+				exit(1);
+			}
+
+			var buf *i8 = alloc(PROGRAM_MAX_SIZE);
+			read(fd, buf, PROGRAM_MAX_SIZE);
+			close(fd);
+
+			var tokens *Token = tokenize(new_tokenizer(file_name, buf));
+			*get_eof_from_tokens(tokens) = *tok.next.next.next;
+			*tok = *tokens;
+		} else {
+			goto break;
+		}
 	}
+
+break:
 
 	var m *Macro = find_macro(tok.lit, p);
 	if m != nil {
@@ -2287,8 +2280,6 @@ func print_all_macros(p *Preprocessor) i32 {
 // ----------------------------------
 // Start
 // ----------------------------------
-
-#define PROGRAM_MAX_SIZE 55000
 
 func main(argc i32, argv **i8) i32 {
 	if argc != 2 {
