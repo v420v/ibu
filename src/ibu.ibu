@@ -380,17 +380,15 @@ func strcmp(a *i8, b *i8) bool {
 			if a[idx] == 0 {
 				return true;
 			}
-			goto ok_next;
 		} else {
 			return false;
 		}
-		ok_next:
 		idx++;
 	}
 	return false;
 }
 
-func add_builtin_object(p *Parser, name *i8, kind ObjectKind, params *Object, ty *Type) i32 {
+func add_builtin_func(p *Parser, name *i8, kind ObjectKind, params *Object, ty *Type) i32 {
 	var obj *Object = alloc(typesize(Object));
 	if obj == nil {
 		eprintf("alloc() returned nil\n");
@@ -467,14 +465,14 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	p.ty_i8 = new_builtin_type(TY_I8, 1, "i8");
 	p.ty_bool = new_builtin_type(TY_BOOL, 1, "bool");
 
-	add_builtin_object(p, "alloc", OBJ_FUNC, nil, new_func_type(new_pointer_type(p.ty_i64)));
-	add_builtin_object(p, "open", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "close", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "read", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "write", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "exit", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "printf", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_object(p, "eprintf", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_func(p, "alloc", OBJ_FUNC, nil, new_func_type(new_pointer_type(p.ty_i64)));
+	add_builtin_func(p, "open", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_func(p, "close", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_func(p, "read", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_func(p, "write", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_func(p, "exit", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_func(p, "printf", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_func(p, "eprintf", OBJ_FUNC, nil, new_func_type(p.ty_i32));
 
 	p.program = program;
 
@@ -538,6 +536,34 @@ func cmp_type(ty1 *Type, ty2 *Type) bool {
 		return false;
 	}
 
+	return true;
+}
+
+func cmp_func_param(p1 *Object, p2 *Object) bool {
+	if p1 == p2 {
+		return true;
+	}
+	if !strcmp(p1.name, p2.name) {
+		return false;
+	}
+	if cmp_type(p1.ty, p2.ty) {
+		return true;
+	}
+	return false;
+}
+
+func cmp_func_params(p1 *Object, p2 *Object) bool;
+
+func cmp_func_params(p1 *Object, p2 *Object) bool {
+    if p1 == p2 {
+	    return true;
+    }
+	if p1 == nil || p2 == nil {
+		return false;
+	}
+	if !cmp_func_param(p1, p2) || !cmp_func_params(p1.next_param, p2.next_param) {
+		return false;
+	}
 	return true;
 }
 
@@ -735,7 +761,7 @@ func parse_ty(p *Parser) *Type {
 
 func parse_expr(p *Parser) *Node;
 
-func parse_args(p *Parser) *Node {
+func parse_func_call_args(p *Parser) *Node {
 	var head Node;
 	var cur *Node = &head;
 
@@ -743,7 +769,7 @@ func parse_args(p *Parser) *Node {
 		return nil;
 	}
 
-	loop:
+loop:
 	cur = cur.next = parse_expr(p);
 	add_type(p, cur);
 	if strcmp(p.tokens.lit, ",") {
@@ -797,7 +823,7 @@ func parse_ident(p *Parser) *Node {
 
 	var node *Node = new_node(ND_FUNC_CALL);
 	parser_skip(p, "(");
-	node.args = parse_args(p);
+	node.args = parse_func_call_args(p);
 	parser_skip(p, ")");
 
 	add_type(p, var_node);
@@ -1023,7 +1049,7 @@ func parse_mul(p *Parser) *Node {
 			goto end;
 		}
 	}
-	end:
+end:
 
 	return node;
 }
@@ -1460,47 +1486,6 @@ func parse_struct(p *Parser) i32 {
 	}
 
 	return 0;
-}
-
-func cmp_func_param(p1 *Object, p2 *Object) bool {
-	if p1 == p2 {
-		return true;
-	}
-	if !strcmp(p1.name, p2.name) {
-		return false;
-	}
-	if cmp_type(p1.ty, p2.ty) {
-		return true;
-	}
-	return false;
-}
-
-func cmp_func_params(p1 *Object, p2 *Object) bool;
-
-func cmp_func_params(p1 *Object, p2 *Object) bool {
-    if p1 == p2 {
-	    return true;
-    }
-	if p1 == nil {
-		return false;
-	}
-	if p2 == nil {
-		return false;
-	}
-	if !cmp_func_param(p1, p2) {
-		return false;
-	}
-	if p1.next != nil {
-		if !cmp_func_params(p1.next, p2.next) {
-			return false;
-		}
-	}
-	if p2.next != nil {
-		if !cmp_func_params(p1.next, p2.next) {
-			return false;
-		}
-	}
-	return true;
 }
 
 func parse_func(p *Parser) i32 {
@@ -2287,9 +2272,11 @@ func main(argc i32, argv **i8) i32 {
 		exit(0);
 	}
 
-	var fd i32 = open(argv[1], 0, 420);
+	var file_name *i8 = argv[1];
+
+	var fd i32 = open(file_name, 0, 420);
 	if fd < 0 {
-		eprintf("error: opening file %s\n", argv[1]);
+		eprintf("error: opening file %s\n", file_name);
 		exit(1);
 	}
 
@@ -2297,7 +2284,7 @@ func main(argc i32, argv **i8) i32 {
 	read(fd, buf, PROGRAM_MAX_SIZE);
 	close(fd);
 
-	var t *Tokenizer = new_tokenizer(argv[1], buf);
+	var t *Tokenizer = new_tokenizer(file_name, buf);
 	var tokens *Token = tokenize(t);
 
 	var preprocessor *Preprocessor = alloc(typesize(Preprocessor));
