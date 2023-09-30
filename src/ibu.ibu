@@ -1231,7 +1231,7 @@ func parse_equality(p *Parser) *Node {
 func parse_logand(p *Parser) *Node {
 	var node *Node = parse_equality(p);
 	while strcmp(p.tokens.lit, "&&") {
-		parser_skip(p);
+		parser_next(p);
 		node = new_binop(ND_LOGAND, node, parse_equality(p));
 	}
 	return node;
@@ -1240,7 +1240,7 @@ func parse_logand(p *Parser) *Node {
 func parse_logor(p *Parser) *Node {
 	var node *Node = parse_logand(p);
 	while strcmp(p.tokens.lit, "||") {
-		parser_skip(p);
+		parser_next(p);
 		node = new_binop(ND_LOGOR, node, parse_logand(p));
 	}
 	return node;
@@ -1249,7 +1249,7 @@ func parse_logor(p *Parser) *Node {
 func parse_expr(p *Parser) *Node {
 	var node *Node = parse_logor(p);
 	if strcmp(p.tokens.lit, "=") {
-		parser_skip(p);
+		parser_next(p);
 		node = new_binop(ND_ASSIGN, node, parse_expr(p));
 	}
 	return node;
@@ -1647,8 +1647,8 @@ func gen_addr(g *Gen, node *Node) i32 {
 	} else if node.kind == ND_DEREF {
 		gen_expr(g, node.lhs);
 	} else {
-		printf("kind: %d\n", node.kind);
-		eprintf("unreachable\n");
+		// TODO add tokens position to node struct
+		eprintf("error: not a var-node\n");
 		exit(1);
 	}
 	return 0;
@@ -1803,6 +1803,72 @@ func func_call_args_to_regi(g *Gen, arg *Node) i32 {
 	return 0;
 }
 
+func all_func_call_args_to_stack(g *Gen, arg *Node, fn *Object) i32 {
+	var param *Object = fn.params;
+
+	if arg == nil {
+		return 0;
+	}
+
+	var stack i32 = 0;
+
+	while arg != nil {
+		printf("\txor %rax, %rax\n");
+		gen_expr(g, arg);
+
+		//if param.ty.size == 1 {
+		//	printf("\tmovsbq %al, %rax\n");
+		//} else if param.ty.size == 2 {
+		//	printf("\tmovswq %ax, %rax\n");
+		//} else if param.ty.size == 4 {
+		//	printf("\tmovslq %eax, %rax\n");
+		//} else if param.ty.size == 8 {
+			//printf("\tmovq %s, %d(%rbp)\n");
+		//} else {
+			//eprintf("unreachable\n");
+		//	exit(1);
+		//}
+
+	    printf("\tpush %rax\n");
+		arg = arg.next;
+		param = param.next_param;
+		stack = stack + 8;
+	}
+
+	return stack;
+}
+
+func is_c_func(name *i8) bool {
+	if strcmp(name, "main") {
+		return true;
+	}
+	if strcmp(name, "alloc") {
+		return true;
+	}
+	if strcmp(name, "exit") {
+		return true;
+	}
+	if strcmp(name, "open") {
+		return true;
+	}
+	if strcmp(name, "read") {
+		return true;
+	}
+	if strcmp(name, "write") {
+		return true;
+	}
+	if strcmp(name, "close") {
+		return true;
+	}
+	if strcmp(name, "printf") {
+		return true;
+	}
+	if strcmp(name, "eprintf") {
+		return true;
+	}
+	return false;
+}
+
 func gen_expr(g *Gen, node *Node) i32 {
 	var c i32 = 0;
 	if node == nil {
@@ -1849,15 +1915,27 @@ func gen_expr(g *Gen, node *Node) i32 {
 		return 0;
 	}
 	if node.kind == ND_FUNC_CALL {
-		func_call_args_to_regi(g, node.args);
-		var stack i32 = func_call_args_to_stack(g, node.args);
+		var stack i32 = 0;
+		if is_c_func(node.lhs.obj.name) {
+			func_call_args_to_regi(g, node.args);
+			stack = func_call_args_to_stack(g, node.args);
 
-		gen_addr(g, node.lhs);
-		printf("\tmovq (%rax), %r10\n");
-		printf("\tmovq $0, %rax\n");
+			gen_addr(g, node.lhs);
+			printf("\tmovq (%rax), %r10\n");
+			printf("\tmovq $0, %rax\n");
 
-		printf("\tcallq *%r10\n");
-		printf("\taddq $%d, %rsp\n", stack);
+			printf("\tcallq *%r10\n");
+			printf("\taddq $%d, %rsp\n", stack);
+		} else {
+			stack = all_func_call_args_to_stack(g, node.args, node.lhs.obj);
+
+			gen_addr(g, node.lhs);
+			printf("\tmovq (%rax), %r10\n");
+			printf("\tmovq $0, %rax\n");
+
+			printf("\tcallq *%r10\n");
+			printf("\taddq $%d, %rsp\n", stack);
+		}
 
 		return 0;
 	}
@@ -2104,7 +2182,11 @@ func gen_func_params(g *Gen, params *Object) i32 {
 	}
 }
 
-func assign_offset(objects *Object) i32 {
+func align_to(n i32, align i32) i32 {
+	return (n + align - 1) / align * align;
+}
+
+func c_func_assign_offset(objects *Object) i32 {
 	var obj *Object = objects;
 	var offset i32 = 0;
 	var stack_top i32 = 16;
@@ -2119,7 +2201,28 @@ func assign_offset(objects *Object) i32 {
 		}
 		obj = obj.next;
 	}
-	return offset;
+	return align_to(offset, 16);
+}
+
+func assign_offset(objects *Object) i32 {
+	var obj *Object = objects;
+	var offset i32 = 0;
+	var stack_top i32 = 16;
+
+	while obj != nil {
+		if obj.is_func_param && obj.ty.size > 8 {
+			obj.offset = stack_top;
+			stack_top = stack_top + obj.ty.size;
+		} else if obj.is_func_param {
+			obj.offset = stack_top;
+			stack_top = stack_top + 8;
+		} else {
+			offset = offset + obj.ty.size;
+			obj.offset = offset - offset * 2;
+		}
+		obj = obj.next;
+	}
+	return align_to(offset, 16);
 }
 
 func gen(g *Gen, globals *Object) i32 {
@@ -2139,15 +2242,21 @@ func gen(g *Gen, globals *Object) i32 {
 
 	while object != nil {
 		if object.kind == OBJ_FUNC && !object.is_declaration && !object.is_builtin {
-			object.stack_size = assign_offset(object.locals);
 			g.cur_func_name = object.name;
+			if is_c_func(g.cur_func_name) {
+				object.stack_size = c_func_assign_offset(object.locals);
+			} else {
+				object.stack_size = assign_offset(object.locals);
+			}
 			printf(".global %s\n", object.name);
 			printf("%s:\n", object.name);
 			printf("\tpush %rbp\n");
 			printf("\tmovq %rsp, %rbp\n");
 			printf("\tsubq $%d, %rsp\n", object.stack_size);
-
-			gen_func_params(g, object.params);
+			
+			if is_c_func(g.cur_func_name) {
+				gen_func_params(g, object.params);
+			}
 
 			gen_node_block(g, object.body);
 			printf("\tleave\n");
