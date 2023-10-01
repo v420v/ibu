@@ -7,8 +7,9 @@
 - No global variables
 - No hidden control flow
 - No C-like pointer arithmetic
+- No function-like macros
 - No `break`, `continue` stmt. Use `goto`
-- No block scopes.
+- No block scopes
 
 Ibu is similar to C and is also influenced by Go, HolyC, and Python.
 
@@ -128,8 +129,7 @@ func main() i32 {
         printf("IBUKI\n");
     }
 
-    var i i32;
-    i = 0;
+    var i i32 = 0;
     while i < 100 {
         printf("%d\n", i);
         i++;
