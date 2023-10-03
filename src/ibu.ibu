@@ -14,6 +14,7 @@ struct Tokenizer {
 	program *i8;
 }
 
+// Tokens
 #define TokenKind	i32
 #define TK_NUM		0
 #define TK_IDENT	1
@@ -55,9 +56,20 @@ func strlen(s *i8) i32 {
 	return s - start;
 }
 
-func print_error(program *i8, tok *Token, msg *i8) i32 {
+func print_error(tok *Token, msg *i8) i32 {
 	eprintf("%s:%d:%d: error: %s\n", tok.file_name, tok.line, tok.col, msg);
 	exit(1);
+}
+
+func is_three_c_punct(a *i8) bool {
+	if a[0] == 46 {
+		if a[1] == 46 {
+			if a[2] == 46 {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 func is_two_c_punct(a *i8) bool {
@@ -67,10 +79,8 @@ func is_two_c_punct(a *i8) bool {
 		if idx >= 15 {
 			return false;
 		}
-		if a[0] == puncts[idx] {
-			if a[1] == puncts[idx+1] {
-				return true;
-			}
+		if a[0] == puncts[idx] && a[1] == puncts[idx+1] {
+			return true;
 		}
 		idx = idx + 1;
 	}
@@ -201,7 +211,6 @@ func tokenize_ident(t *Tokenizer) *Token {
 
 func tokenize(t *Tokenizer) *Token {
 	var head Token;
-	var save *i8 = t.program;
 	var cur *Token = &head;
 
 	while *t.program != nil {
@@ -216,6 +225,9 @@ func tokenize(t *Tokenizer) *Token {
 		} else if is_two_c_punct(t.program) {
 			cur = cur.next = new_token(t, TK_PUNCT, t.program, 2);
 			t.program = t.program + 2;
+		} else if is_three_c_punct(t.program) { // ...
+			cur = cur.next = new_token(t, TK_PUNCT, t.program, 3);
+			t.program = t.program + 3;
 		} else if ispunct(*t.program) {
 			cur = cur.next = new_token(t, TK_PUNCT, t.program, 1);
 			tokenizer_next(t);
@@ -226,7 +238,7 @@ func tokenize(t *Tokenizer) *Token {
 		} else if *t.program == 9 { // Tab
 			tokenizer_next(t);
 		} else {
-			print_error(save, new_token(t, TK_UNKOWN, t.program, 1), "unkown character found");
+			print_error(new_token(t, TK_UNKOWN, t.program, 1), "unkown character found");
 		}
 	}
 
@@ -306,6 +318,7 @@ struct Object {
 	is_func_param bool;
 	is_builtin bool;
 	is_global bool;
+	is_variadic bool;
 	next *Object;
 	next_param *Object;
 }
@@ -502,8 +515,9 @@ func parser_skip(p *Parser, str *i8) i32 {
 	if strcmp(p.tokens.lit, str) {
 		parser_next(p);
 		return 0;
+	} else {
+		print_error(p.tokens, "unexpected token");
 	}
-	print_error(p.program, p.tokens, "unexpected token");
 }
 
 func cmp_type(ty1 *Type, ty2 *Type) bool;
@@ -597,7 +611,7 @@ func check_local_object_already_exist(p *Parser, name *i8, tok *Token) i32 {
 	var locals *Object = p.locals;
 	while locals != nil {
 		if strcmp(locals.name, name) {
-			print_error(p.program, tok, "name already exist");
+			print_error(tok, "name already exist");
 		}
 		locals = locals.next;
 	}
@@ -752,7 +766,7 @@ func parse_ty(p *Parser) *Type {
 	} else {
 		ty = get_user_defined_type(p, name);
 		if ty == nil {
-			print_error(p.program, ty_token, "unkown type found");
+			print_error(ty_token, "unkown type found");
 		}
 	}
 
@@ -810,7 +824,7 @@ func parse_ident(p *Parser) *Node {
 	var obj *Object = find_object(p, p.tokens.lit);
 
 	if obj == nil {
-		print_error(p.program, var_tok, "unkown object");
+		print_error(var_tok, "unkown object");
 	}
 
 	var_node.obj = obj;
@@ -829,7 +843,7 @@ func parse_ident(p *Parser) *Node {
 	add_type(p, var_node);
 
 	if var_node.obj.ty.kind != TY_FUNC {
-		print_error(p.program, var_tok, "cannot call a none function object");
+		print_error(var_tok, "cannot call a none function object");
 	}
 
 	node.lhs = var_node;
@@ -879,7 +893,7 @@ func parse_number(p *Parser) *Node {
 		parser_skip(p, ")");
 	} else {
 		eprintf("kind: %d lit: %s\n", p.tokens.kind, p.tokens.lit);
-		print_error(p.program, p.tokens, "expected number or identifier");
+		print_error(p.tokens, "expected number or identifier");
 		exit(1);
 	}
 	return node;
@@ -916,7 +930,7 @@ func parse_deref(p *Parser) *Node {
 
 	add_type(p, node.lhs);
 	if node.lhs.ty.kind != TY_PTR {
-		print_error(p.program, tok, "invalid pointer dereference");
+		print_error(tok, "invalid pointer dereference");
 	}
 
 	return node;
@@ -976,7 +990,7 @@ func parse_unary(p *Parser) *Node {
 			parser_skip(p, "]");
 
 			if node.ty.kind != TY_PTR {
-				print_error(p.program, access_tok, "`[]` cannot access to none pointer type.");
+				print_error(access_tok, "`[]` cannot access to none pointer type.");
 			}
 
 			var base_number_node *Node;
@@ -1003,20 +1017,20 @@ func parse_unary(p *Parser) *Node {
 
 			if node.ty.kind == TY_PTR {
 				if node.ty.pointer_to.kind != TY_STRUCT {
-					print_error(p.program, access_tok, "cannot access from none struct type");
+					print_error(access_tok, "cannot access from none struct type");
 				}
 				member = search_struct_member(node.ty.pointer_to.members, member_name);
 				if member == nil {
-					print_error(p.program, member_tok, "member name not found");
+					print_error(member_tok, "member name not found");
 				}
 				node = new_struct_access_node(ND_DEREF, node, 0, node.obj, node.ty.pointer_to);
 			} else {
 				if node.ty.kind != TY_STRUCT {
-					print_error(p.program, access_tok, "cannot access from none struct type");
+					print_error(access_tok, "cannot access from none struct type");
 				}
 				member = search_struct_member(node.ty.members, member_name);
 				if member == nil {
-					print_error(p.program, member_tok, "member name not found");
+					print_error(member_tok, "member name not found");
 				}
 			}
 			var offset i32 = member.offset;
@@ -1388,7 +1402,7 @@ func new_func_type(return_type *Type) *Type {
 	return ty;
 }
 
-func parse_func_params(p *Parser) *Object {
+func parse_func_params(p *Parser, fn *Object) *Object {
 	var head Object;
 	var cur *Object = &head;
 
@@ -1396,20 +1410,30 @@ func parse_func_params(p *Parser) *Object {
 		var name *i8 = p.tokens.lit;
 		var name_tok *Token = p.tokens;
 		parser_next(p);
-		cur = cur.next_param = new_local_object(p, OBJ_VAR, name, parse_ty(p), name_tok);
-		cur.is_func_param = true;
 
-		if strcmp(p.tokens.lit, ",") {
-			parser_skip(p, ",");
+		if strcmp(name, "...") { // is variadic function
+			fn.is_variadic = true;
+			if !strcmp(p.tokens.lit, ")") {
+				print_error(p.tokens, "`...` must be at the end of the paramaters");
+			}
+		} else {
+			cur = cur.next_param = new_local_object(p, OBJ_VAR, name, parse_ty(p), name_tok);
+			cur.is_func_param = true;
+
+			if strcmp(p.tokens.lit, ",") {
+				parser_skip(p, ",");
+			}
 		}
 
 		if strcmp(p.tokens.lit, ")") {
 			goto end;
 		}
 	}
-	end:
+end:
 
-	return head.next_param;
+	fn.params = head.next_param;
+
+	return 0;
 }
 
 func new_member(name *i8, ty *Type) *Member {
@@ -1477,7 +1501,7 @@ func parse_struct(p *Parser) i32 {
 			add_user_defined_type(p, ty);
 		} else {
 			if !user_defined_struct.is_declaration {
-				print_error(p.program, name_token, "struct is already defined somewhere");
+				print_error(name_token, "struct is already defined somewhere");
 			}
 			user_defined_struct.members = head.next;
 			user_defined_struct.size = calc_sizof_struct_members(head.next);
@@ -1507,7 +1531,7 @@ func parse_func(p *Parser) i32 {
 	parser_skip(p, "(");
 
 	if !strcmp(p.tokens.lit, ")") {
-		obj.params = parse_func_params(p);
+		parse_func_params(p, obj);
 	} else {
 		obj.params = nil;
 	}
@@ -1519,7 +1543,7 @@ func parse_func(p *Parser) i32 {
 	if strcmp(p.tokens.lit, ";") {
 		parser_skip(p, ";");
 		if find_globals(p, name) != nil {
-			print_error(p.program, name_tok, "function is already declared somewhere.");
+			print_error(name_tok, "function is already declared somewhere.");
 		}
 		obj.ty = new_func_type(func_return_ty);
 		obj.locals = nil;
@@ -1531,13 +1555,13 @@ func parse_func(p *Parser) i32 {
 		var found_func *Object = find_globals(p, name);
 		if found_func != nil {
 			if !found_func.is_declaration {
-				print_error(p.program, name_tok, "function is already defined somewhere");
+				print_error(name_tok, "function is already defined somewhere");
 			}
 			if !cmp_func_params(found_func.params, obj.params) {
-				print_error(p.program, name_tok, "function declaration paramaters does not match to definition");
+				print_error(name_tok, "function declaration paramaters does not match to definition");
 			}
 			if !cmp_type(func_return_ty, found_func.ty.return_type) {
-				print_error(p.program, name_tok, "function declaration return type does not match to definition");
+				print_error(name_tok, "function declaration return type does not match to definition");
 			}
 			found_func.body = parse_block(p);
 			found_func.locals = p.locals;
@@ -1562,7 +1586,7 @@ func parse(p *Parser) i32 {
 		} else if strcmp(p.tokens.lit, "struct") {
 			parse_struct(p);
 		} else {
-			print_error(p.program, p.tokens, "non-declaration statement outside function body");
+			print_error(p.tokens, "non-declaration statement outside function body");
 		}
 	}
 
@@ -1581,6 +1605,9 @@ struct Gen {
 	regi32 **i8;
 	regi16 **i8;
 	regi8 **i8;
+
+	offset i32;
+	stack_offset i32;
 }
 
 func new_gen() *Gen {
@@ -1803,37 +1830,26 @@ func func_call_args_to_regi(g *Gen, arg *Node) i32 {
 	return 0;
 }
 
-func all_func_call_args_to_stack(g *Gen, arg *Node, fn *Object) i32 {
-	var param *Object = fn.params;
+func push_args_to_stack(g *Gen, arg *Node, stack *i32) i32;
+func push_args_to_stack(g *Gen, arg *Node, stack *i32) i32 {
+	if arg.next != nil {
+		push_args_to_stack(g, arg.next, stack);
+	}
+	gen_expr(g, arg);
+	printf("\tpush %rax\n");
+	*stack = *stack + 8;
 
+	return 0;
+}
+
+func all_func_call_args_to_stack(g *Gen, arg *Node) i32 {
 	if arg == nil {
 		return 0;
 	}
 
 	var stack i32 = 0;
 
-	while arg != nil {
-		printf("\txor %rax, %rax\n");
-		gen_expr(g, arg);
-
-		//if param.ty.size == 1 {
-		//	printf("\tmovsbq %al, %rax\n");
-		//} else if param.ty.size == 2 {
-		//	printf("\tmovswq %ax, %rax\n");
-		//} else if param.ty.size == 4 {
-		//	printf("\tmovslq %eax, %rax\n");
-		//} else if param.ty.size == 8 {
-			//printf("\tmovq %s, %d(%rbp)\n");
-		//} else {
-			//eprintf("unreachable\n");
-		//	exit(1);
-		//}
-
-	    printf("\tpush %rax\n");
-		arg = arg.next;
-		param = param.next_param;
-		stack = stack + 8;
-	}
+	push_args_to_stack(g, arg, &stack);
 
 	return stack;
 }
@@ -1927,7 +1943,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 			printf("\tcallq *%r10\n");
 			printf("\taddq $%d, %rsp\n", stack);
 		} else {
-			stack = all_func_call_args_to_stack(g, node.args, node.lhs.obj);
+			stack = all_func_call_args_to_stack(g, node.args);
 
 			gen_addr(g, node.lhs);
 			printf("\tmovq (%rax), %r10\n");
@@ -2204,25 +2220,23 @@ func c_func_assign_offset(objects *Object) i32 {
 	return align_to(offset, 16);
 }
 
-func assign_offset(objects *Object) i32 {
-	var obj *Object = objects;
-	var offset i32 = 0;
-	var stack_top i32 = 16;
-
-	while obj != nil {
-		if obj.is_func_param && obj.ty.size > 8 {
-			obj.offset = stack_top;
-			stack_top = stack_top + obj.ty.size;
-		} else if obj.is_func_param {
-			obj.offset = stack_top;
-			stack_top = stack_top + 8;
-		} else {
-			offset = offset + obj.ty.size;
-			obj.offset = offset - offset * 2;
-		}
-		obj = obj.next;
+func assign_offset(g *Gen, obj *Object) i32;
+func assign_offset(g *Gen, obj *Object) i32 {
+	if obj.next != nil {
+		assign_offset(g, obj.next);
 	}
-	return align_to(offset, 16);
+	if obj.is_func_param && obj.ty.size > 8 {
+		obj.offset = g.stack_offset;
+		g.stack_offset = g.stack_offset + obj.ty.size;
+	} else if obj.is_func_param {
+		obj.offset = g.stack_offset;
+		g.stack_offset = g.stack_offset + 8;
+	} else {
+		g.offset = g.offset + obj.ty.size;
+		obj.offset = g.offset - g.offset * 2;
+	}
+
+	return align_to(g.offset, 16);
 }
 
 func gen(g *Gen, globals *Object) i32 {
@@ -2246,7 +2260,9 @@ func gen(g *Gen, globals *Object) i32 {
 			if is_c_func(g.cur_func_name) {
 				object.stack_size = c_func_assign_offset(object.locals);
 			} else {
-				object.stack_size = assign_offset(object.locals);
+				g.offset = 0;
+				g.stack_offset = 16;
+				object.stack_size = assign_offset(g, object.locals);
 			}
 			printf(".global %s\n", object.name);
 			printf("%s:\n", object.name);
