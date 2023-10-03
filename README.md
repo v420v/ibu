@@ -44,7 +44,7 @@ $ docker run --rm -it -v "%cd%":/root/env ibulang
 # Windows (PowerShell):
 $ docker run --rm -it -v "${pwd}:/root/env" ibulang
 
-# To leave the build environment, enter `exit`.
+# To leave the environment, enter `exit`.
 ```
 
 Since the language is selfhosted you need to bootstrap the compiler first.
@@ -52,9 +52,9 @@ Since the language is selfhosted you need to bootstrap the compiler first.
 To build the compiler, run the following command below or just run `make`
 
 ```sh
-$ as -o bootstrap/ibu.o bootstrap/ibu.s
+$ as -o bootstrap/ibu-linux-x86_x64.o bootstrap/ibu-linux-x86_x64.s
 $ as -o src/builtin.o src/builtin.s
-$ ld -o ibu bootstrap/ibu.o src/builtin.o
+$ ld -o ibu bootstrap/ibu-linux-x86_x64.o src/builtin.o
 
 # just to check if the compiler can compile itself.
 $ make self
