@@ -54,7 +54,7 @@ To build the compiler, run the following command below or just run `make`
 ```sh
 $ as -o bootstrap/ibu-linux-x86_x64.o bootstrap/ibu-linux-x86_x64.s
 $ as -o src/builtin.o src/builtin.s
-$ ld -o ibu bootstrap/ibu-linux-x86_x64.o src/builtin.o
+$ ld -o ibuc bootstrap/ibu-linux-x86_x64.o src/builtin.o
 
 # just to check if the compiler can compile itself.
 $ make self
@@ -63,7 +63,7 @@ $ make self
 ## How to build, compile programs written in Ibu
 ***Don't forget to pass `src/builtin.o` to the linker***
 ```sh
-$ ./ibu <filename>.ibu | as - -o <filename>.o
+$ ./ibuc <filename>.ibu | as - -o <filename>.o
 $ ld -o <filename> <filename>.o src/builtin.o
 ```
 
@@ -240,7 +240,7 @@ $ make update_bootstrap
 ```
 
 ### Selfhosting
-`make self` will compile `src/ibu.ibu` using the ./ibu executable
+`make self` will compile `src/compiler.ibu` using the ./ibuc executable
 ```sh
 
 $ make self

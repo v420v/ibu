@@ -1,4 +1,13 @@
 
+func memcpy(dest *i8, source *i8, size i32) *i8 {
+	var i i32 = 0;
+	while i < size {
+		dest[i] = source[i];
+		i++;
+	}
+	return dest;
+}
+
 func isalpha(c i8) bool {
 	//  A .. Z             a .. z
 	if 65 <= c <= 90 || 97 <= c <= 122 {

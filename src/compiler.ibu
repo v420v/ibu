@@ -277,6 +277,47 @@ struct Member {
 	next *Member;
 }
 
+// TypeVec
+
+struct TypeVec {
+	ptr **Type;
+	len i32;
+	cap i32;
+}
+
+func new_type_vec(cap i32) *TypeVec {
+	var vec *TypeVec = alloc(typesize(TypeVec));
+	vec.ptr = alloc(typesize(*Type) * cap);
+	if vec.ptr == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	vec.len = 0;
+	vec.cap = cap;
+	return vec;
+}
+
+func type_vec_realloc(vec *TypeVec) i32 {
+	var new_ptr *i8 = alloc(typesize(*Type) * vec.cap * 2);
+	if new_ptr == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	memcpy(new_ptr, vec.ptr, (typesize(*Type) * vec.cap));
+	vec.cap = vec.cap * 2;
+	vec.ptr = new_ptr;
+	return 0;
+}
+
+func vec_append_type(vec *TypeVec, ty *Type) i32 {
+	if vec.len >= vec.cap {
+		type_vec_realloc(vec);
+	}
+	vec.ptr[vec.len] = ty;
+	vec.len++;
+	return 0;
+}
+
 #define TypeKind	i32
 #define TY_I64		0
 #define TY_I32		1
@@ -291,9 +332,17 @@ struct Type {
 	kind TypeKind;
 	size i32;
 	name *i8;
+
+	// struct type
 	members *Member;
+
+	// func type
 	return_type *Type;
+	params *TypeVec;
+
+	// pointer type
 	pointer_to *Type;
+
 	is_declaration bool;
 	next *Type;
 }
@@ -305,20 +354,67 @@ struct Type {
 struct Object;
 struct Node;
 
+// NodeVec
+
+struct NodeVec {
+	ptr **Node;
+	len i32;
+	cap i32;
+}
+
+func new_node_vec(cap i32) *NodeVec {
+	var vec *NodeVec = alloc(typesize(NodeVec));
+	vec.ptr = alloc(typesize(*Node) * cap);
+	if vec.ptr == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	vec.len = 0;
+	vec.cap = cap;
+	return vec;
+}
+
+func node_vec_realloc(vec *NodeVec) i32 {
+	var new_ptr *i8 = alloc(typesize(*Node) * vec.cap * 2);
+	if new_ptr == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	memcpy(new_ptr, vec.ptr, (typesize(*Node) * vec.cap));
+	vec.cap = vec.cap * 2;
+	vec.ptr = new_ptr;
+	return 0;
+}
+
+func vec_append_node(vec *NodeVec, node *Node) i32 {
+	if vec.len >= vec.cap {
+		node_vec_realloc(vec);
+	}
+	vec.ptr[vec.len] = node;
+	vec.len++;
+	return 0;
+}
+
 struct Object {
 	name *i8;
 	kind ObjectKind;
+	ty *Type;
+
+	// local variable
 	offset i32;
-	body *Node;
+
+	// function
+	body *NodeVec;
 	params *Object;
 	locals *Object;
 	stack_size i32;
-	ty *Type;
+
 	is_declaration bool;
 	is_func_param bool;
 	is_builtin bool;
 	is_global bool;
 	is_variadic bool;
+
 	next *Object;
 	next_param *Object;
 }
@@ -358,10 +454,10 @@ struct Node {
 	kind NodeKind;
 	lhs *Node;
 	rhs *Node;
-	body *Node;
-	cond *Node;
+	body *NodeVec;
 	then_block *Node;
 	else_block *Node;
+	cond *Node;
 	label_name *i8;
 	int_val i32;
 	str_val *i8;
@@ -369,8 +465,7 @@ struct Node {
 	ty *Type;
 	func_name *i8;
 	offset i32;
-	args *Node;
-	next *Node;
+	args *NodeVec;
 }
 
 struct Parser {
@@ -432,7 +527,7 @@ func print_user_defined_types(p *Parser) i32 {
 			}
 			printf("}\n");
 		} else {
-			printf("got unkown userdefined type `%s`", ty.name);
+			eprintf("error: unkown user-defined type `%s`", ty.name);
 			exit(1);
 		}
 		ty = ty.next;
@@ -453,6 +548,10 @@ func get_user_defined_type(p *Parser, name *i8) *Type {
 
 func new_builtin_type(kind TypeKind, size i32, name *i8) *Type {
 	var ty *Type = alloc(typesize(Type));
+	if ty == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
 	ty.kind = kind;
 	ty.size = size;
 	ty.name = name;
@@ -460,8 +559,31 @@ func new_builtin_type(kind TypeKind, size i32, name *i8) *Type {
 	return ty;
 }
 
-func new_pointer_type(base *Type) *Type;
-func new_func_type(return_type *Type) *Type;
+func new_pointer_type(base *Type) *Type {
+	var ty *Type = alloc(typesize(Type));
+	if ty == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	ty.kind = TY_PTR;
+	ty.size = 8;
+	ty.pointer_to = base;
+	return ty;
+}
+
+func new_func_type(params_types *TypeVec, return_type *Type) *Type {
+	var ty *Type;
+	ty = alloc(typesize(Type));
+	if ty == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	ty.kind = TY_FUNC;
+	ty.size = 8;
+	ty.params = params_types;
+	ty.return_type = return_type;
+	return ty;
+}
 
 func new_parser(program *i8, tokens *Token) *Parser {
 	var p *Parser = alloc(typesize(Parser));
@@ -478,14 +600,14 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	p.ty_i8 = new_builtin_type(TY_I8, 1, "i8");
 	p.ty_bool = new_builtin_type(TY_BOOL, 1, "bool");
 
-	add_builtin_func(p, "alloc", OBJ_FUNC, nil, new_func_type(new_pointer_type(p.ty_i64)));
-	add_builtin_func(p, "open", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_func(p, "close", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_func(p, "read", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_func(p, "write", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_func(p, "exit", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_func(p, "printf", OBJ_FUNC, nil, new_func_type(p.ty_i32));
-	add_builtin_func(p, "eprintf", OBJ_FUNC, nil, new_func_type(p.ty_i32));
+	add_builtin_func(p, "alloc", OBJ_FUNC, nil, new_func_type(new_type_vec(4), new_pointer_type(p.ty_i64)));
+	add_builtin_func(p, "open", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
+	add_builtin_func(p, "close", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
+	add_builtin_func(p, "read", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
+	add_builtin_func(p, "write", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
+	add_builtin_func(p, "exit", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
+	add_builtin_func(p, "printf", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
+	add_builtin_func(p, "eprintf", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
 
 	p.program = program;
 
@@ -642,23 +764,18 @@ func add_user_defined_type(p *Parser, ty *Type) i32 {
 	return 0;
 }
 
-func new_pointer_type(base *Type) *Type {
-	var ty *Type = alloc(typesize(Type));
-	ty.kind = TY_PTR;
-	ty.size = 8;
-	ty.pointer_to = base;
-	return ty;
-}
-
 func add_type(p *Parser, node *Node) i32;
 
-func add_type_block(p *Parser, block *Node) i32 {
-	var node_block *Node = block;
-	while node_block != nil {
-		add_type(p, node_block);
-		node_block = node_block.next;
+func add_type_block(p *Parser, stmts *NodeVec) i32 {
+	if stmts == nil {
 		return 0;
 	}
+	var idx i32 = 0;
+	while idx < stmts.len {
+		add_type(p, stmts.ptr[idx]);
+		idx++;
+	}
+	return 0;
 }
 
 func add_type(p *Parser, node *Node) i32 {
@@ -674,14 +791,22 @@ func add_type(p *Parser, node *Node) i32 {
 	add_type(p, node.cond);
 
 	add_type_block(p, node.body);
-	add_type_block(p, node.then_block);
-	add_type_block(p, node.else_block);
+	add_type(p, node.then_block);
+	add_type(p, node.else_block);
 
-	var node_args *Node;
-	node_args = node.args;
-	while node_args != nil {
-		add_type(p, node_args);
-		node_args = node_args.next;
+	// var node_args *Node;
+	// node_args = node.args;
+	// while node_args != nil {
+	// 	add_type(p, node_args);
+	// 	node_args = node_args.next;
+	// }
+	
+	if node.args != nil {
+		var idx i32 = 0;
+		while idx < node.args.len {
+			add_type(p, node.args.ptr[idx]);
+			idx++;
+		}
 	}
 
 	if node.kind == ND_STR {
@@ -741,6 +866,22 @@ func add_type(p *Parser, node *Node) i32 {
 
 func parse_ty(p *Parser) *Type;
 
+func parse_params_types(p *Parser) *TypeVec {
+	var vec *TypeVec = new_type_vec(4);
+
+	while !strcmp(p.tokens.lit, ")") {
+		vec_append_type(vec, parse_ty(p));
+		if !strcmp(p.tokens.lit, ",") {
+			goto break;
+		}
+		parser_next(p);
+	}
+
+break:
+
+	return vec;
+}
+
 func parse_ty(p *Parser) *Type {
 	var name *i8 = p.tokens.lit;
 	var ty_token *Token = p.tokens;
@@ -761,8 +902,10 @@ func parse_ty(p *Parser) *Type {
 		ty = new_pointer_type(parse_ty(p));
 	} else if strcmp(name, "func") {
 		parser_skip(p, "(");
+		var types *TypeVec = parse_params_types(p);
+		// parse params types
 		parser_skip(p, ")");
-		ty = new_func_type(parse_ty(p));
+		ty = new_func_type(types, parse_ty(p));
 	} else {
 		ty = get_user_defined_type(p, name);
 		if ty == nil {
@@ -776,21 +919,18 @@ func parse_ty(p *Parser) *Type {
 func parse_expr(p *Parser) *Node;
 
 func parse_func_call_args(p *Parser) *Node {
-	var head Node;
-	var cur *Node = &head;
+	var args *NodeVec = new_node_vec(4);
 
-	if strcmp(p.tokens.lit, ")") {
-		return nil;
+	while !strcmp(p.tokens.lit, ")") {
+		vec_append_node(args, parse_expr(p));
+		if !strcmp(p.tokens.lit, ",") {
+			goto break;
+		}
+		parser_next(p);
 	}
 
-loop:
-	cur = cur.next = parse_expr(p);
-	add_type(p, cur);
-	if strcmp(p.tokens.lit, ",") {
-		parser_skip(p, ",");
-		goto loop;
-	}
-	return head.next;
+break:
+	return args;
 }
 
 func parse_unary(p *Parser) *Node;
@@ -1281,23 +1421,21 @@ func parse_stmt(p *Parser) *Node;
 func parse_block(p *Parser) *Node {
 	var node *Node = new_node(ND_BLOCK);
 
-	var head Node;
-	head.next = nil;
-	var cur *Node = &head;
+	var stmts *NodeVec = new_node_vec(4);
 
 	parser_skip(p, "{");
 
 	while !strcmp(p.tokens.lit, "}") {
 		var stmt *Node = parse_stmt(p);
-		add_type(p, stmt);
 		if stmt != nil {
-			cur = cur.next = stmt;
+			add_type(p, stmt);
+			vec_append_node(stmts, stmt);
 		}
 	}
 
 	parser_skip(p, "}");
 
-	node.body = head.next;
+	node.body = stmts;
 
 	return node;
 }
@@ -1393,16 +1531,9 @@ func parse_stmt(p *Parser) *Node {
 	return parse_expr_stmt(p);
 }
 
-func new_func_type(return_type *Type) *Type {
-	var ty *Type;
-	ty = alloc(typesize(Type));
-	ty.kind = TY_FUNC;
-	ty.size = 8;
-	ty.return_type = return_type;
-	return ty;
-}
+func parse_func_params(p *Parser, fn *Object) *TypeVec {
+	var types_vec *TypeVec = new_type_vec(4);
 
-func parse_func_params(p *Parser, fn *Object) *Object {
 	var head Object;
 	var cur *Object = &head;
 
@@ -1417,7 +1548,10 @@ func parse_func_params(p *Parser, fn *Object) *Object {
 				print_error(p.tokens, "`...` must be at the end of the paramaters");
 			}
 		} else {
-			cur = cur.next_param = new_local_object(p, OBJ_VAR, name, parse_ty(p), name_tok);
+			var ty *Type = parse_ty(p);
+			vec_append_type(types_vec, ty);
+
+			cur = cur.next_param = new_local_object(p, OBJ_VAR, name, ty, name_tok);
 			cur.is_func_param = true;
 
 			if strcmp(p.tokens.lit, ",") {
@@ -1433,7 +1567,7 @@ end:
 
 	fn.params = head.next_param;
 
-	return 0;
+	return types_vec;
 }
 
 func new_member(name *i8, ty *Type) *Member {
@@ -1530,10 +1664,13 @@ func parse_func(p *Parser) i32 {
 	parser_next(p);
 	parser_skip(p, "(");
 
+	var types_vec *TypeVec;
+
 	if !strcmp(p.tokens.lit, ")") {
-		parse_func_params(p, obj);
+		types_vec = parse_func_params(p, obj);
 	} else {
 		obj.params = nil;
+		types_vec = new_type_vec(4);
 	}
 
 	parser_skip(p, ")");
@@ -1545,7 +1682,7 @@ func parse_func(p *Parser) i32 {
 		if find_globals(p, name) != nil {
 			print_error(name_tok, "function is already declared somewhere.");
 		}
-		obj.ty = new_func_type(func_return_ty);
+		obj.ty = new_func_type(types_vec, func_return_ty);
 		obj.locals = nil;
 		obj.is_declaration = true;
 
@@ -1568,7 +1705,7 @@ func parse_func(p *Parser) i32 {
 			found_func.is_declaration = false;
 			found_func.params = obj.params;
 		} else {
-			obj.ty = new_func_type(func_return_ty);
+			obj.ty = new_func_type(types_vec, func_return_ty);
 			obj.body = parse_block(p);
 			obj.locals = p.locals;
 			obj.is_declaration = false;
@@ -1760,96 +1897,73 @@ func gen_condition_store(ty *Type) i32 {
 	}
 }
 
-func pop_arg_regi(g *Gen, arg *Node, idx *i32) i32;
-
-func pop_arg_regi(g *Gen, arg *Node, idx *i32) i32 {
-	if arg.next != nil {
-		pop_arg_regi(g, arg.next, idx);
-	}
-
-	if !(arg.ty.size > 8) {
-		printf("\tpop %s\n", g.regi64[*idx]);
-	}
-	
-	(*idx)--;
-	
-	return 0;
-}
-
-func func_call_copy_val_rsp(g *Gen, n *Node) i32 {
-	gen_expr(g, n);
-	printf("\tsubq $%d, %rsp\n", n.ty.size);
+func func_call_copy_val_rsp(g *Gen, node *Node) i32 {
+	gen_expr(g, node);
+	printf("\tsubq $%d, %rsp\n", node.ty.size);
 	var b i32 = 0;
-	while b < n.ty.size {
+	while b < node.ty.size {
 		printf("\tmovb %d(%rax), %r10b\n", b);
 		printf("\tmovb %r10b, %d(%rsp)\n", b);
 		b++;
 	}
-	return n.ty.size;
+	return node.ty.size;
 }
 
-func func_call_args_to_stack(g *Gen, arg *Node) i32 {
-	if arg == nil {
+func func_call_args_to_stack(g *Gen, args *NodeVec) i32 {
+	if args.len == 0 {
 		return 0;
 	}
-	
-	var arg2 *Node = arg;
+
 	var stack i32 = 0;
 
-	while arg2 != nil {
-		if arg2.ty.size > 8 {
-			stack = stack + func_call_copy_val_rsp(g, arg2);
+	var idx i32 = 0;
+	while idx < args.len {
+		if args.ptr[idx].ty.size > 8 {
+			stack = stack + func_call_copy_val_rsp(g, args.ptr[idx]);
 		}
-		arg2 = arg2.next;
+		idx++;
 	}
 
 	return stack;
 }
 
-func func_call_args_to_regi(g *Gen, arg *Node) i32 {
-	if arg == nil {
+func func_call_args_to_regi(g *Gen, args *NodeVec) i32 {
+	if args.len == 0 {
 		return 0;
 	}
 
-	var arg2 *Node = arg;
-	var count i32 = 0;
+	var idx i32 = args.len - 1;
+	while 0 <= idx {
+		gen_expr(g, args.ptr[idx--]);
+		printf("\tpush %rax\n");
+	}
 
-	while arg2 != nil {
-		if arg2.ty.size <= 8 {
-			gen_expr(g, arg2);
-			printf("\tpush %rax\n");
+	var i i32 = 0;
+
+	while i < args.len {
+		if !(args.ptr[i].ty.size > 8) {
+			printf("\tpop %s\n", g.regi64[i]);
 		}
-		count++;
-		arg2 = arg2.next;
+		i++;
 	}
-	
-	count--;
-	
-	pop_arg_regi(g, arg, &count);
 
 	return 0;
 }
 
-func push_args_to_stack(g *Gen, arg *Node, stack *i32) i32;
-func push_args_to_stack(g *Gen, arg *Node, stack *i32) i32 {
-	if arg.next != nil {
-		push_args_to_stack(g, arg.next, stack);
-	}
-	gen_expr(g, arg);
-	printf("\tpush %rax\n");
-	*stack = *stack + 8;
-
-	return 0;
-}
-
-func all_func_call_args_to_stack(g *Gen, arg *Node) i32 {
-	if arg == nil {
+func all_func_call_args_to_stack(g *Gen, args *NodeVec) i32 {
+	if args.len == 0 {
 		return 0;
 	}
 
 	var stack i32 = 0;
 
-	push_args_to_stack(g, arg, &stack);
+	var idx i32 = args.len - 1;
+	while 0 <= idx {
+		gen_expr(g, args.ptr[idx]);
+		printf("\tpush %rax\n");
+		stack = stack + 8;
+		idx--;
+	}
 
 	return stack;
 }
@@ -2097,21 +2211,19 @@ func gen_expr(g *Gen, node *Node) i32 {
 
 func gen_stmt(g *Gen, node *Node) i32;
 
-func gen_node_block(g *Gen, node_block *Node) i32 {
-	var node *Node = node_block.body;
-
-	while node != nil {
-		gen_stmt(g, node);
-		node = node.next;
+func gen_node_block(g *Gen, stmts *NodeVec) i32 {
+	var idx i32 = 0;
+	while idx < stmts.len {
+		gen_stmt(g, stmts.ptr[idx]);
+		idx++;
 	}
-
 	return 0;
 }
 
 func gen_stmt(g *Gen, node *Node) i32 {
 	var c i32 = 0;
 	if node.kind == ND_BLOCK {
-		gen_node_block(g, node);
+		gen_node_block(g, node.body);
 	} else if node.kind == ND_EXPR_STMT {
 		gen_expr(g, node.lhs);
 	} else if node.kind == ND_RETURN {
@@ -2274,7 +2386,7 @@ func gen(g *Gen, globals *Object) i32 {
 				gen_func_params(g, object.params);
 			}
 
-			gen_node_block(g, object.body);
+			gen_stmt(g, object.body);
 			printf("\tleave\n");
 			printf("\tret\n");
 		}
