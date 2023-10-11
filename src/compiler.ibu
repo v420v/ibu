@@ -1,7 +1,7 @@
 
 #include "src/std.ibu"
 
-#define PROGRAM_MAX_SIZE 55000
+#define PROGRAM_MAX_SIZE 57000
 
 // ----------------------------------
 // Tokenizer
@@ -274,7 +274,47 @@ struct Member {
 	ty *Type;
 	name *i8;
 	offset i32;
-	next *Member;
+}
+
+// MemberVec
+
+struct MemberVec {
+	ptr **Member;
+	len i32;
+	cap i32;
+}
+
+func new_member_vec(cap i32) *MemberVec {
+	var vec *MemberVec = alloc(typesize(MemberVec));
+	vec.ptr = alloc(typesize(*Member) * cap);
+	if vec.ptr == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	vec.len = 0;
+	vec.cap = cap;
+	return vec;
+}
+
+func member_vec_realloc(vec *MemberVec) i32 {
+	var new_ptr *i8 = alloc(typesize(*Member) * vec.cap * 2);
+	if new_ptr == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	memcpy(new_ptr, vec.ptr, (typesize(*Member) * vec.cap));
+	vec.cap = vec.cap * 2;
+	vec.ptr = new_ptr;
+	return 0;
+}
+
+func vec_append_member(vec *MemberVec, ty *Member) i32 {
+	if vec.len >= vec.cap {
+		member_vec_realloc(vec);
+	}
+	vec.ptr[vec.len] = ty;
+	vec.len++;
+	return 0;
 }
 
 // TypeVec
@@ -318,6 +358,37 @@ func vec_append_type(vec *TypeVec, ty *Type) i32 {
 	return 0;
 }
 
+#define NodeKind			i32
+#define ND_ADD				0
+#define ND_SUB				1
+#define ND_MUL				2
+#define ND_DIV				3
+#define ND_MOD				4
+#define ND_NOT				5
+#define ND_NE				6
+#define ND_EQ				7
+#define ND_LE				8
+#define ND_LT				9
+#define ND_GE				10
+#define ND_GT				11
+#define ND_STR				12
+#define ND_NUM				13
+#define ND_VAR				14
+#define ND_IF				15
+#define ND_WHILE			16
+#define ND_ASSIGN			17
+#define ND_RETURN			18
+#define ND_REF				19
+#define ND_DEREF			20
+#define ND_BLOCK			21
+#define ND_EXPR_STMT		22
+#define ND_GOTO				23
+#define ND_LABEL			24
+#define ND_FUNC_CALL		25
+#define ND_LOGAND			26
+#define ND_LOGOR			27
+#define ND_MEMBER_ACCESS	28
+
 #define TypeKind	i32
 #define TY_I64		0
 #define TY_I32		1
@@ -334,7 +405,7 @@ struct Type {
 	name *i8;
 
 	// struct type
-	members *Member;
+	members *MemberVec;
 
 	// func type
 	return_type *Type;
@@ -395,6 +466,47 @@ func vec_append_node(vec *NodeVec, node *Node) i32 {
 	return 0;
 }
 
+// ObjectVec
+
+struct ObjectVec {
+	ptr **Object;
+	len i32;
+	cap i32;
+}
+
+func new_object_vec(cap i32) *ObjectVec {
+	var vec *ObjectVec = alloc(typesize(ObjectVec));
+	vec.ptr = alloc(typesize(*Object) * cap);
+	if vec.ptr == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	vec.len = 0;
+	vec.cap = cap;
+	return vec;
+}
+
+func object_vec_realloc(vec *ObjectVec) i32 {
+	var new_ptr *i8 = alloc(typesize(*Object) * vec.cap * 2);
+	if new_ptr == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	memcpy(new_ptr, vec.ptr, (typesize(*Object) * vec.cap));
+	vec.cap = vec.cap * 2;
+	vec.ptr = new_ptr;
+	return 0;
+}
+
+func vec_append_object(vec *ObjectVec, ty *Object) i32 {
+	if vec.len >= vec.cap {
+		object_vec_realloc(vec);
+	}
+	vec.ptr[vec.len] = ty;
+	vec.len++;
+	return 0;
+}
+
 struct Object {
 	name *i8;
 	kind ObjectKind;
@@ -404,51 +516,18 @@ struct Object {
 	offset i32;
 
 	// function
-	body *NodeVec;
-	params *Object;
+	body *Node;
+	params *ObjectVec;
 	locals *Object;
 	stack_size i32;
 
 	is_declaration bool;
 	is_func_param bool;
-	is_builtin bool;
 	is_global bool;
 	is_variadic bool;
 
 	next *Object;
-	next_param *Object;
 }
-
-#define NodeKind			i32
-#define ND_ADD				0
-#define ND_SUB				1
-#define ND_MUL				2
-#define ND_DIV				3
-#define ND_MOD				4
-#define ND_NOT				5
-#define ND_NE				6
-#define ND_EQ				7
-#define ND_LE				8
-#define ND_LT				9
-#define ND_GE				10
-#define ND_GT				11
-#define ND_STR				12
-#define ND_NUM				13
-#define ND_VAR				14
-#define ND_IF				15
-#define ND_WHILE			16
-#define ND_ASSIGN			17
-#define ND_RETURN			18
-#define ND_REF				19
-#define ND_DEREF			20
-#define ND_BLOCK			21
-#define ND_EXPR_STMT		22
-#define ND_GOTO				23
-#define ND_LABEL			24
-#define ND_FUNC_CALL		25
-#define ND_LOGAND			26
-#define ND_LOGOR			27
-#define ND_MEMBER_ACCESS	28
 
 struct Node {
 	kind NodeKind;
@@ -496,34 +575,15 @@ func strcmp(a *i8, b *i8) bool {
 	return false;
 }
 
-func add_builtin_func(p *Parser, name *i8, kind ObjectKind, params *Object, ty *Type) i32 {
-	var obj *Object = alloc(typesize(Object));
-	if obj == nil {
-		eprintf("alloc() returned nil\n");
-		exit(1);
-	}
-	obj.kind = kind;
-	obj.name = name;
-	obj.params = params;
-	obj.ty = ty;
-	obj.is_builtin = true;
-	obj.is_global = true;
-
-	obj.next = p.globals;
-	p.globals = obj;
-
-	return 0;
-}
-
 func print_user_defined_types(p *Parser) i32 {
 	var ty *Type = p.user_defined_types;
 	while ty != nil {
 		if ty.kind == TY_STRUCT {
 			printf("struct %s {\n", ty.name);
-			var member *Member = ty.members;
-			while member != nil {
-				printf("  %s\n", member.name);
-				member = member.next;
+			var idx i32 = 0;
+			while idx < ty.members.len {
+				printf("  %s\n", ty.members.ptr[idx].name);
+				idx++;
 			}
 			printf("}\n");
 		} else {
@@ -599,15 +659,6 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	p.ty_i16 = new_builtin_type(TY_I16, 2, "i16");
 	p.ty_i8 = new_builtin_type(TY_I8, 1, "i8");
 	p.ty_bool = new_builtin_type(TY_BOOL, 1, "bool");
-
-	add_builtin_func(p, "alloc", OBJ_FUNC, nil, new_func_type(new_type_vec(4), new_pointer_type(p.ty_i64)));
-	add_builtin_func(p, "open", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
-	add_builtin_func(p, "close", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
-	add_builtin_func(p, "read", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
-	add_builtin_func(p, "write", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
-	add_builtin_func(p, "exit", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
-	add_builtin_func(p, "printf", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
-	add_builtin_func(p, "eprintf", OBJ_FUNC, nil, new_func_type(new_type_vec(4), p.ty_i32));
 
 	p.program = program;
 
@@ -688,18 +739,28 @@ func cmp_func_param(p1 *Object, p2 *Object) bool {
 	return false;
 }
 
-func cmp_func_params(p1 *Object, p2 *Object) bool;
+func cmp_func_params(p1 *ObjectVec, p2 *ObjectVec) bool {
+	if p1 == nil || p2 == nil {
+		eprintf("something whent wrong function params must not be nil\n");
+		exit(1);
+	}
 
-func cmp_func_params(p1 *Object, p2 *Object) bool {
     if p1 == p2 {
 	    return true;
     }
-	if p1 == nil || p2 == nil {
+
+	if p1.len != p2.len {
 		return false;
 	}
-	if !cmp_func_param(p1, p2) || !cmp_func_params(p1.next_param, p2.next_param) {
-		return false;
+
+	var idx i32 = 0;
+	while idx < p1.len {
+		if !cmp_func_param(p1.ptr[idx], p2.ptr[idx]) {
+			return false;
+		}
+		idx++;
 	}
+
 	return true;
 }
 
@@ -793,13 +854,6 @@ func add_type(p *Parser, node *Node) i32 {
 	add_type_block(p, node.body);
 	add_type(p, node.then_block);
 	add_type(p, node.else_block);
-
-	// var node_args *Node;
-	// node_args = node.args;
-	// while node_args != nil {
-	// 	add_type(p, node_args);
-	// 	node_args = node_args.next;
-	// }
 	
 	if node.args != nil {
 		var idx i32 = 0;
@@ -986,6 +1040,18 @@ func parse_ident(p *Parser) *Node {
 		print_error(var_tok, "cannot call a none function object");
 	}
 
+	if node.args.len != var_node.obj.ty.params.len {
+		if var_node.obj.is_variadic && node.args.len < var_node.obj.ty.params.len {
+			print_error(var_tok, "The number of arguments in the function call does not match the function definition");
+			exit(1);
+		} else if !var_node.obj.is_variadic {
+			print_error(var_tok, "The number of arguments in the function call does not match the function definition");
+			exit(1);
+		} else {
+			// ok
+		}
+	}
+
 	node.lhs = var_node;
 	return node;
 }
@@ -1039,13 +1105,13 @@ func parse_number(p *Parser) *Node {
 	return node;
 }
 
-func search_struct_member(members *Member, exp_member_name *i8) *Member {
-	var member *Member = members;
-	while member != nil {
-		if strcmp(member.name, exp_member_name) {
-			return member;
+func search_struct_member(members *MemberVec, exp_member_name *i8) *Member {
+	var idx i32 = 0;
+	while idx < members.len {
+		if strcmp(members.ptr[idx].name, exp_member_name) {
+			return members.ptr[idx];
 		}
-		member = member.next;
+		idx++;
 	}
 	return nil;
 }
@@ -1227,29 +1293,29 @@ func parse_add(p *Parser) *Node {
 	return node;
 }
 
-func is_comparison_node(node *Node) i8 {
+func is_comparison_node(node *Node) i32 {
 	if node.kind == ND_LE {
-		return 1;
+		return true;
 	}
 	if node.kind == ND_GE {
-		return 1;
+		return true;
 	}
 	if node.kind == ND_LT {
-		return 1;
+		return true;
 	}
 	if node.kind == ND_GT {
-		return 1;
+		return true;
 	}
 	if node.kind == ND_EQ {
-		return 1;
+		return true;
 	}
 	if node.kind == ND_NE {
-		return 1;
+		return true;
 	}
 	if node.kind == ND_LOGAND {
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 func search_relational_rhs(node *Node) *Node {
@@ -1531,45 +1597,6 @@ func parse_stmt(p *Parser) *Node {
 	return parse_expr_stmt(p);
 }
 
-func parse_func_params(p *Parser, fn *Object) *TypeVec {
-	var types_vec *TypeVec = new_type_vec(4);
-
-	var head Object;
-	var cur *Object = &head;
-
-	while !strcmp(p.tokens.lit, ")") {
-		var name *i8 = p.tokens.lit;
-		var name_tok *Token = p.tokens;
-		parser_next(p);
-
-		if strcmp(name, "...") { // is variadic function
-			fn.is_variadic = true;
-			if !strcmp(p.tokens.lit, ")") {
-				print_error(p.tokens, "`...` must be at the end of the paramaters");
-			}
-		} else {
-			var ty *Type = parse_ty(p);
-			vec_append_type(types_vec, ty);
-
-			cur = cur.next_param = new_local_object(p, OBJ_VAR, name, ty, name_tok);
-			cur.is_func_param = true;
-
-			if strcmp(p.tokens.lit, ",") {
-				parser_skip(p, ",");
-			}
-		}
-
-		if strcmp(p.tokens.lit, ")") {
-			goto end;
-		}
-	}
-end:
-
-	fn.params = head.next_param;
-
-	return types_vec;
-}
-
 func new_member(name *i8, ty *Type) *Member {
 	var member *Member = alloc(typesize(Member));
 	member.name = name;
@@ -1577,25 +1604,22 @@ func new_member(name *i8, ty *Type) *Member {
 	return member;
 }
 
-func calc_sizof_struct_members(members *Member) i32 {
+func calc_sizof_struct_members(members *MemberVec) i32 {
 	var offset i32 = 0;
 
-	var member *Member = members;
+	var idx i32 = 0;
 
-	while member != nil {
-		member.offset = offset;
-		offset = offset + member.ty.size;
-		member = member.next;
+	while idx < members.len {
+		members.ptr[idx].offset = offset;
+		offset = offset + members.ptr[idx].ty.size;
+		idx++;
 	}
 
 	return offset;
 }
 
 func parse_struct(p *Parser) i32 {
-	var head Member;
-	head.next = nil;
-
-	var cur *Member = &head;
+	var members *MemberVec = new_member_vec(4);
 
 	parser_skip(p, "struct");
 	var name *i8 = p.tokens.lit;
@@ -1621,14 +1645,14 @@ func parse_struct(p *Parser) i32 {
 		while !strcmp(p.tokens.lit, "}") {
 			var member_name *i8 = p.tokens.lit;
 			parser_next(p);
-			cur = cur.next = new_member(member_name, parse_ty(p));
+			vec_append_member(members, new_member(member_name, parse_ty(p)));
 			parser_skip(p, ";");
 		}
 
 		parser_skip(p, "}");
 
-		ty.members = head.next;
-		ty.size = calc_sizof_struct_members(head.next);
+		ty.members = members;
+		ty.size = calc_sizof_struct_members(members);
 
 		var user_defined_struct *Type = get_user_defined_type(p, name); 
 		if user_defined_struct == nil {
@@ -1637,8 +1661,8 @@ func parse_struct(p *Parser) i32 {
 			if !user_defined_struct.is_declaration {
 				print_error(name_token, "struct is already defined somewhere");
 			}
-			user_defined_struct.members = head.next;
-			user_defined_struct.size = calc_sizof_struct_members(head.next);
+			user_defined_struct.members = members;
+			user_defined_struct.size = ty.size;
 			user_defined_struct.is_declaration = false;
 		}
 	}
@@ -1647,54 +1671,80 @@ func parse_struct(p *Parser) i32 {
 }
 
 func parse_func(p *Parser) i32 {
-	p.locals = nil;
+	p.locals = nil; // init local variables
 
-	parser_next(p);
+	parser_skip(p, "func");
 
-	var obj *Object = alloc(typesize(Object));
-	obj.kind = OBJ_FUNC;
+	var fn *Object = alloc(typesize(Object));
+	fn.kind = OBJ_FUNC;
 
 	var name *i8 = p.tokens.lit;
 	var name_tok *Token = p.tokens;
-
-	obj.name = name;
-
-	obj.is_global = true;
-
 	parser_next(p);
+
+	fn.name = name;
+
+	fn.is_global = true;
+
 	parser_skip(p, "(");
 
-	var types_vec *TypeVec;
+	var types *TypeVec = new_type_vec(4);
+	var params *ObjectVec = new_object_vec(4);
 
-	if !strcmp(p.tokens.lit, ")") {
-		types_vec = parse_func_params(p, obj);
-	} else {
-		obj.params = nil;
-		types_vec = new_type_vec(4);
+	while !strcmp(p.tokens.lit, ")") {
+		var params_name *i8 = p.tokens.lit;
+		var params_name_tok *Token = p.tokens;
+		parser_next(p);
+
+		if strcmp(params_name, "...") {
+			fn.is_variadic = true;
+			if !strcmp(p.tokens.lit, ")") {
+				print_error(p.tokens, "`...` must be at the end of the paramaters");
+			}
+		} else {
+			var ty *Type = parse_ty(p);
+			vec_append_type(types, ty);
+
+			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok));
+			params.ptr[params.len-1].is_func_param = true;
+
+			if strcmp(p.tokens.lit, ",") {
+				parser_skip(p, ",");
+			}
+		}
+
+		if strcmp(p.tokens.lit, ")") {
+			goto break;
+		}
 	}
+
+break:
+
+	fn.params = params;
 
 	parser_skip(p, ")");
 
 	var func_return_ty *Type = parse_ty(p);
 
+	var found_func *Object = find_globals(p, name);
+
 	if strcmp(p.tokens.lit, ";") {
 		parser_skip(p, ";");
-		if find_globals(p, name) != nil {
+		if found_func != nil {
 			print_error(name_tok, "function is already declared somewhere.");
 		}
-		obj.ty = new_func_type(types_vec, func_return_ty);
-		obj.locals = nil;
-		obj.is_declaration = true;
+		fn.ty = new_func_type(types, func_return_ty);
+		fn.locals = nil;
+		fn.is_declaration = true;
 
-		obj.next = p.globals;
-		p.globals = obj;
+		fn.next = p.globals;
+		p.globals = fn;
 	} else {
-		var found_func *Object = find_globals(p, name);
 		if found_func != nil {
 			if !found_func.is_declaration {
 				print_error(name_tok, "function is already defined somewhere");
 			}
-			if !cmp_func_params(found_func.params, obj.params) {
+			if !cmp_func_params(found_func.params, fn.params) {
 				print_error(name_tok, "function declaration paramaters does not match to definition");
 			}
 			if !cmp_type(func_return_ty, found_func.ty.return_type) {
@@ -1703,15 +1753,15 @@ func parse_func(p *Parser) i32 {
 			found_func.body = parse_block(p);
 			found_func.locals = p.locals;
 			found_func.is_declaration = false;
-			found_func.params = obj.params;
+			found_func.params = fn.params;
 		} else {
-			obj.ty = new_func_type(types_vec, func_return_ty);
-			obj.body = parse_block(p);
-			obj.locals = p.locals;
-			obj.is_declaration = false;
-	
-			obj.next = p.globals;
-			p.globals = obj;
+			fn.ty = new_func_type(types, func_return_ty);
+			fn.body = parse_block(p);
+			fn.locals = p.locals;
+			fn.is_declaration = false;
+
+			fn.next = p.globals;
+			p.globals = fn;
 		}
 	}
 }
@@ -1738,49 +1788,89 @@ struct Gen {
 	label_count i32;
 	str_label_count i32;
 	cur_func_name *i8;
-	regi64 **i8;
-	regi32 **i8;
-	regi16 **i8;
-	regi8 **i8;
 
 	offset i32;
 	stack_offset i32;
 }
 
+func amd64_system_v_call_regs64(idx i32) *i8 {
+	if idx == 0 {
+		"%rdi";
+	} else if idx == 1 {
+		"%rsi";
+	} else if idx == 2 {
+		"%rdx";
+	} else if idx == 3 {
+		"%rcx";
+	} else if idx == 4 {
+		"%r8";
+	} else if idx == 5 {
+		"%r9";
+	} else {
+		eprintf("unreachable\n");
+		exit(1);
+	}
+}
+
+func amd64_system_v_call_regs32(idx i32) *i8 {
+	if idx == 0 {
+		"%edi";
+	} else if idx == 1 {
+		"%esi";
+	} else if idx == 2 {
+		"%edx";
+	} else if idx == 3 {
+		"%ecx";
+	} else if idx == 4 {
+		"%r8d";
+	} else if idx == 5 {
+		"%r9d";
+	} else {
+		eprintf("unreachable\n");
+		exit(1);
+	}
+}
+
+func amd64_system_v_call_regs16(idx i32) *i8 {
+	if idx == 0 {
+		"%di";
+	} else if idx == 1 {
+		"%si";
+	} else if idx == 2 {
+		"%dx";
+	} else if idx == 3 {
+		"%cx";
+	} else if idx == 4 {
+		"%r8w";
+	} else if idx == 5 {
+		"%r9w";
+	} else {
+		eprintf("unreachable\n");
+		exit(1);
+	}
+}
+
+func amd64_system_v_call_regs8(idx i32) *i8 {
+	if idx == 0 {
+		"%dil";
+	} else if idx == 1 {
+		"%sil";
+	} else if idx == 2 {
+		"%dl";
+	} else if idx == 3 {
+		"%cl";
+	} else if idx == 4 {
+		"%r8b";
+	} else if idx == 5 {
+		"%r9b";
+	} else {
+		eprintf("unreachable\n");
+		exit(1);
+	}
+}
+
 func new_gen() *Gen {
 	var g *Gen = alloc(typesize(Gen));
-
-	g.regi64 = alloc(typesize(*i8)*6);
-	g.regi64[0] = "%rdi";
-	g.regi64[1] = "%rsi";
-	g.regi64[2] = "%rdx";
-	g.regi64[3] = "%rcx";
-	g.regi64[4] = "%r8";
-	g.regi64[5] = "%r9";
-
-	g.regi32 = alloc(typesize(*i8)*6);
-	g.regi32[0] = "%edi";
-	g.regi32[1] = "%esi";
-	g.regi32[2] = "%edx";
-	g.regi32[3] = "%ecx";
-	g.regi32[4] = "%r8d";
-	g.regi32[5] = "%r9d";
-
-	g.regi16 = alloc(typesize(*i8)*6);
-	g.regi16[0] = "%di";
-	g.regi16[1] = "%si";
-	g.regi16[2] = "%dx";
-	g.regi16[3] = "%cx";
-	g.regi16[4] = "%r8w";
-	g.regi16[5] = "%r9w";
-
-	g.regi8 = alloc(typesize(*i8)*6);
-	g.regi8[0] = "%dil";
-	g.regi8[1] = "%sil";
-	g.regi8[2] = "%dl";
-	g.regi8[3] = "%cl";
-	g.regi8[4] = "%r8b";
-	g.regi8[5] = "%r9b";
 
 	g.label_count = 0;
 	g.str_label_count = 0;
@@ -1864,13 +1954,13 @@ func gen_load(ty *Type) i32 {
 
 func gen_load_regi(g *Gen, ty *Type, idx i32) i32 {
 	if ty.size == 8 {
-		printf("\tmovq (%s), %s\n", g.regi64[idx], g.regi64[idx]);
+		printf("\tmovq (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs64(idx));
 	} else if ty.size == 4 {
-		printf("\tmovslq (%s), %s\n", g.regi64[idx], g.regi64[idx]);
+		printf("\tmovslq (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs64(idx));
 	} else if ty.size == 2 {
-		printf("\tmovswl (%s), %s\n", g.regi64[idx], g.regi32[idx]); 
+		printf("\tmovswl (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs32(idx)); 
 	} else if ty.size == 1 {
-		printf("\tmovsbl (%s), %s\n", g.regi64[idx], g.regi32[idx]);
+		printf("\tmovsbl (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs32(idx));
 	} else {
 		eprintf("unreachable\n");
 		exit(1);
@@ -1942,7 +2032,7 @@ func func_call_args_to_regi(g *Gen, args *NodeVec) i32 {
 
 	while i < args.len {
 		if !(args.ptr[i].ty.size > 8) {
-			printf("\tpop %s\n", g.regi64[i]);
+			printf("\tpop %s\n", amd64_system_v_call_regs64(i));
 		}
 		i++;
 	}
@@ -1950,7 +2040,7 @@ func func_call_args_to_regi(g *Gen, args *NodeVec) i32 {
 	return 0;
 }
 
-func all_func_call_args_to_stack(g *Gen, args *NodeVec) i32 {
+func all_func_call_args_to_stack(g *Gen, args *NodeVec, fn *Object) i32 {
 	if args.len == 0 {
 		return 0;
 	}
@@ -1969,9 +2059,6 @@ func all_func_call_args_to_stack(g *Gen, args *NodeVec) i32 {
 }
 
 func is_c_func(name *i8) bool {
-	if strcmp(name, "main") {
-		return true;
-	}
 	if strcmp(name, "alloc") {
 		return true;
 	}
@@ -2057,7 +2144,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 			printf("\tcallq *%r10\n");
 			printf("\taddq $%d, %rsp\n", stack);
 		} else {
-			stack = all_func_call_args_to_stack(g, node.args);
+			stack = all_func_call_args_to_stack(g, node.args, node.lhs.obj);
 
 			gen_addr(g, node.lhs);
 			printf("\tmovq (%rax), %r10\n");
@@ -2269,21 +2356,22 @@ func gen_stmt(g *Gen, node *Node) i32 {
 	}
 }
 
-func gen_func_params(g *Gen, params *Object) i32 {
-	var regi_idx i32 = 0;
-	while params != nil {
-		if params.ty.kind == TY_STRUCT {
-			if params.ty.size > 8 {
+func gen_func_params(g *Gen, params *ObjectVec) i32 {
+	var idx i32 = 0;
+
+	while idx < params.len {
+		if params.ptr[idx].ty.kind == TY_STRUCT {
+			if params.ptr[idx].ty.size > 8 {
 				goto next;
 			} else {
-				if params.ty.size == 8 {
-					printf("\tmovq (%s), %s\n", g.regi64[regi_idx], g.regi64[regi_idx]);
-				} else if params.ty.size == 4 {
-					printf("\tmovslq (%s), %s\n", g.regi64[regi_idx], g.regi64[regi_idx]);
-				} else if params.ty.size == 2 {
-					printf("\tmovswl (%s), %s\n", g.regi64[regi_idx], g.regi32[regi_idx]); 
-				} else if params.ty.size == 1 {
-					printf("\tmovsbl (%s), %s\n", g.regi64[regi_idx], g.regi32[regi_idx]);
+				if params.ptr[idx].ty.size == 8 {
+					printf("\tmovq (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs64(idx));
+				} else if params.ptr[idx].ty.size == 4 {
+					printf("\tmovslq (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs64(idx));
+				} else if params.ptr[idx].ty.size == 2 {
+					printf("\tmovswl (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs32(idx)); 
+				} else if params.ptr[idx].ty.size == 1 {
+					printf("\tmovsbl (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs32(idx));
 				} else {
 					eprintf("unreachable\n");
 					exit(1);
@@ -2291,22 +2379,21 @@ func gen_func_params(g *Gen, params *Object) i32 {
 			}
 		}
 
-		if params.ty.size == 1 {
-			printf("\tmovb %s, %d(%rbp)\n", g.regi8[regi_idx], params.offset);
-		} else if params.ty.size == 2 {
-			printf("\tmovw %s, %d(%rbp)\n", g.regi16[regi_idx], params.offset);
-		} else if params.ty.size == 4 {
-			printf("\tmovl %s, %d(%rbp)\n", g.regi32[regi_idx], params.offset);
-		} else if params.ty.size == 8 {
-			printf("\tmovq %s, %d(%rbp)\n", g.regi64[regi_idx], params.offset);
+		if params.ptr[idx].ty.size == 1 {
+			printf("\tmovb %s, %d(%rbp)\n", amd64_system_v_call_regs8(idx), params.ptr[idx].offset);
+		} else if params.ptr[idx].ty.size == 2 {
+			printf("\tmovw %s, %d(%rbp)\n", amd64_system_v_call_regs16(idx), params.ptr[idx].offset);
+		} else if params.ptr[idx].ty.size == 4 {
+			printf("\tmovl %s, %d(%rbp)\n", amd64_system_v_call_regs32(idx), params.ptr[idx].offset);
+		} else if params.ptr[idx].ty.size == 8 {
+			printf("\tmovq %s, %d(%rbp)\n", amd64_system_v_call_regs64(idx), params.ptr[idx].offset);
 		} else {
 			eprintf("unreachable\n");
 			exit(1);
 		}
 
 	next:
-		params = params.next_param;
-		regi_idx++;
+		idx++;
 	}
 }
 
@@ -2357,8 +2444,9 @@ func gen(g *Gen, globals *Object) i32 {
 	printf("_start:\n");
 	printf("\tpush %rbp\n");
 	printf("\tmovq %rsp, %rbp\n");
-	printf("\tmovq 8(%rbp), %rdi\n"); 
-	printf("\tleaq 16(%rbp), %rsi\n"); 
+	printf("\tleaq 16(%rbp), %rax\n");
+	printf("\tpush %rax\n");
+	printf("\tpushq 8(%rbp)\n"); 
 	printf("\tcallq main\n");
 	printf("\tmovq %rax, %rdi\n");
 	printf("\tmovq $60, %rax\n");
@@ -2367,7 +2455,7 @@ func gen(g *Gen, globals *Object) i32 {
 	var object *Object = globals;
 
 	while object != nil {
-		if object.kind == OBJ_FUNC && !object.is_declaration && !object.is_builtin {
+		if object.kind == OBJ_FUNC && !object.is_declaration {
 			g.cur_func_name = object.name;
 			if is_c_func(g.cur_func_name) {
 				object.stack_size = c_func_assign_offset(object.locals);
@@ -2381,7 +2469,7 @@ func gen(g *Gen, globals *Object) i32 {
 			printf("\tpush %rbp\n");
 			printf("\tmovq %rsp, %rbp\n");
 			printf("\tsubq $%d, %rsp\n", object.stack_size);
-			
+
 			if is_c_func(g.cur_func_name) {
 				gen_func_params(g, object.params);
 			}
@@ -2505,7 +2593,7 @@ func print_all_macros(p *Preprocessor) i32 {
 
 func main(argc i32, argv **i8) i32 {
 	if argc != 2 {
-		printf("usage\n\tibu <filename>.ibu\n");
+		printf("usage\n\tibuc <filename>.ibu\n");
 		exit(0);
 	}
 
