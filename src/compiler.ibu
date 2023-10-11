@@ -1,4 +1,5 @@
 
+#include "src/linux-syscall.ibu"
 #include "src/std.ibu"
 
 #define PROGRAM_MAX_SIZE 57000
@@ -415,7 +416,6 @@ struct Type {
 	pointer_to *Type;
 
 	is_declaration bool;
-	next *Type;
 }
 
 #define ObjectKind	i32
@@ -551,7 +551,7 @@ struct Parser {
 	tokens *Token;
 	globals *Object;
 	locals *Object;
-	user_defined_types *Type;
+	user_defined_types *TypeVec;
 	ty_i8 *Type;
 	ty_i16 *Type;
 	ty_i32 *Type;
@@ -575,34 +575,36 @@ func strcmp(a *i8, b *i8) bool {
 	return false;
 }
 
-func print_user_defined_types(p *Parser) i32 {
-	var ty *Type = p.user_defined_types;
-	while ty != nil {
-		if ty.kind == TY_STRUCT {
-			printf("struct %s {\n", ty.name);
-			var idx i32 = 0;
-			while idx < ty.members.len {
-				printf("  %s\n", ty.members.ptr[idx].name);
-				idx++;
+func print_user_defined_types(types *TypeVec) i32 {
+	var type_idx i32 = 0;
+	while type_idx < types.len {
+		if types.ptr[type_idx].kind == TY_STRUCT {
+			printf("struct %s {\n", types.ptr[type_idx].name);
+			var member_idx i32 = 0;
+			while member_idx < types.ptr[member_idx].members.len {
+				printf("  %s\n", types.ptr[member_idx].members.ptr[member_idx].name);
+				member_idx++;
 			}
 			printf("}\n");
 		} else {
-			eprintf("error: unkown user-defined type `%s`", ty.name);
+			eprintf("error: unkown user-defined type `%s`", types.ptr[type_idx].name);
 			exit(1);
 		}
-		ty = ty.next;
+		type_idx++;
 	}
 	return 0;
 }
 
 func get_user_defined_type(p *Parser, name *i8) *Type {
-	var ty *Type = p.user_defined_types;
-	while ty != nil {
-		if strcmp(ty.name, name) {
-			return ty;
+	var idx i32 = 0;
+
+	while idx < p.user_defined_types.len {
+		if strcmp(p.user_defined_types.ptr[idx].name, name) {
+			return p.user_defined_types.ptr[idx];
 		}
-		ty = ty.next;
+		idx++;
 	}
+
 	return nil;
 }
 
@@ -653,6 +655,7 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	}
 	p.tokens = tokens;
 	p.locals = nil;
+	p.user_defined_types = new_type_vec(4);
 
 	p.ty_i64 = new_builtin_type(TY_I64, 8, "i64");
 	p.ty_i32 = new_builtin_type(TY_I32, 4, "i32");
@@ -817,12 +820,6 @@ func new_local_object(p *Parser, kind ObjectKind, name *i8, ty *Type, tok *Token
 	p.locals = obj;
 
 	return obj;
-}
-
-func add_user_defined_type(p *Parser, ty *Type) i32 {
-	ty.next = p.user_defined_types;
-	p.user_defined_types = ty;
-	return 0;
 }
 
 func add_type(p *Parser, node *Node) i32;
@@ -1182,12 +1179,12 @@ func parse_unary(p *Parser) *Node {
 		if strcmp(p.tokens.lit, "++") {
 			parser_next(p);
 			node = new_binop(ND_SUB, new_binop(ND_ASSIGN, node, new_binop(ND_ADD, node, node_num_one(p))), node_num_one(p));
-			goto again;
+			goto continue;
 		}
 		if strcmp(p.tokens.lit, "--") {
 			parser_next(p);
 			node = new_binop(ND_ADD, new_binop(ND_ASSIGN, node, new_binop(ND_SUB, node, node_num_one(p))), node_num_one(p));
-			goto again;
+			goto continue;
 		}
 		if strcmp(p.tokens.lit, "[") {
 			add_type(p, node);
@@ -1208,7 +1205,7 @@ func parse_unary(p *Parser) *Node {
 			node = new_binop(ND_ADD, node, idx_pointer_arith);
 
 			node = new_struct_access_node(ND_DEREF, node, 0, nil, nil);
-			goto again;
+			goto continue;
 		}
 		if strcmp(p.tokens.lit, ".") {
 			parser_next(p);
@@ -1242,12 +1239,12 @@ func parse_unary(p *Parser) *Node {
 			var offset i32 = member.offset;
 			var member_ty *Type = member.ty;
 			node = new_struct_access_node(ND_MEMBER_ACCESS, node, offset, node.obj, member_ty);
-			goto again;
+			goto continue;
 		}
-		goto end;
-		again:
+		goto break;
+		continue:
 	}
-	end:
+	break:
 
 	return node;
 }
@@ -1637,7 +1634,7 @@ func parse_struct(p *Parser) i32 {
 		parser_skip(p, ";");
 
 		if get_user_defined_type(p, name) == nil {
-			add_user_defined_type(p, ty);
+			vec_append_type(p.user_defined_types, ty);
 		}
 	} else {
 		parser_skip(p, "{");
@@ -1656,7 +1653,7 @@ func parse_struct(p *Parser) i32 {
 
 		var user_defined_struct *Type = get_user_defined_type(p, name); 
 		if user_defined_struct == nil {
-			add_user_defined_type(p, ty);
+			vec_append_type(p.user_defined_types, ty);
 		} else {
 			if !user_defined_struct.is_declaration {
 				print_error(name_token, "struct is already defined somewhere");

@@ -1,10 +1,5 @@
 
 func alloc(size i32) *i8;
-func open(file_name *i8, flags i32, mode i32) i32;
-func read(fd i32, buf *i8, size i32) i32;
-func close(fd i32) i32;
-func write(fn i32, buf *i8, size i32) i32;
-func exit(code i32) i32;
 func printf(buf *i8, ...) i32;
 func eprintf(buf *i8, ...) i32;
 
