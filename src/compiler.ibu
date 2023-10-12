@@ -2418,6 +2418,10 @@ func c_func_assign_offset(objects *Object) i32 {
 
 func assign_offset(g *Gen, obj *Object) i32;
 func assign_offset(g *Gen, obj *Object) i32 {
+	if obj == nil {
+		return align_to(g.offset, 16);
+	}
+
 	if obj.next != nil {
 		assign_offset(g, obj.next);
 	}
