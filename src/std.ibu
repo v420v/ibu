@@ -1,7 +1,13 @@
 
+#include "src/linux-syscall.ibu"
+
 func alloc(size i32) *i8;
 func printf(buf *i8, ...) i32;
 func eprintf(buf *i8, ...) i32;
+
+func align_to(n i32, align i32) i32 {
+	return (n + align - 1) / align * align;
+}
 
 func memcpy(dest *i8, source *i8, size i32) *i8 {
 	var i i32 = 0;

@@ -1,5 +1,4 @@
 
-#include "src/linux-syscall.ibu"
 #include "src/std.ibu"
 
 #define PROGRAM_MAX_SIZE 57000
@@ -49,12 +48,12 @@ func new_tokenizer(file_name *i8, program *i8) *Tokenizer {
 	return t;
 }
 
-func strlen(s *i8) i32 {
-	var start *i8 = s;
-	while *s != nil {
-		s++;
+func strlen(str *i8) i32 {
+	var start *i8 = str;
+	while *str != nil {
+		str++;
 	}
-	return s - start;
+	return str - start;
 }
 
 func print_error(tok *Token, msg *i8) i32 {
@@ -63,12 +62,8 @@ func print_error(tok *Token, msg *i8) i32 {
 }
 
 func is_three_c_punct(a *i8) bool {
-	if a[0] == 46 {
-		if a[1] == 46 {
-			if a[2] == 46 {
-				return true;
-			}
-		}
+	if a[0] == 46 && a[1] == 46 && a[2] == 46 {
+		return true;
 	}
 	return false;
 }
@@ -399,6 +394,10 @@ func vec_append_type(vec *TypeVec, ty *Type) i32 {
 #define TY_STRUCT	5
 #define TY_FUNC		6
 #define TY_PTR		7
+#define TY_U64		8
+#define TY_U32		9
+#define TY_U16		10
+#define TY_U8		11
 
 struct Type {
 	kind TypeKind;
@@ -415,6 +414,7 @@ struct Type {
 	// pointer type
 	pointer_to *Type;
 
+	is_unsigned bool;
 	is_declaration bool;
 }
 
@@ -556,6 +556,10 @@ struct Parser {
 	ty_i16 *Type;
 	ty_i32 *Type;
 	ty_i64 *Type;
+	ty_u8 *Type;
+	ty_u16 *Type;
+	ty_u32 *Type;
+	ty_u64 *Type;
 	ty_bool *Type;
 	program *i8;
 }
@@ -608,7 +612,7 @@ func get_user_defined_type(p *Parser, name *i8) *Type {
 	return nil;
 }
 
-func new_builtin_type(kind TypeKind, size i32, name *i8) *Type {
+func new_builtin_type(kind TypeKind, size i32, name *i8, is_unsigned bool) *Type {
 	var ty *Type = alloc(typesize(Type));
 	if ty == nil {
 		eprintf("alloc returned nil\n");
@@ -618,6 +622,7 @@ func new_builtin_type(kind TypeKind, size i32, name *i8) *Type {
 	ty.size = size;
 	ty.name = name;
 	ty.pointer_to = nil;
+	ty.is_unsigned = is_unsigned;
 	return ty;
 }
 
@@ -657,11 +662,16 @@ func new_parser(program *i8, tokens *Token) *Parser {
 	p.locals = nil;
 	p.user_defined_types = new_type_vec(4);
 
-	p.ty_i64 = new_builtin_type(TY_I64, 8, "i64");
-	p.ty_i32 = new_builtin_type(TY_I32, 4, "i32");
-	p.ty_i16 = new_builtin_type(TY_I16, 2, "i16");
-	p.ty_i8 = new_builtin_type(TY_I8, 1, "i8");
-	p.ty_bool = new_builtin_type(TY_BOOL, 1, "bool");
+	p.ty_i64 = new_builtin_type(TY_I64, 8, "i64", false);
+	p.ty_i32 = new_builtin_type(TY_I32, 4, "i32", false);
+	p.ty_i16 = new_builtin_type(TY_I16, 2, "i16", false);
+	p.ty_i8 = new_builtin_type(TY_I8, 1, "i8", false);
+	p.ty_bool = new_builtin_type(TY_BOOL, 1, "bool", false);
+
+	p.ty_u64 = new_builtin_type(TY_U64, 8, "u64", true);
+	p.ty_u32 = new_builtin_type(TY_U32, 4, "u32", true);
+	p.ty_u16 = new_builtin_type(TY_U16, 2, "u16", true);
+	p.ty_u8 = new_builtin_type(TY_U8, 1, "u8", true);
 
 	p.program = program;
 
@@ -719,6 +729,10 @@ func cmp_type(ty1 *Type, ty2 *Type) bool {
 	}
 
 	if ty1.size != ty2.size {
+		return false;
+	}
+
+	if ty1.is_unsigned != ty2.is_unsigned {
 		return false;
 	}
 
@@ -947,6 +961,14 @@ func parse_ty(p *Parser) *Type {
 		ty = p.ty_i16;
 	} else if strcmp(name, "i8") {
 		ty = p.ty_i8;
+	} else if strcmp(name, "u64") {
+		ty = p.ty_u64;
+	} else if strcmp(name, "u32") {
+		ty = p.ty_u32;
+	} else if strcmp(name, "u16") {
+		ty = p.ty_u16;
+	} else if strcmp(name, "u8") {
+		ty = p.ty_u8;
 	} else if strcmp(name, "bool") {
 		ty = p.ty_bool;
 	} else if strcmp(name, "*") {
@@ -1709,13 +1731,7 @@ func parse_func(p *Parser) i32 {
 				parser_skip(p, ",");
 			}
 		}
-
-		if strcmp(p.tokens.lit, ")") {
-			goto break;
-		}
 	}
-
-break:
 
 	fn.params = params;
 
@@ -1809,63 +1825,6 @@ func amd64_system_v_call_regs64(idx i32) *i8 {
 	}
 }
 
-func amd64_system_v_call_regs32(idx i32) *i8 {
-	if idx == 0 {
-		"%edi";
-	} else if idx == 1 {
-		"%esi";
-	} else if idx == 2 {
-		"%edx";
-	} else if idx == 3 {
-		"%ecx";
-	} else if idx == 4 {
-		"%r8d";
-	} else if idx == 5 {
-		"%r9d";
-	} else {
-		eprintf("unreachable\n");
-		exit(1);
-	}
-}
-
-func amd64_system_v_call_regs16(idx i32) *i8 {
-	if idx == 0 {
-		"%di";
-	} else if idx == 1 {
-		"%si";
-	} else if idx == 2 {
-		"%dx";
-	} else if idx == 3 {
-		"%cx";
-	} else if idx == 4 {
-		"%r8w";
-	} else if idx == 5 {
-		"%r9w";
-	} else {
-		eprintf("unreachable\n");
-		exit(1);
-	}
-}
-
-func amd64_system_v_call_regs8(idx i32) *i8 {
-	if idx == 0 {
-		"%dil";
-	} else if idx == 1 {
-		"%sil";
-	} else if idx == 2 {
-		"%dl";
-	} else if idx == 3 {
-		"%cl";
-	} else if idx == 4 {
-		"%r8b";
-	} else if idx == 5 {
-		"%r9b";
-	} else {
-		eprintf("unreachable\n");
-		exit(1);
-	}
-}
-
 func new_gen() *Gen {
 	var g *Gen = alloc(typesize(Gen));
 
@@ -1934,30 +1893,20 @@ func gen_load(ty *Type) i32 {
 	if ty.kind == TY_STRUCT {
 		return 0;
 	}
+	var instr *i8;
+	if ty.is_unsigned {
+		instr = "movz";
+	} else {
+		instr = "movs";
+	}
 	if ty.size == 8 {
 		printf("\tmovq (%rax), %rax\n");
 	} else if ty.size == 4 {
 		printf("\tmovslq (%rax), %rax\n");
 	} else if ty.size == 2 {
-		printf("\tmovswl (%rax), %eax\n"); 
+		printf("\t%swl (%rax), %eax\n", instr); 
 	} else if ty.size == 1 {
-		printf("\tmovsbl (%rax), %eax\n");
-	} else {
-		eprintf("unreachable\n");
-		exit(1);
-	}
-	return 0;
-}
-
-func gen_load_regi(g *Gen, ty *Type, idx i32) i32 {
-	if ty.size == 8 {
-		printf("\tmovq (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs64(idx));
-	} else if ty.size == 4 {
-		printf("\tmovslq (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs64(idx));
-	} else if ty.size == 2 {
-		printf("\tmovswl (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs32(idx)); 
-	} else if ty.size == 1 {
-		printf("\tmovsbl (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs32(idx));
+		printf("\t%sbl (%rax), %eax\n", instr);
 	} else {
 		eprintf("unreachable\n");
 		exit(1);
@@ -2059,21 +2008,6 @@ func is_c_func(name *i8) bool {
 	if strcmp(name, "alloc") {
 		return true;
 	}
-	if strcmp(name, "exit") {
-		return true;
-	}
-	if strcmp(name, "open") {
-		return true;
-	}
-	if strcmp(name, "read") {
-		return true;
-	}
-	if strcmp(name, "write") {
-		return true;
-	}
-	if strcmp(name, "close") {
-		return true;
-	}
 	if strcmp(name, "printf") {
 		return true;
 	}
@@ -2151,6 +2085,18 @@ func gen_expr(g *Gen, node *Node) i32 {
 			printf("\taddq $%d, %rsp\n", stack);
 		}
 
+		if node.ty.kind == TY_BOOL {
+			printf("\tmovzx %al, %eax\n");
+		} else if node.ty.kind == TY_I8 {
+			printf("\tmovsbl %al, %eax\n");
+		} else if node.ty.kind == TY_U8 {
+			printf("\tmovzbl %al, %eax\n");
+		} else if node.ty.kind == TY_I16 {
+			printf("\tmovswl %ax, %eax\n");
+		} else if node.ty.kind == TY_U16 {
+			printf("\tmovzwl %ax, %eax\n");
+		} else {}
+
 		return 0;
 	}
 	if node.kind == ND_EXPR_STMT {
@@ -2188,33 +2134,32 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_binop("imul", node.ty);
 		return 0;
 	}
-	if node.kind == ND_DIV {
+	if node.kind == ND_DIV || node.kind == ND_MOD {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
-		if node.lhs.ty.size == 8 {
-			printf("\tcqto\n");
+
+		if node.ty.is_unsigned {
+			if node.ty.size == 8 {
+				printf("\tmov $0, %rdx\n");
+      			printf("\tdivq %rdi\n");
+			} else {
+				printf("\tmov $0, %edx\n");
+      			printf("\tdivl %edi\n");
+			}
 		} else {
-			printf("\tcltd\n");
+			if node.lhs.ty.size == 8 {
+				printf("\tcqto\n");
+			} else {
+				printf("\tcltd\n");
+			}
+			if node.ty.size == 8 {
+				printf("\tidivq %rdi\n");
+			} else {
+				printf("\tidivl %edi\n");
+			}
 		}
-		if node.ty.size == 8 {
-			printf("\tidivq %rdi\n");
-		} else {
-			printf("\tidivl %edi\n");
+		if node.kind == ND_MOD {
+			printf("\tmovq %rdx, %rax\n");
 		}
-		return 0;
-	}
-	if node.kind == ND_MOD {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		if node.lhs.ty.size == 8 {
-			printf("\tcqto\n");
-		} else {
-			printf("\tcltd\n");
-		}
-		if node.ty.size == 8 {
-			printf("\tidivq %rdi\n");
-		} else {
-			printf("\tidivl %edi\n");
-		}
-		printf("\tmovq %rdx, %rax\n");
 		return 0;
 	}
 	if node.kind == ND_EQ {
@@ -2264,28 +2209,44 @@ func gen_expr(g *Gen, node *Node) i32 {
 	if node.kind == ND_GE {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		printf("\tsetge %al\n");
+		if node.lhs.ty.is_unsigned {
+       		printf("\tsetae %al\n");
+		} else {
+        	printf("\tsetge %al\n");
+		}
 		gen_condition_store(node.ty);
 		return 0;
 	}
 	if node.kind == ND_GT {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		printf("\tsetg %al\n");
+		if node.lhs.ty.is_unsigned {
+       		printf("\tseta %al\n");
+		} else {
+        	printf("\tsetg %al\n");
+		}
 		gen_condition_store(node.ty);
 		return 0;
 	}
 	if node.kind == ND_LE {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		printf("\tsetle %al\n");
+		if node.lhs.ty.is_unsigned {
+       		printf("\tsetbe %al\n");
+		} else {
+        	printf("\tsetle %al\n");
+		}
 		gen_condition_store(node.ty);
 		return 0;
 	}
 	if node.kind == ND_LT {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		printf("\tsetl %al\n");
+		if node.lhs.ty.is_unsigned {
+       		printf("\tsetb %al\n");
+		} else {
+        	printf("\tsetl %al\n");
+		}
 		gen_condition_store(node.ty);
 		return 0;
 	}
@@ -2353,69 +2314,6 @@ func gen_stmt(g *Gen, node *Node) i32 {
 	}
 }
 
-func gen_func_params(g *Gen, params *ObjectVec) i32 {
-	var idx i32 = 0;
-
-	while idx < params.len {
-		if params.ptr[idx].ty.kind == TY_STRUCT {
-			if params.ptr[idx].ty.size > 8 {
-				goto next;
-			} else {
-				if params.ptr[idx].ty.size == 8 {
-					printf("\tmovq (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs64(idx));
-				} else if params.ptr[idx].ty.size == 4 {
-					printf("\tmovslq (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs64(idx));
-				} else if params.ptr[idx].ty.size == 2 {
-					printf("\tmovswl (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs32(idx)); 
-				} else if params.ptr[idx].ty.size == 1 {
-					printf("\tmovsbl (%s), %s\n", amd64_system_v_call_regs64(idx), amd64_system_v_call_regs32(idx));
-				} else {
-					eprintf("unreachable\n");
-					exit(1);
-				}
-			}
-		}
-
-		if params.ptr[idx].ty.size == 1 {
-			printf("\tmovb %s, %d(%rbp)\n", amd64_system_v_call_regs8(idx), params.ptr[idx].offset);
-		} else if params.ptr[idx].ty.size == 2 {
-			printf("\tmovw %s, %d(%rbp)\n", amd64_system_v_call_regs16(idx), params.ptr[idx].offset);
-		} else if params.ptr[idx].ty.size == 4 {
-			printf("\tmovl %s, %d(%rbp)\n", amd64_system_v_call_regs32(idx), params.ptr[idx].offset);
-		} else if params.ptr[idx].ty.size == 8 {
-			printf("\tmovq %s, %d(%rbp)\n", amd64_system_v_call_regs64(idx), params.ptr[idx].offset);
-		} else {
-			eprintf("unreachable\n");
-			exit(1);
-		}
-
-	next:
-		idx++;
-	}
-}
-
-func align_to(n i32, align i32) i32 {
-	return (n + align - 1) / align * align;
-}
-
-func c_func_assign_offset(objects *Object) i32 {
-	var obj *Object = objects;
-	var offset i32 = 0;
-	var stack_top i32 = 16;
-
-	while obj != nil {
-		if obj.is_func_param && obj.ty.size > 8 {
-			obj.offset = stack_top;
-			stack_top = stack_top + obj.ty.size;
-		} else {
-			offset = offset + obj.ty.size;
-			obj.offset = offset - offset * 2;
-		}
-		obj = obj.next;
-	}
-	return align_to(offset, 16);
-}
-
 func assign_offset(g *Gen, obj *Object) i32;
 func assign_offset(g *Gen, obj *Object) i32 {
 	if obj == nil {
@@ -2458,22 +2356,16 @@ func gen(g *Gen, globals *Object) i32 {
 	while object != nil {
 		if object.kind == OBJ_FUNC && !object.is_declaration {
 			g.cur_func_name = object.name;
-			if is_c_func(g.cur_func_name) {
-				object.stack_size = c_func_assign_offset(object.locals);
-			} else {
-				g.offset = 0;
-				g.stack_offset = 16;
-				object.stack_size = assign_offset(g, object.locals);
-			}
+
+			g.offset = 0;
+			g.stack_offset = 16;
+			object.stack_size = assign_offset(g, object.locals);
+
 			printf(".global %s\n", object.name);
 			printf("%s:\n", object.name);
 			printf("\tpush %rbp\n");
 			printf("\tmovq %rsp, %rbp\n");
 			printf("\tsubq $%d, %rsp\n", object.stack_size);
-
-			if is_c_func(g.cur_func_name) {
-				gen_func_params(g, object.params);
-			}
 
 			gen_stmt(g, object.body);
 			printf("\tleave\n");
