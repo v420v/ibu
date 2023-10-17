@@ -5298,7 +5298,7 @@ gen_expr:
 	push %rax
 	leaq -12(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setne %al
@@ -5307,7 +5307,7 @@ gen_expr:
 	jne .L.while.end.69
 	leaq -12(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 .data
 .L.str.83:
@@ -19682,7 +19682,7 @@ strcmp:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	movq $1, %rax
 	push %rax
@@ -19695,7 +19695,7 @@ strcmp:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -19715,7 +19715,7 @@ strcmp:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -21142,7 +21142,7 @@ tokenize:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setne %al
@@ -21161,7 +21161,7 @@ tokenize:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	leaq isdigit@GOTPCREL(%rip), %rax
 	movq (%rax), %r10
@@ -21195,7 +21195,7 @@ tokenize:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	leaq isalpha@GOTPCREL(%rip), %rax
 	movq (%rax), %r10
@@ -21231,7 +21231,7 @@ tokenize:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -21374,7 +21374,7 @@ tokenize:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	leaq ispunct@GOTPCREL(%rip), %rax
 	movq (%rax), %r10
@@ -21427,7 +21427,7 @@ tokenize:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -21450,7 +21450,7 @@ tokenize:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -21473,7 +21473,7 @@ tokenize:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -21619,7 +21619,7 @@ tokenize_ident:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	leaq isalpha@GOTPCREL(%rip), %rax
 	movq (%rax), %r10
@@ -21633,7 +21633,7 @@ tokenize_ident:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	leaq isdigit@GOTPCREL(%rip), %rax
 	movq (%rax), %r10
@@ -21656,7 +21656,7 @@ tokenize_ident:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -21793,7 +21793,7 @@ tokenize_string:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -21865,7 +21865,7 @@ tokenize_string:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	movb %al, (%rdi)
 .L.end.333:
@@ -21963,7 +21963,7 @@ read_escaped_char:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	movb %al, (%rdi)
 	movq $110, %rax
@@ -22017,7 +22017,7 @@ string_end:
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setne %al
@@ -22028,7 +22028,7 @@ string_end:
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22039,7 +22039,7 @@ string_end:
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22103,7 +22103,7 @@ string_end:
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22161,7 +22161,7 @@ skip_single_line_comment:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22178,7 +22178,7 @@ skip_single_line_comment:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22215,7 +22215,7 @@ skip_single_line_comment:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setne %al
@@ -22228,7 +22228,7 @@ skip_single_line_comment:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setne %al
@@ -22279,7 +22279,7 @@ tokenize_number:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	leaq isdigit@GOTPCREL(%rip), %rax
 	movq (%rax), %r10
@@ -22367,7 +22367,7 @@ ispunct:
 	push %rax
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setne %al
@@ -22379,7 +22379,7 @@ ispunct:
 	push %rax
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22558,7 +22558,7 @@ tokenizer_next:
 	movq (%rax), %rax
 	addq $16, %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22694,7 +22694,7 @@ is_two_c_punct:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	movq $1, %rax
 	push %rax
@@ -22706,7 +22706,7 @@ is_two_c_punct:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22728,7 +22728,7 @@ is_two_c_punct:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	push %rax
 	movq $1, %rax
 	push %rax
@@ -22740,7 +22740,7 @@ is_two_c_punct:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22792,7 +22792,7 @@ is_three_c_punct:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22811,7 +22811,7 @@ is_three_c_punct:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22837,7 +22837,7 @@ is_three_c_punct:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	sete %al
@@ -22948,7 +22948,7 @@ strlen:
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
 	setne %al
@@ -23357,7 +23357,7 @@ reverse:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	movb %al, (%rdi)
 	movq $1, %rax
@@ -23383,7 +23383,7 @@ reverse:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	movb %al, (%rdi)
 	movq $1, %rax
@@ -23399,7 +23399,7 @@ reverse:
 	addq %rdi, %rax
 	push %rax
 	leaq -9(%rbp), %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	movb %al, (%rdi)
 	movq $1, %rax
@@ -23549,7 +23549,7 @@ strndup:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	movb %al, (%rdi)
 	movq $1, %rax
@@ -23914,7 +23914,7 @@ memcpy:
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
-	movsbl (%rax), %eax
+	movzbl (%rax), %eax
 	pop %rdi
 	movb %al, (%rdi)
 	movq $1, %rax

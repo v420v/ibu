@@ -5,7 +5,6 @@
 
 - No strict type checker
 - No global variables
-- No hidden control flow
 - No C-like pointer arithmetic
 - No function-like macros
 - No `break`, `continue` stmt. Use `goto`
@@ -90,7 +89,7 @@ func main() i32 {
 ```
 
 #### Types
-```rust
+```rs
 i8, i16, i32, i64, u8, u16, u32, u64
 ```
 

@@ -1,15 +1,15 @@
 
 #include "src/linux-syscall.ibu"
 
-func alloc(size i32) *i8;
-func printf(buf *i8, ...) i32;
-func eprintf(buf *i8, ...) i32;
+func alloc(size i32) *u8;
+func printf(buf *u8, ...) i32;
+func eprintf(buf *u8, ...) i32;
 
 func align_to(n i32, align i32) i32 {
 	return (n + align - 1) / align * align;
 }
 
-func memcpy(dest *i8, source *i8, size i32) *i8 {
+func memcpy(dest *u8, source *u8, size i32) *u8 {
 	var i i32 = 0;
 	while i < size {
 		dest[i] = source[i];
@@ -54,8 +54,8 @@ func atoi(str *i8) i32 {
 	return n;
 }
 
-func strndup(str *i8, n i32) *i8 {
-	var r *i8 = alloc(n+1);
+func strndup(str *u8, n i32) *u8 {
+	var r *u8 = alloc(n+1);
 	if r == nil {
 		eprintf("alloc() returned nil\n");
 		exit(1);
@@ -69,12 +69,12 @@ func strndup(str *i8, n i32) *i8 {
 	return r;
 }
 
-func reverse(str *i8, length i32) i32 {
+func reverse(str *u8, length i32) i32 {
 	var start i32 = 0;
 	var end i32 = length - 1;
 
     while start < end {
-		var temp i8 = str[start];
+		var temp u8 = str[start];
         str[start] = str[end];
         str[end] = temp;
         end--;
@@ -82,7 +82,7 @@ func reverse(str *i8, length i32) i32 {
     }
 }
 
-func itoa(num i32, str *i8, base i32) *i8 {
+func itoa(num i32, str *u8, base i32) *u8 {
 	var i i32 = 0;
 
     if (num == 0) {

@@ -5,13 +5,13 @@
 #define SYS_CLOSE 3
 #define SYS_EXIT 60
 
-func syscall(trap *i8, a1 *i8, a2 *i8, a3 *i8) i64;
+func syscall(trap u64, a1 u64, a2 u64, a3 u64) i64;
 
-func open(file_name *i8, flags i32, mode i32) i64 {
+func open(file_name *u8, flags i32, mode i32) i64 {
     return syscall(SYS_OPEN, file_name, flags, mode);
 }
 
-func read(fd i32, buf *i8, size i32) i64 {
+func read(fd i32, buf *u8, size i32) i64 {
     return syscall(SYS_READ, fd, buf, size);
 }
 
@@ -19,7 +19,7 @@ func close(fd i32) i64 {
     return syscall(SYS_CLOSE, fd, 0, 0);
 }
 
-func write(fn i32, buf *i8, size i32) i64 {
+func write(fn i32, buf *u8, size i32) i64 {
     return syscall(SYS_WRITE, fn, buf, size);
 }
 
