@@ -708,39 +708,41 @@ func parser_skip(p *Parser, str *u8) i32 {
 
 func cmp_type(ty1 *Type, ty2 *Type) bool;
 
-func cmp_type(ty1 *Type, ty2 *Type) bool {
-	if ty1 == nil {
+func cmp_type_vec(vec1 *TypeVec, vec2 *TypeVec) bool {
+	if vec1.len != vec2.len {
 		return false;
 	}
-	if ty2 == nil {
-		return false;
+
+	var i i32 = 0;
+	while i < vec1.len {
+		if !cmp_type(vec1.ptr[i], vec2.ptr[i]) {
+			return false;
+		}
+		i++;
+	}
+
+	return true;
+}
+
+func cmp_type(ty1 *Type, ty2 *Type) bool {
+	if ty1 == nil || ty2 == nil {
+		eprintf("This should not happen\n");
+		exit(1);
 	}
 
 	if ty1.kind != ty2.kind {
 		return false;
 	}
-	
+
 	if ty1.kind == TY_FUNC {
-		return cmp_type(ty1.return_type, ty2.return_type);
+		return cmp_type(ty1.return_type, ty2.return_type) && cmp_type_vec(ty1.params, ty2.params);
 	}
 
 	if ty1.kind == TY_PTR {
 		return cmp_type(ty1.pointer_to, ty2.pointer_to);
 	}
 
-	if ty1.size != ty2.size {
-		return false;
-	}
-
-	if ty1.is_unsigned != ty2.is_unsigned {
-		return false;
-	}
-
-	if !strcmp(ty1.name, ty2.name) {
-		return false;
-	}
-
-	return true;
+	return ty1.size == ty2.size && ty1.is_unsigned == ty2.is_unsigned && strcmp(ty1.name, ty2.name);
 }
 
 func cmp_func_param(p1 *Object, p2 *Object) bool {
@@ -761,10 +763,6 @@ func cmp_func_params(p1 *ObjectVec, p2 *ObjectVec) bool {
 		eprintf("something whent wrong function params must not be nil\n");
 		exit(1);
 	}
-
-    if p1 == p2 {
-	    return true;
-    }
 
 	if p1.len != p2.len {
 		return false;
@@ -949,40 +947,32 @@ break:
 
 func parse_ty(p *Parser) *Type {
 	var name *u8 = p.tokens.lit;
-	var ty_token *Token = p.tokens;
+	var type_name_tok *Token = p.tokens;
 
-	parser_next(p);
+	parser_next(p); // skip type name
 	var ty *Type;
-	if strcmp(name, "i64") {
-		ty = p.ty_i64;
-	} else if strcmp(name, "i32") {
-		ty = p.ty_i32;
-	} else if strcmp(name, "i16") {
-		ty = p.ty_i16;
-	} else if strcmp(name, "i8") {
-		ty = p.ty_i8;
-	} else if strcmp(name, "u64") {
-		ty = p.ty_u64;
-	} else if strcmp(name, "u32") {
-		ty = p.ty_u32;
-	} else if strcmp(name, "u16") {
-		ty = p.ty_u16;
-	} else if strcmp(name, "u8") {
-		ty = p.ty_u8;
-	} else if strcmp(name, "bool") {
-		ty = p.ty_bool;
-	} else if strcmp(name, "*") {
-		ty = new_pointer_type(parse_ty(p));
-	} else if strcmp(name, "func") {
+
+	if strcmp(name, "i64") { ty = p.ty_i64; }
+	else if strcmp(name, "i32") { ty = p.ty_i32; }
+	else if strcmp(name, "i16") { ty = p.ty_i16; } 
+	else if strcmp(name, "i8") { ty = p.ty_i8; }
+	else if strcmp(name, "u64") { ty = p.ty_u64; }
+	else if strcmp(name, "u32") { ty = p.ty_u32; }
+	else if strcmp(name, "u16") { ty = p.ty_u16; }
+	else if strcmp(name, "u8") { ty = p.ty_u8; }
+	else if strcmp(name, "bool") { ty = p.ty_bool; }
+	else if strcmp(name, "*") { ty = new_pointer_type(parse_ty(p)); }
+	else if strcmp(name, "func") {
 		parser_skip(p, "(");
 		var types *TypeVec = parse_params_types(p);
 		// parse params types
 		parser_skip(p, ")");
 		ty = new_func_type(types, parse_ty(p));
-	} else {
+	}
+	else {
 		ty = get_user_defined_type(p, name);
 		if ty == nil {
-			print_error(ty_token, "unkown type found");
+			print_error(type_name_tok, "unkown type found");
 		}
 	}
 
@@ -1009,7 +999,7 @@ break:
 func parse_unary(p *Parser) *Node;
 
 func parse_sizeof(p *Parser) *Node {
-	parser_next(p);
+	parser_skip(p, "sizeof");
 	parser_skip(p, "(");
 	var node *Node = parse_unary(p);
 	parser_skip(p, ")");
@@ -1062,10 +1052,8 @@ func parse_ident(p *Parser) *Node {
 	if node.args.len != var_node.obj.ty.params.len {
 		if var_node.obj.is_variadic && node.args.len < var_node.obj.ty.params.len {
 			print_error(var_tok, "The number of arguments in the function call does not match the function definition");
-			exit(1);
 		} else if !var_node.obj.is_variadic {
 			print_error(var_tok, "The number of arguments in the function call does not match the function definition");
-			exit(1);
 		} else {
 			// ok
 		}
@@ -1736,6 +1724,10 @@ func parse_func(p *Parser) i32 {
 	fn.params = params;
 
 	parser_skip(p, ")");
+
+	if strcmp(p.tokens.lit, "{") || strcmp(p.tokens.lit, ";") {
+		print_error(p.tokens, "function must have a return type");
+	}
 
 	var func_return_ty *Type = parse_ty(p);
 
