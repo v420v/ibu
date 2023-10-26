@@ -8,10 +8,10 @@
 // ----------------------------------
 
 struct Tokenizer {
-	file_name *u8;
-	col i32;
-	line i32;
-	program *u8;
+	file_name *u8,
+	col i32,
+	line i32,
+	program *u8,
 }
 
 // Tokens
@@ -26,13 +26,13 @@ struct Tokenizer {
 struct Token;
 
 struct Token {
-	kind TokenKind;
-	file_name *u8;
-	line i32;
-	col i32;
-	lit *u8;
-	str_val *u8;
-	next *Token;
+	kind TokenKind,
+	file_name *u8,
+	line i32,
+	col i32,
+	lit *u8,
+	str_val *u8,
+	next *Token,
 }
 
 func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
@@ -267,17 +267,17 @@ struct Member;
 struct Type;
 
 struct Member {
-	ty *Type;
-	name *u8;
-	offset i32;
+	ty *Type,
+	name *u8,
+	offset i32,
 }
 
 // MemberVec
 
 struct MemberVec {
-	ptr **Member;
-	len i32;
-	cap i32;
+	ptr **Member,
+	len i32,
+	cap i32,
 }
 
 func new_member_vec(cap i32) *MemberVec {
@@ -316,9 +316,9 @@ func vec_append_member(vec *MemberVec, ty *Member) i32 {
 // TypeVec
 
 struct TypeVec {
-	ptr **Type;
-	len i32;
-	cap i32;
+	ptr **Type,
+	len i32,
+	cap i32,
 }
 
 func new_type_vec(cap i32) *TypeVec {
@@ -400,22 +400,22 @@ func vec_append_type(vec *TypeVec, ty *Type) i32 {
 #define TY_U8		11
 
 struct Type {
-	kind TypeKind;
-	size i32;
-	name *u8;
+	kind TypeKind,
+	size i32,
+	name *u8,
 
 	// struct type
-	members *MemberVec;
+	members *MemberVec,
 
 	// func type
-	return_type *Type;
-	params *TypeVec;
+	return_type *Type,
+	params *TypeVec,
 
 	// pointer type
-	pointer_to *Type;
+	pointer_to *Type,
 
-	is_unsigned bool;
-	is_declaration bool;
+	is_unsigned bool,
+	is_declaration bool,
 }
 
 #define ObjectKind	i32
@@ -428,9 +428,9 @@ struct Node;
 // NodeVec
 
 struct NodeVec {
-	ptr **Node;
-	len i32;
-	cap i32;
+	ptr **Node,
+	len i32,
+	cap i32,
 }
 
 func new_node_vec(cap i32) *NodeVec {
@@ -469,9 +469,9 @@ func vec_append_node(vec *NodeVec, node *Node) i32 {
 // ObjectVec
 
 struct ObjectVec {
-	ptr **Object;
-	len i32;
-	cap i32;
+	ptr **Object,
+	len i32,
+	cap i32,
 }
 
 func new_object_vec(cap i32) *ObjectVec {
@@ -508,60 +508,60 @@ func vec_append_object(vec *ObjectVec, ty *Object) i32 {
 }
 
 struct Object {
-	name *u8;
-	kind ObjectKind;
-	ty *Type;
+	name *u8,
+	kind ObjectKind,
+	ty *Type,
 
 	// local variable
-	offset i32;
+	offset i32,
 
 	// function
-	body *Node;
-	params *ObjectVec;
-	locals *Object;
-	stack_size i32;
+	body *Node,
+	params *ObjectVec,
+	locals *Object,
+	stack_size i32,
 
-	is_declaration bool;
-	is_func_param bool;
-	is_global bool;
-	is_variadic bool;
+	is_declaration bool,
+	is_func_param bool,
+	is_global bool,
+	is_variadic bool,
 
-	next *Object;
+	next *Object,
 }
 
 struct Node {
-	kind NodeKind;
-	lhs *Node;
-	rhs *Node;
-	body *NodeVec;
-	then_block *Node;
-	else_block *Node;
-	cond *Node;
-	label_name *u8;
-	int_val i32;
-	str_val *u8;
-	obj *Object;
-	ty *Type;
-	func_name *u8;
-	offset i32;
-	args *NodeVec;
+	kind NodeKind,
+	lhs *Node,
+	rhs *Node,
+	body *NodeVec,
+	then_block *Node,
+	else_block *Node,
+	cond *Node,
+	label_name *u8,
+	int_val i32,
+	str_val *u8,
+	obj *Object,
+	ty *Type,
+	func_name *u8,
+	offset i32,
+	args *NodeVec,
 }
 
 struct Parser {
-	tokens *Token;
-	globals *Object;
-	locals *Object;
-	user_defined_types *TypeVec;
-	ty_i8 *Type;
-	ty_i16 *Type;
-	ty_i32 *Type;
-	ty_i64 *Type;
-	ty_u8 *Type;
-	ty_u16 *Type;
-	ty_u32 *Type;
-	ty_u64 *Type;
-	ty_bool *Type;
-	program *u8;
+	tokens *Token,
+	globals *Object,
+	locals *Object,
+	user_defined_types *TypeVec,
+	ty_i8 *Type,
+	ty_i16 *Type,
+	ty_i32 *Type,
+	ty_i64 *Type,
+	ty_u8 *Type,
+	ty_u16 *Type,
+	ty_u32 *Type,
+	ty_u64 *Type,
+	ty_bool *Type,
+	program *u8,
 }
 
 func strcmp(a *u8, b *u8) bool {
@@ -816,7 +816,7 @@ func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32 {
 	return 0;
 }
 
-func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token) *Object {
+func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token, is_func_param bool) *Object {
 	check_local_object_already_exist(p, name, tok);
 
 	var obj *Object = alloc(typesize(Object));
@@ -828,6 +828,8 @@ func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token
 	obj.kind = kind;
 	obj.name = name;
 	obj.ty = ty;
+	obj.is_func_param = is_func_param;
+
 	obj.next = p.locals;
 	p.locals = obj;
 
@@ -1528,7 +1530,7 @@ func parse_stmt(p *Parser) *Node {
 		var var_name_tok *Token = p.tokens;
 		parser_next(p);
 		var var_ty *Type = parse_ty(p);
-		var obj *Object = new_local_object(p, OBJ_VAR, var_name, var_ty, var_name_tok);
+		var obj *Object = new_local_object(p, OBJ_VAR, var_name, var_ty, var_name_tok, false);
 		if strcmp(p.tokens.lit, "=") {
 			parser_skip(p, "=");
 			var node_var *Node;
@@ -1613,7 +1615,6 @@ func new_member(name *u8, ty *Type) *Member {
 
 func calc_sizof_struct_members(members *MemberVec) i32 {
 	var offset i32 = 0;
-
 	var idx i32 = 0;
 
 	while idx < members.len {
@@ -1653,7 +1654,7 @@ func parse_struct(p *Parser) i32 {
 			var member_name *u8 = p.tokens.lit;
 			parser_next(p);
 			vec_append_member(members, new_member(member_name, parse_ty(p)));
-			parser_skip(p, ";");
+			parser_skip(p, ",");
 		}
 
 		parser_skip(p, "}");
@@ -1677,6 +1678,44 @@ func parse_struct(p *Parser) i32 {
 	return 0;
 }
 
+func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *ObjectVec) i32 {
+	parser_skip(p, "(");
+
+	while !strcmp(p.tokens.lit, ")") {
+		var params_name *u8 = p.tokens.lit;
+		var params_name_tok *Token = p.tokens;
+		parser_next(p);
+
+		if strcmp(params_name, "...") {
+			fn.is_variadic = true;
+			if !strcmp(p.tokens.lit, ")") {
+				print_error(p.tokens, "`...` must be at the end of the paramaters");
+			}
+		} else {
+			var ty_tok *Token = p.tokens;
+			var ty *Type = parse_ty(p);
+			if ty.kind == TY_STRUCT {
+				print_error(ty_tok, "unsupported feature: function parameter of struct");
+			}
+			vec_append_type(types, ty);
+			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
+
+			if strcmp(p.tokens.lit, ",") {
+				parser_skip(p, ",");
+			}
+		}
+	}
+
+	parser_skip(p, ")");
+
+	fn.params = params;
+}
+
+func add_function_object(p *Parser, fn *Object) i32 {
+	fn.next = p.globals;
+	p.globals = fn;
+}
+
 func parse_func(p *Parser) i32 {
 	p.locals = nil; // init local variables
 
@@ -1690,50 +1729,21 @@ func parse_func(p *Parser) i32 {
 	parser_next(p);
 
 	fn.name = name;
-
 	fn.is_global = true;
-
-	parser_skip(p, "(");
 
 	var types *TypeVec = new_type_vec(4);
 	var params *ObjectVec = new_object_vec(4);
 
-	while !strcmp(p.tokens.lit, ")") {
-		var params_name *u8 = p.tokens.lit;
-		var params_name_tok *Token = p.tokens;
-		parser_next(p);
-
-		if strcmp(params_name, "...") {
-			fn.is_variadic = true;
-			if !strcmp(p.tokens.lit, ")") {
-				print_error(p.tokens, "`...` must be at the end of the paramaters");
-			}
-		} else {
-			var ty *Type = parse_ty(p);
-			vec_append_type(types, ty);
-
-			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok));
-			params.ptr[params.len-1].is_func_param = true;
-
-			if strcmp(p.tokens.lit, ",") {
-				parser_skip(p, ",");
-			}
-		}
-	}
-
-	fn.params = params;
-
-	parser_skip(p, ")");
+	parse_function_params(p, fn, types, params);
 
 	if strcmp(p.tokens.lit, "{") || strcmp(p.tokens.lit, ";") {
 		print_error(p.tokens, "function must have a return type");
 	}
 
 	var func_return_ty *Type = parse_ty(p);
-
 	var found_func *Object = find_globals(p, name);
 
-	if strcmp(p.tokens.lit, ";") {
+	if strcmp(p.tokens.lit, ";") { // function declartion
 		parser_skip(p, ";");
 		if found_func != nil {
 			print_error(name_tok, "function is already declared somewhere.");
@@ -1742,32 +1752,27 @@ func parse_func(p *Parser) i32 {
 		fn.locals = nil;
 		fn.is_declaration = true;
 
-		fn.next = p.globals;
-		p.globals = fn;
-	} else {
-		if found_func != nil {
-			if !found_func.is_declaration {
-				print_error(name_tok, "function is already defined somewhere");
-			}
-			if !cmp_func_params(found_func.params, fn.params) {
-				print_error(name_tok, "function declaration paramaters does not match to definition");
-			}
-			if !cmp_type(func_return_ty, found_func.ty.return_type) {
-				print_error(name_tok, "function declaration return type does not match to definition");
-			}
-			found_func.body = parse_block(p);
-			found_func.locals = p.locals;
-			found_func.is_declaration = false;
-			found_func.params = fn.params;
-		} else {
-			fn.ty = new_func_type(types, func_return_ty);
-			fn.body = parse_block(p);
-			fn.locals = p.locals;
-			fn.is_declaration = false;
-
-			fn.next = p.globals;
-			p.globals = fn;
+		add_function_object(p, fn);
+	} else if found_func != nil {
+		if !found_func.is_declaration {
+			print_error(name_tok, "function is already defined somewhere");
 		}
+		if !cmp_func_params(found_func.params, fn.params) {
+			print_error(name_tok, "function declaration paramaters does not match to definition");
+		}
+		if !cmp_type(func_return_ty, found_func.ty.return_type) {
+			print_error(name_tok, "function declaration return type does not match to definition");
+		}
+		found_func.body = parse_block(p);
+		found_func.locals = p.locals;
+		found_func.is_declaration = false;
+		found_func.params = fn.params;
+	} else {
+		fn.ty = new_func_type(types, func_return_ty);
+		fn.body = parse_block(p);
+		fn.locals = p.locals;
+		fn.is_declaration = false;
+		add_function_object(p, fn);
 	}
 }
 
@@ -1790,12 +1795,12 @@ func parse(p *Parser) i32 {
 // ----------------------------------
 
 struct Gen {
-	label_count i32;
-	str_label_count i32;
-	cur_func_name *u8;
+	label_count i32,
+	str_label_count i32,
+	cur_func_name *u8,
 
-	offset i32;
-	stack_offset i32;
+	offset i32,
+	stack_offset i32,
 }
 
 func amd64_system_v_call_regs64(idx i32) *u8 {
@@ -2315,10 +2320,7 @@ func assign_offset(g *Gen, obj *Object) i32 {
 	if obj.next != nil {
 		assign_offset(g, obj.next);
 	}
-	if obj.is_func_param && obj.ty.size > 8 {
-		obj.offset = g.stack_offset;
-		g.stack_offset = g.stack_offset + obj.ty.size;
-	} else if obj.is_func_param {
+	if obj.is_func_param {
 		obj.offset = g.stack_offset;
 		g.stack_offset = g.stack_offset + 8;
 	} else {
@@ -2375,13 +2377,13 @@ func gen(g *Gen, globals *Object) i32 {
 
 struct Macro;
 struct Macro {
-	name *u8;
-	tok *Token;
-	next *Macro;
+	name *u8,
+	tok *Token,
+	next *Macro,
 }
 
 struct Preprocessor {
-	macros *Macro;
+	macros *Macro,
 }
 
 func new_macro(name *u8, tok *Token) *Macro {

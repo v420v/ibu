@@ -79,7 +79,7 @@ func main() i32 {
 #### Variables
 ```go
 func main() i32 {
-    var name *i8 = "Ibuki";
+    var name *u8 = "Ibuki";
     var age i8 = 19;
 
     printf("name: %s, age: %d\n", name, age);
@@ -141,8 +141,8 @@ func main() i32 {
 #### Struct
 ```go
 struct Person {
-    name *i8;
-    age i8;
+    name *u8,
+    age i8,
 }
 
 func main() i32 {
@@ -159,8 +159,8 @@ func main() i32 {
 #### Struct Pointer
 ```go
 struct Person {
-    name *i8;
-    age i8;
+    name *u8,
+    age i8,
 }
 
 func main() i32 {
@@ -181,8 +181,8 @@ func main() i32 {
 struct User;
 
 struct User {
-    name *i8;
-    next *User;
+    name *u8,
+    next *User,
 }
 
 func user_print_names(user *User) i32;
@@ -196,13 +196,13 @@ func user_print_names(user *User) i32 {
     return 0;
 }
 
-func new_user(name *i8) *User {
+func new_user(name *u8) *User {
     var user *User = alloc(typesize(User));
     user.name = name;
     return user;
 }
 
-func main(argc i32, argv **i8) i32 {
+func main(argc i32, argv **u8) i32 {
     var head User;
     var cur *User = &head;
 
