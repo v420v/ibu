@@ -9,6 +9,7 @@
 
 struct Tokenizer {
 	file_name *u8,
+	cur_line *u8,
 	col i32,
 	line i32,
 	program *u8,
@@ -28,9 +29,11 @@ struct Token;
 struct Token {
 	kind TokenKind,
 	file_name *u8,
+	program *u8,
 	line i32,
 	col i32,
 	lit *u8,
+	len i32,
 	str_val *u8,
 	next *Token,
 }
@@ -44,6 +47,7 @@ func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 	t.line = 1;
 	t.col = 0;
 	t.program = program;
+	t.cur_line = program;
 	t.file_name = file_name;
 	return t;
 }
@@ -56,8 +60,53 @@ func strlen(str *u8) i32 {
 	return str - start;
 }
 
+func get_program_line_length(str *u8) i32 {
+	var start *u8 = str;
+	while (*str != 10) && (*str != 0) {
+		str++;
+	}
+	return str - start;
+}
+
+func print_error_with_code(tok *Token, msg *u8) i32 {
+	eprintf("--> %s:%d:%d: error:\n", tok.file_name, tok.line, tok.col);
+
+	eprintf(" |\n");
+	eprintf(" |");
+
+	// print program line
+	while (*tok.program != 10) && (*tok.program != 0) {
+		if *tok.program == 9 {
+			write(2, " ", 1);
+		} else {
+			write(2, tok.program, 1);
+		}
+		tok.program++;
+	}
+	eprintf("\n");
+
+	eprintf(" |");
+
+	// print message with arrow pointing to the position of the error
+	var idx i32 = 0;
+	while idx < tok.col {
+		eprintf(" ");
+		idx++;
+	}
+	var len_idx i32 = 0;
+	while len_idx < tok.len {
+		eprintf("^");
+		len_idx++;
+	}
+	eprintf(" %s\n", msg);
+
+	eprintf(" |\n");
+
+	return 0;
+}
+
 func print_error(tok *Token, msg *u8) i32 {
-	eprintf("%s:%d:%d: error: %s\n", tok.file_name, tok.line, tok.col, msg);
+	print_error_with_code(tok, msg);
 	exit(1);
 }
 
@@ -84,16 +133,27 @@ func is_two_c_punct(a *u8) bool {
 
 func tokenizer_next(t *Tokenizer) i32 {
 	if *t.program == 10 { // new line
-		t.line = t.line + 1;
+		t.line++;
 		t.col = 0;
+		t.program++;
+		t.cur_line = t.program;
 	} else {
-		t.col = t.col + 1;
+		t.col++;
+		t.program++;
 	}
-	t.program++;
 	return 0;
 }
 
-func new_token(t *Tokenizer, kind TokenKind, start *u8, len i32) *Token {
+func tokenizer_n_next(t *Tokenizer, n i32) i32 {
+	var idx i32 = 0;
+	while idx < n {
+		tokenizer_next(t);
+		idx++;
+	}
+	return 0;
+}
+
+func new_token(t *Tokenizer, kind TokenKind) *Token {
 	var tok *Token = alloc(typesize(Token));
 	if tok == nil {
 		eprintf("alloc() returned nil\n");
@@ -104,7 +164,7 @@ func new_token(t *Tokenizer, kind TokenKind, start *u8, len i32) *Token {
 	tok.col = t.col;
 	tok.file_name = t.file_name;
 	tok.kind = kind;
-	tok.lit = strndup(start, len);
+	tok.program = t.cur_line;
 
 	return tok;
 }
@@ -123,17 +183,22 @@ func ispunct(c i8) bool {
 }
 
 func tokenize_number(t *Tokenizer) *Token {
+	var tok *Token = new_token(t, TK_NUM);
+
 	var digit_start *u8 = t.program;
 	while isdigit(*t.program) {
 		tokenizer_next(t);
 	}
-	return new_token(t, TK_NUM, digit_start, t.program-digit_start);
+
+	tok.lit = strndup(digit_start, t.program-digit_start);
+	tok.len = t.program-digit_start;
+
+	return tok;
 }
 
 func skip_single_line_comment(t *Tokenizer) i32 {
 	if (*t.program == 47) && (*(t.program+1) == 47) {
-		tokenizer_next(t); // skip first `/`
-		tokenizer_next(t); // skip second `/`
+		tokenizer_n_next(t, 2);
 		while (*t.program != 10) && (*t.program != 0) {
 			tokenizer_next(t);
 		}
@@ -141,10 +206,10 @@ func skip_single_line_comment(t *Tokenizer) i32 {
 	return 0;
 }
 
-func string_end(str *u8) *u8 {
+func string_end(t *Tokenizer, str *u8) *u8 {
 	while *str != 34 {
 		if *str == 10 || *str == 0 {
-			eprintf("unclosed string literal\n");
+			eprintf("%s:%d:%d: error: unclosed string literal\n", t.file_name, t.line, t.col);
 			exit(1);
 		}
 		if *str == 92 { // back slash
@@ -168,11 +233,13 @@ func read_escaped_char(t *Tokenizer) i8 {
 }
 
 func tokenize_string(t *Tokenizer) *Token {
+	var tok *Token = new_token(t, TK_STR);
+
 	var string_start *u8 = t.program;
 
 	tokenizer_next(t); // skip start `"`
 
-	var end *u8 = string_end(t.program);
+	var end *u8 = string_end(t, t.program);
 	var buf *u8 = alloc(end - t.program + 1);
 	var len i32 = 0;
 
@@ -189,7 +256,8 @@ func tokenize_string(t *Tokenizer) *Token {
 
 	tokenizer_next(t); // skip end `"`
 
-	var tok *Token = new_token(t, TK_STR, string_start, t.program - string_start);
+	tok.lit = strndup(string_start, t.program - string_start);
+	tok.len = t.program - string_start;
 
 	tok.str_val = buf;
 
@@ -197,12 +265,18 @@ func tokenize_string(t *Tokenizer) *Token {
 }
 
 func tokenize_ident(t *Tokenizer) *Token {
+	var tok *Token = new_token(t, TK_IDENT);
+
 	var ident_start *u8 = t.program;
 	while isalpha(*t.program) || isdigit(*t.program) || *t.program == 95 {
 		tokenizer_next(t);
 	}
 	ident_end:
-	return new_token(t, TK_IDENT, ident_start, t.program-ident_start);
+
+	tok.lit = strndup(ident_start, t.program-ident_start);
+	tok.len = t.program-ident_start;
+
+	return tok;
 }
 
 func tokenize(t *Tokenizer) *Token {
@@ -219,13 +293,19 @@ func tokenize(t *Tokenizer) *Token {
 		} else if *t.program == 34 {
 			cur = cur.next = tokenize_string(t);
 		} else if is_two_c_punct(t.program) {
-			cur = cur.next = new_token(t, TK_PUNCT, t.program, 2);
-			t.program = t.program + 2;
+			cur = cur.next = new_token(t, TK_PUNCT);
+			cur.lit = strndup(t.program, 2);
+			cur.len = 2;
+			tokenizer_n_next(t, 2);
 		} else if is_three_c_punct(t.program) { // ...
-			cur = cur.next = new_token(t, TK_PUNCT, t.program, 3);
-			t.program = t.program + 3;
+			cur = cur.next = new_token(t, TK_PUNCT);
+			cur.lit = strndup(t.program, 3);
+			cur.len = 3;
+			tokenizer_n_next(t, 3);
 		} else if ispunct(*t.program) {
-			cur = cur.next = new_token(t, TK_PUNCT, t.program, 1);
+			cur = cur.next = new_token(t, TK_PUNCT);
+			cur.lit = strndup(t.program, 1);
+			cur.len = 1;
 			tokenizer_next(t);
 		} else if *t.program == 32 { // Space
 			tokenizer_next(t);
@@ -234,12 +314,16 @@ func tokenize(t *Tokenizer) *Token {
 		} else if *t.program == 9 { // Tab
 			tokenizer_next(t);
 		} else {
-			print_error(new_token(t, TK_UNKOWN, t.program, 1), "unkown character found");
+			var invalid *Token = new_token(t, TK_UNKOWN);
+			invalid.lit = strndup(t.program, 1);
+			invalid.len = 1;
+			print_error(invalid, "unkown character found");
 		}
 	}
 
-	cur = cur.next = new_token(t, TK_EOF, t.program, 1);
+	cur = cur.next = new_token(t, TK_EOF);
 	cur.lit = "EOF";
+	cur.len = 1;
 
 	return head.next;
 }
@@ -416,6 +500,60 @@ struct Type {
 
 	is_unsigned bool,
 	is_declaration bool,
+
+	tok *Token,
+}
+
+func unkown_type_error(types *TypeVec, tok *Token, msg *u8) i32 {
+	print_error_with_code(tok, msg);
+
+	if types.len == 0 {
+		// ...
+	} else if types.len <= 1 {
+		eprintf("%d possibility:", types.len);
+	} else {
+		eprintf("%d possibilities:", types.len);
+	}
+
+	var idx i32 = 0;
+	while idx < types.len {
+		if idx+1 < types.len {
+			eprintf(" `%s`,", types.ptr[idx].name);
+		} else {
+			eprintf(" `%s`", types.ptr[idx].name);
+		}
+		idx++;
+	}
+
+	eprintf("\n");
+
+	exit(1);
+}
+
+func unkown_member_error(members *MemberVec, tok *Token, msg *u8) i32 {
+	print_error_with_code(tok, msg);
+
+	if members.len == 0 {
+		// ...
+	} else if members.len <= 1 {
+		eprintf("%d possibility:", members.len);
+	} else {
+		eprintf("%d possibilities:", members.len);
+	}
+
+	var idx i32 = 0;
+	while idx < members.len {
+		if idx+1 < members.len {
+			eprintf(" `%s`,", members.ptr[idx].name);
+		} else {
+			eprintf(" `%s`", members.ptr[idx].name);
+		}
+		idx++;
+	}
+
+	eprintf("\n");
+
+	exit(1);
 }
 
 #define ObjectKind	i32
@@ -505,6 +643,14 @@ func vec_append_object(vec *ObjectVec, ty *Object) i32 {
 	vec.ptr[vec.len] = ty;
 	vec.len++;
 	return 0;
+}
+
+func unexpected_token_error(expected *u8, tok *Token, msg *u8) i32 {
+	print_error_with_code(tok, msg);
+
+	eprintf("expected `%s` but got `%s`\n", expected, tok.lit);
+
+	exit(1);
 }
 
 struct Object {
@@ -702,7 +848,7 @@ func parser_skip(p *Parser, str *u8) i32 {
 		parser_next(p);
 		return 0;
 	} else {
-		print_error(p.tokens, "unexpected token");
+		unexpected_token_error(str, p.tokens, "unexpected token");
 	}
 }
 
@@ -974,6 +1120,7 @@ func parse_ty(p *Parser) *Type {
 	else {
 		ty = get_user_defined_type(p, name);
 		if ty == nil {
+			unkown_type_error(p.user_defined_types, type_name_tok, "unkown type found");
 			print_error(type_name_tok, "unkown type found");
 		}
 	}
@@ -1107,7 +1254,6 @@ func parse_number(p *Parser) *Node {
 		node = parse_expr(p);
 		parser_skip(p, ")");
 	} else {
-		eprintf("kind: %d lit: %s\n", p.tokens.kind, p.tokens.lit);
 		print_error(p.tokens, "expected number or identifier");
 		exit(1);
 	}
@@ -1236,7 +1382,7 @@ func parse_unary(p *Parser) *Node {
 				}
 				member = search_struct_member(node.ty.pointer_to.members, member_name);
 				if member == nil {
-					print_error(member_tok, "member name not found");
+					unkown_member_error(node.ty.pointer_to.members, member_tok, "member name not found");
 				}
 				node = new_struct_access_node(ND_DEREF, node, 0, node.obj, node.ty.pointer_to);
 			} else {
@@ -1245,7 +1391,7 @@ func parse_unary(p *Parser) *Node {
 				}
 				member = search_struct_member(node.ty.members, member_name);
 				if member == nil {
-					print_error(member_tok, "member name not found");
+					unkown_member_error(node.ty.members, member_tok, "member name not found");
 				}
 			}
 			var offset i32 = member.offset;
@@ -1483,7 +1629,7 @@ func parse_expr(p *Parser) *Node {
 	}
 	return node;
 }
-
+ 
 func parse_expr_stmt(p *Parser) *Node {
 	var node *Node = new_node(ND_EXPR_STMT);
 	node.lhs = parse_expr(p);
@@ -1640,7 +1786,7 @@ func parse_struct(p *Parser) i32 {
 
 	if strcmp(p.tokens.lit, ";") {
 		ty.is_declaration = true;
-		ty.members = nil;
+		ty.members = members;
 		ty.size = 0;
 		parser_skip(p, ";");
 
@@ -1665,10 +1811,9 @@ func parse_struct(p *Parser) i32 {
 		var user_defined_struct *Type = get_user_defined_type(p, name); 
 		if user_defined_struct == nil {
 			vec_append_type(p.user_defined_types, ty);
+		} else if !user_defined_struct.is_declaration {
+			print_error(name_token, "struct is already defined");
 		} else {
-			if !user_defined_struct.is_declaration {
-				print_error(name_token, "struct is already defined somewhere");
-			}
 			user_defined_struct.members = members;
 			user_defined_struct.size = ty.size;
 			user_defined_struct.is_declaration = false;
@@ -1689,7 +1834,7 @@ func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *Object
 		if strcmp(params_name, "...") {
 			fn.is_variadic = true;
 			if !strcmp(p.tokens.lit, ")") {
-				print_error(p.tokens, "`...` must be at the end of the paramaters");
+				print_error(params_name_tok, "must be at the end of the paramaters");
 			}
 		} else {
 			var ty_tok *Token = p.tokens;
@@ -1700,11 +1845,15 @@ func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *Object
 			vec_append_type(types, ty);
 			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
 
-			if strcmp(p.tokens.lit, ",") {
+			if !strcmp(p.tokens.lit, ")") && !strcmp(p.tokens.lit, ",") {
+				goto break;
+			} else if !strcmp(p.tokens.lit, ")") {
 				parser_skip(p, ",");
 			}
 		}
 	}
+
+break:
 
 	parser_skip(p, ")");
 
@@ -1851,12 +2000,12 @@ func gen_addr(g *Gen, node *Node) i32 {
 		} else {
 			printf("\tleaq %d(%rbp), %rax\n", node.obj.offset);
 		}
-	} else if node.kind == ND_DEREF {
+	} else {// if node.kind == ND_DEREF {
 		gen_expr(g, node.lhs);
-	} else {
+	//} else {
 		// TODO add tokens position to node struct
-		eprintf("error: not a var-node\n");
-		exit(1);
+	//	eprintf("error: not a var-node\n");
+	//	exit(1);
 	}
 	return 0;
 }
