@@ -2150,19 +2150,6 @@ func all_func_call_args_to_stack(g *Gen, args *NodeVec, fn *Object) i32 {
 	return stack;
 }
 
-func is_c_func(name *u8) bool {
-	if strcmp(name, "alloc") {
-		return true;
-	}
-	if strcmp(name, "printf") {
-		return true;
-	}
-	if strcmp(name, "eprintf") {
-		return true;
-	}
-	return false;
-}
-
 func gen_expr(g *Gen, node *Node) i32 {
 	var c i32 = 0;
 	if node == nil {
@@ -2210,26 +2197,14 @@ func gen_expr(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_FUNC_CALL {
 		var stack i32 = 0;
-		if is_c_func(node.lhs.obj.name) {
-			func_call_args_to_regi(g, node.args);
-			stack = func_call_args_to_stack(g, node.args);
+		stack = all_func_call_args_to_stack(g, node.args, node.lhs.obj);
 
-			gen_addr(g, node.lhs);
-			printf("\tmovq (%rax), %r10\n");
-			printf("\tmovq $0, %rax\n");
+		gen_addr(g, node.lhs);
+		printf("\tmovq (%rax), %r10\n");
+		printf("\tmovq $0, %rax\n");
 
-			printf("\tcallq *%r10\n");
-			printf("\taddq $%d, %rsp\n", stack);
-		} else {
-			stack = all_func_call_args_to_stack(g, node.args, node.lhs.obj);
-
-			gen_addr(g, node.lhs);
-			printf("\tmovq (%rax), %r10\n");
-			printf("\tmovq $0, %rax\n");
-
-			printf("\tcallq *%r10\n");
-			printf("\taddq $%d, %rsp\n", stack);
-		}
+		printf("\tcallq *%r10\n");
+		printf("\taddq $%d, %rsp\n", stack);
 
 		if node.ty.kind == TY_BOOL {
 			printf("\tmovzx %al, %eax\n");

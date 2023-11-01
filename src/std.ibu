@@ -1,9 +1,70 @@
 
 #include "src/linux-syscall.ibu"
 
-func alloc(size i32) *u8;
-func printf(buf *u8, ...) i32;
-func eprintf(buf *u8, ...) i32;
+#define STDIN 0
+#define STDIO 1
+#define STDERR 2
+
+func alloc(size i32) *u8; // src/builtin.s
+
+func fputs(fd i32, str *u8) i32 {
+	var start *u8 = str;
+	while *str != 0 {
+		str++;
+	}
+	write(fd, start, str - start);
+	return 0;
+}
+
+func fputnum(fd i32, n i32, r i32) i32;
+func fputnum(fd i32, n i32, r i32) i32 {
+	if n >= r {
+		fputnum(fd, n / r, r);
+	}
+	write(fd, &("0123456789ABCDEF"[n % r]), 1);
+	return 0;
+}
+
+func vfprintf(fd i32, fmt *u8, args *u64) i32 {
+	var neg i32 = 0 - 1;
+	var i i32 = 0;
+
+	while *fmt != 0 {
+		if *fmt == 37 {
+			fmt++;
+			if *fmt == 115 { // %s
+				fputs(fd, args[i++]);
+			} else if *fmt == 100 { // %d
+				var num i32 = args[i++];
+				if (num < 0) {
+                	write(fd, "-", 1);
+                	num = num * neg;
+                }
+				fputnum(fd, num, 10);
+			} else {
+				write(fd, "%", 1);
+				fmt--;
+			}
+		} else {
+			write(fd, fmt, 1);
+		}
+		fmt++;
+	}
+
+	return 0;
+}
+
+func printf(fmt *u8, ...) i32 {
+	var args *u64 = (&fmt)+8;
+	vfprintf(STDIO, fmt, args);
+	return 0;
+}
+
+func eprintf(fmt *u8, ...) i32 {
+	var args *u64 = (&fmt)+8;
+	vfprintf(STDERR, fmt, args);
+	return 0;
+}
 
 func align_to(n i32, align i32) i32 {
 	return (n + align - 1) / align * align;
