@@ -1,4 +1,6 @@
 
+#include "src/std.ibu"
+
 func main() i32 {
     printf("Hello, world!\n");
     return 0;
