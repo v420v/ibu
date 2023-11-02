@@ -169,7 +169,7 @@ func new_token(t *Tokenizer, kind TokenKind) *Token {
 	return tok;
 }
 
-func ispunct(c i8) bool {
+func ispunct(c u8) bool {
 	var punct_list *u8 = "+-<>;:{}=,()[].*#!%&/";
 
 	while *punct_list != nil {
@@ -220,9 +220,9 @@ func string_end(t *Tokenizer, str *u8) *u8 {
 	return str;
 }
 
-func read_escaped_char(t *Tokenizer) i8 {
+func read_escaped_char(t *Tokenizer) u8 {
 	tokenizer_next(t);
-	var c i8 = *t.program;
+	var c u8 = *t.program;
 	if c == 110 {
 		return 10;
 	}
@@ -1947,6 +1947,7 @@ struct Gen {
 	label_count i32,
 	str_label_count i32,
 	cur_func_name *u8,
+	has_main bool,
 
 	offset i32,
 	stack_offset i32,
@@ -2455,21 +2456,34 @@ func assign_offset(g *Gen, obj *Object) i32 {
 	return align_to(g.offset, 16);
 }
 
-func gen(g *Gen, globals *Object) i32 {
-	printf(".text\n");
-	printf(".global _start\n");
-	printf("_start:\n");
-	printf("\tpush %rbp\n");
-	printf("\tmovq %rsp, %rbp\n");
-	printf("\tleaq 16(%rbp), %rax\n");
-	printf("\tpush %rax\n");
-	printf("\tpushq 8(%rbp)\n"); 
-	printf("\tcallq main\n");
-	printf("\tmovq %rax, %rdi\n");
-	printf("\tmovq $60, %rax\n");
-	printf("\tsyscall\n");
+func check_global_objects(g *Gen, object *Object) i32 {
+	while object != nil {
+		if strcmp(object.name, "main") {
+			g.has_main = true;
+		}
+		object = object.next;
+	}
+	return 0;
+}
 
-	var object *Object = globals;
+func gen(g *Gen, object *Object) i32 {
+	check_global_objects(g, object);
+
+	printf(".text\n");
+
+	if g.has_main {
+		printf(".global _start\n");
+		printf("_start:\n");
+		printf("\tpush %rbp\n");
+		printf("\tmovq %rsp, %rbp\n");
+		printf("\tleaq 16(%rbp), %rax\n");
+		printf("\tpush %rax\n");
+		printf("\tpushq 8(%rbp)\n"); 
+		printf("\tcallq main\n");
+		printf("\tmovq %rax, %rdi\n");
+		printf("\tmovq $60, %rax\n");
+		printf("\tsyscall\n");
+	}
 
 	while object != nil {
 		if object.kind == OBJ_FUNC && !object.is_declaration {
@@ -2610,10 +2624,15 @@ func main(argc i32, argv **u8) i32 {
 
 	var file_name *u8 = argv[1];
 
-	var fd i32 = open(file_name, 0, 420);
-	if fd < 0 {
-		eprintf("error: opening file %s\n", file_name);
-		exit(1);
+	var fd i32;
+	if strcmp(file_name, "-") {
+		fd = STDIN;
+	} else {
+		fd = open(file_name, 0, 420);
+		if fd < 0 {
+			eprintf("error: opening file %s\n", file_name);
+			exit(1);
+		}
 	}
 
 	var buf *u8 = alloc(PROGRAM_MAX_SIZE);
