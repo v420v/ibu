@@ -1,7 +1,7 @@
 
 #include "src/std.ibu"
 
-#define PROGRAM_MAX_SIZE 57000
+#define PROGRAM_MAX_SIZE 60000
 
 // ----------------------------------
 // Tokenizer
@@ -52,14 +52,6 @@ func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 	return t;
 }
 
-func strlen(str *u8) i32 {
-	var start *u8 = str;
-	while *str != nil {
-		str++;
-	}
-	return str - start;
-}
-
 func get_program_line_length(str *u8) i32 {
 	var start *u8 = str;
 	while (*str != 10) && (*str != 0) {
@@ -68,13 +60,21 @@ func get_program_line_length(str *u8) i32 {
 	return str - start;
 }
 
+func frepeat_str(fd i32, str *u8, n i32) i32 {
+	var i i32 = 0;
+	while i < n {
+		fputs(fd, str);
+		i++;
+	}
+	return 0;
+}
+
 func print_error_with_code(tok *Token, msg *u8) i32 {
 	eprintf("--> %s:%d:%d: error:\n", tok.file_name, tok.line, tok.col);
 
 	eprintf(" |\n");
-	eprintf(" |");
 
-	// print program line
+	eprintf(" |");
 	while (*tok.program != 10) && (*tok.program != 0) {
 		if *tok.program == 9 {
 			write(2, " ", 1);
@@ -87,17 +87,9 @@ func print_error_with_code(tok *Token, msg *u8) i32 {
 
 	eprintf(" |");
 
-	// print message with arrow pointing to the position of the error
-	var idx i32 = 0;
-	while idx < tok.col {
-		eprintf(" ");
-		idx++;
-	}
-	var len_idx i32 = 0;
-	while len_idx < tok.len {
-		eprintf("^");
-		len_idx++;
-	}
+	frepeat_str(STDERR, " ", tok.col);
+	frepeat_str(STDERR, "^", tok.len);
+
 	eprintf(" %s\n", msg);
 
 	eprintf(" |\n");
@@ -494,6 +486,7 @@ struct Type {
 	// func type
 	return_type *Type,
 	params *TypeVec,
+	is_variadic bool,
 
 	// pointer type
 	pointer_to *Type,
@@ -504,15 +497,41 @@ struct Type {
 	tok *Token,
 }
 
+func plural_or_singular(n i32) *u8 {
+	if n == 1 {
+		"";
+	} else {
+		"s";
+	}
+}
+
+func plural_or_singular2(n i32) *u8 {
+	if n == 1 {
+		"y";
+	} else {
+		"ies";
+	}
+}
+
+func func_call_args_length_error(exp_len i32, got_len i32, tok *Token, msg *u8) i32 {
+	print_error_with_code(tok, msg);
+	eprintf(
+		"this function takes %d argument%s but %d argument%s were supplied\n",
+		exp_len,
+		plural_or_singular(exp_len),
+		got_len,
+		plural_or_singular(got_len)
+	);
+	exit(1);
+}
+
 func unkown_type_error(types *TypeVec, tok *Token, msg *u8) i32 {
 	print_error_with_code(tok, msg);
 
 	if types.len == 0 {
-		// ...
-	} else if types.len <= 1 {
-		eprintf("%d possibility:", types.len);
+		exit(1);
 	} else {
-		eprintf("%d possibilities:", types.len);
+		eprintf("%d possibilit%s:", plural_or_singular2(types.len));
 	}
 
 	var idx i32 = 0;
@@ -534,11 +553,9 @@ func unkown_member_error(members *MemberVec, tok *Token, msg *u8) i32 {
 	print_error_with_code(tok, msg);
 
 	if members.len == 0 {
-		// ...
-	} else if members.len <= 1 {
-		eprintf("%d possibility:", members.len);
+		exit(1);
 	} else {
-		eprintf("%d possibilities:", members.len);
+		eprintf("%d possibilit:", plural_or_singular2(members.len));
 	}
 
 	var idx i32 = 0;
@@ -670,7 +687,6 @@ struct Object {
 	is_declaration bool,
 	is_func_param bool,
 	is_global bool,
-	is_variadic bool,
 
 	next *Object,
 }
@@ -784,7 +800,7 @@ func new_pointer_type(base *Type) *Type {
 	return ty;
 }
 
-func new_func_type(params_types *TypeVec, return_type *Type) *Type {
+func new_func_type(params_types *TypeVec, return_type *Type, is_variadic bool) *Type {
 	var ty *Type;
 	ty = alloc(typesize(Type));
 	if ty == nil {
@@ -795,6 +811,7 @@ func new_func_type(params_types *TypeVec, return_type *Type) *Type {
 	ty.size = 8;
 	ty.params = params_types;
 	ty.return_type = return_type;
+	ty.is_variadic = is_variadic;
 	return ty;
 }
 
@@ -881,7 +898,7 @@ func cmp_type(ty1 *Type, ty2 *Type) bool {
 	}
 
 	if ty1.kind == TY_FUNC {
-		return cmp_type(ty1.return_type, ty2.return_type) && cmp_type_vec(ty1.params, ty2.params);
+		return cmp_type(ty1.return_type, ty2.return_type) && cmp_type_vec(ty1.params, ty2.params) && ty1.is_variadic == ty2.is_variadic;
 	}
 
 	if ty1.kind == TY_PTR {
@@ -1077,11 +1094,15 @@ func add_type(p *Parser, node *Node) i32 {
 
 func parse_ty(p *Parser) *Type;
 
-func parse_params_types(p *Parser) *TypeVec {
-	var vec *TypeVec = new_type_vec(4);
-
+func parse_params_types(p *Parser, types *TypeVec) *TypeVec {
+	var is_variadic bool = false;
 	while !strcmp(p.tokens.lit, ")") {
-		vec_append_type(vec, parse_ty(p));
+		if strcmp(p.tokens.lit, "...") {
+			is_variadic = true;
+			parser_next(p);
+		} else {
+			vec_append_type(types, parse_ty(p));
+		}
 		if !strcmp(p.tokens.lit, ",") {
 			goto break;
 		}
@@ -1090,7 +1111,7 @@ func parse_params_types(p *Parser) *TypeVec {
 
 break:
 
-	return vec;
+	return is_variadic;
 }
 
 func parse_ty(p *Parser) *Type {
@@ -1112,10 +1133,11 @@ func parse_ty(p *Parser) *Type {
 	else if strcmp(name, "*") { ty = new_pointer_type(parse_ty(p)); }
 	else if strcmp(name, "func") {
 		parser_skip(p, "(");
-		var types *TypeVec = parse_params_types(p);
+		var types *TypeVec = new_type_vec(4);
+		var is_variadic bool = parse_params_types(p, types);
 		// parse params types
 		parser_skip(p, ")");
-		ty = new_func_type(types, parse_ty(p));
+		ty = new_func_type(types, parse_ty(p), is_variadic);
 	}
 	else {
 		ty = get_user_defined_type(p, name);
@@ -1183,33 +1205,9 @@ func parse_ident(p *Parser) *Node {
 
 	parser_next(p);
 
-	if !strcmp(p.tokens.lit, "(") {
+	//if !strcmp(p.tokens.lit, "(") {
 		return var_node;
-	}
-
-	var node *Node = new_node(ND_FUNC_CALL);
-	parser_skip(p, "(");
-	node.args = parse_func_call_args(p);
-	parser_skip(p, ")");
-
-	add_type(p, var_node);
-
-	if var_node.obj.ty.kind != TY_FUNC {
-		print_error(var_tok, "cannot call a none function object");
-	}
-
-	if node.args.len != var_node.obj.ty.params.len {
-		if var_node.obj.is_variadic && node.args.len < var_node.obj.ty.params.len {
-			print_error(var_tok, "The number of arguments in the function call does not match the function definition");
-		} else if !var_node.obj.is_variadic {
-			print_error(var_tok, "The number of arguments in the function call does not match the function definition");
-		} else {
-			// ok
-		}
-	}
-
-	node.lhs = var_node;
-	return node;
+	//}
 }
 
 func parse_number(p *Parser) *Node {
@@ -1333,6 +1331,37 @@ func parse_unary(p *Parser) *Node {
 	node = parse_number(p);
 
 	while {
+		if strcmp(p.tokens.lit, "(") {
+			var lpar_tok *Token = p.tokens;
+			parser_skip(p, "(");
+
+			add_type(p, node);
+
+			if node.ty.kind != TY_FUNC { 
+				print_error(lpar_tok, "cannot call a none function type object\n");
+			}
+
+			var func_call_node *Node = new_node(ND_FUNC_CALL);
+			func_call_node.lhs = node;
+
+			func_call_node.args = parse_func_call_args(p);
+
+			var rpar_tok *Token = p.tokens;
+			parser_skip(p, ")");
+
+			if func_call_node.args.len != node.ty.params.len {
+				if node.ty.is_variadic && func_call_node.args.len < node.ty.params.len {
+					func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
+				} else if !node.ty.is_variadic {
+					func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
+				} else {
+					// ok
+				}
+			}
+
+			node = func_call_node;
+			goto continue;
+		}
 		var access_tok *Token = p.tokens;
 		if strcmp(p.tokens.lit, "++") {
 			parser_next(p);
@@ -1823,7 +1852,9 @@ func parse_struct(p *Parser) i32 {
 	return 0;
 }
 
-func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *ObjectVec) i32 {
+func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *ObjectVec) bool {
+	var is_variadic bool = false;
+
 	parser_skip(p, "(");
 
 	while !strcmp(p.tokens.lit, ")") {
@@ -1832,7 +1863,7 @@ func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *Object
 		parser_next(p);
 
 		if strcmp(params_name, "...") {
-			fn.is_variadic = true;
+			is_variadic = true;
 			if !strcmp(p.tokens.lit, ")") {
 				print_error(params_name_tok, "must be at the end of the paramaters");
 			}
@@ -1858,6 +1889,8 @@ break:
 	parser_skip(p, ")");
 
 	fn.params = params;
+
+	return is_variadic;
 }
 
 func add_function_object(p *Parser, fn *Object) i32 {
@@ -1883,7 +1916,7 @@ func parse_func(p *Parser) i32 {
 	var types *TypeVec = new_type_vec(4);
 	var params *ObjectVec = new_object_vec(4);
 
-	parse_function_params(p, fn, types, params);
+	var is_variadic bool = parse_function_params(p, fn, types, params);
 
 	if strcmp(p.tokens.lit, "{") || strcmp(p.tokens.lit, ";") {
 		print_error(p.tokens, "function must have a return type");
@@ -1897,7 +1930,7 @@ func parse_func(p *Parser) i32 {
 		if found_func != nil {
 			print_error(name_tok, "function is already declared somewhere.");
 		}
-		fn.ty = new_func_type(types, func_return_ty);
+		fn.ty = new_func_type(types, func_return_ty, is_variadic);
 		fn.locals = nil;
 		fn.is_declaration = true;
 
@@ -1917,7 +1950,7 @@ func parse_func(p *Parser) i32 {
 		found_func.is_declaration = false;
 		found_func.params = fn.params;
 	} else {
-		fn.ty = new_func_type(types, func_return_ty);
+		fn.ty = new_func_type(types, func_return_ty, is_variadic);
 		fn.body = parse_block(p);
 		fn.locals = p.locals;
 		fn.is_declaration = false;
@@ -1939,6 +1972,7 @@ func parse(p *Parser) i32 {
 	return 0;
 }
 
+
 // ----------------------------------
 // Asm Gen
 // ----------------------------------
@@ -1948,6 +1982,7 @@ struct Gen {
 	str_label_count i32,
 	cur_func_name *u8,
 	has_main bool,
+	no_deref bool,
 
 	offset i32,
 	stack_offset i32,
@@ -1974,6 +2009,7 @@ func amd64_system_v_call_regs64(idx i32) *u8 {
 
 func new_gen() *Gen {
 	var g *Gen = alloc(typesize(Gen));
+	g.no_deref = false;
 
 	g.label_count = 0;
 	g.str_label_count = 0;
@@ -1990,23 +2026,19 @@ func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32 {
 }
 
 func gen_addr(g *Gen, node *Node) i32;
-
 func gen_addr(g *Gen, node *Node) i32 {
 	if node.kind == ND_MEMBER_ACCESS {
 		gen_addr(g, node.lhs);
 		printf("\taddq $%d, %rax\n", node.offset);
 	} else if node.kind == ND_VAR {
 		if node.obj.is_global {
-			printf("\tleaq %s@GOTPCREL(%rip), %rax\n", node.obj.name);
+			g.no_deref = true;
+			printf("\tleaq %s(%rip), %rax\n", node.obj.name);
 		} else {
 			printf("\tleaq %d(%rbp), %rax\n", node.obj.offset);
 		}
-	} else {// if node.kind == ND_DEREF {
+	} else if node.kind == ND_DEREF {
 		gen_expr(g, node.lhs);
-	//} else {
-		// TODO add tokens position to node struct
-	//	eprintf("error: not a var-node\n");
-	//	exit(1);
 	}
 	return 0;
 }
@@ -2036,16 +2068,25 @@ func gen_store(ty *Type) i32 {
 	return 0;
 }
 
-func gen_load(ty *Type) i32 {
+func load_instr(ty *Type) *u8 {
+	if ty.is_unsigned {
+		"movz";
+	} else {
+		"movs";
+	}
+}
+
+func gen_load(g *Gen, ty *Type) i32 {
 	if ty.kind == TY_STRUCT {
 		return 0;
 	}
-	var instr *u8;
-	if ty.is_unsigned {
-		instr = "movz";
-	} else {
-		instr = "movs";
+	if g.no_deref {
+		g.no_deref = false;
+		return 0;
 	}
+
+	var instr *u8 = load_instr(ty);
+
 	if ty.size == 8 {
 		printf("\tmovq (%rax), %rax\n");
 	} else if ty.size == 4 {
@@ -2078,36 +2119,6 @@ func gen_condition_store(ty *Type) i32 {
 	} else {
 		printf("\tmovzbl %al, %eax\n");
 	}
-}
-
-func func_call_copy_val_rsp(g *Gen, node *Node) i32 {
-	gen_expr(g, node);
-	printf("\tsubq $%d, %rsp\n", node.ty.size);
-	var b i32 = 0;
-	while b < node.ty.size {
-		printf("\tmovb %d(%rax), %r10b\n", b);
-		printf("\tmovb %r10b, %d(%rsp)\n", b);
-		b++;
-	}
-	return node.ty.size;
-}
-
-func func_call_args_to_stack(g *Gen, args *NodeVec) i32 {
-	if args.len == 0 {
-		return 0;
-	}
-
-	var stack i32 = 0;
-
-	var idx i32 = 0;
-	while idx < args.len {
-		if args.ptr[idx].ty.size > 8 {
-			stack = stack + func_call_copy_val_rsp(g, args.ptr[idx]);
-		}
-		idx++;
-	}
-
-	return stack;
 }
 
 func func_call_args_to_regi(g *Gen, args *NodeVec) i32 {
@@ -2153,13 +2164,9 @@ func all_func_call_args_to_stack(g *Gen, args *NodeVec, fn *Object) i32 {
 
 func gen_expr(g *Gen, node *Node) i32 {
 	var c i32 = 0;
-	if node == nil {
-		eprintf("internal error: gen_expr() node == nil. this should not happen.\n");
-		exit(1);
-	}
 	if node.kind == ND_MEMBER_ACCESS {
 		gen_addr(g, node);
-		gen_load(node.ty);
+		gen_load(g, node.ty);
 		return 0;
 	}
 	if node.kind == ND_STR {
@@ -2190,18 +2197,17 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_store(node.ty);
 		return 0;
 	}
-
 	if node.kind == ND_VAR {
 		gen_addr(g, node);
-		gen_load(node.ty);
+		gen_load(g, node.ty);
 		return 0;
 	}
 	if node.kind == ND_FUNC_CALL {
 		var stack i32 = 0;
 		stack = all_func_call_args_to_stack(g, node.args, node.lhs.obj);
 
-		gen_addr(g, node.lhs);
-		printf("\tmovq (%rax), %r10\n");
+		gen_expr(g, node.lhs);
+		printf("\tmovq %rax, %r10\n");
 		printf("\tmovq $0, %rax\n");
 
 		printf("\tcallq *%r10\n");
@@ -2231,7 +2237,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_DEREF {
 		gen_expr(g, node.lhs);
-		gen_load(node.ty);
+		gen_load(g, node.ty);
 		return 0;
 	}
 	if node.kind == ND_NOT {
@@ -2441,7 +2447,6 @@ func assign_offset(g *Gen, obj *Object) i32 {
 	if obj == nil {
 		return align_to(g.offset, 16);
 	}
-
 	if obj.next != nil {
 		assign_offset(g, obj.next);
 	}
@@ -2452,7 +2457,6 @@ func assign_offset(g *Gen, obj *Object) i32 {
 		g.offset = g.offset + obj.ty.size;
 		obj.offset = g.offset - g.offset * 2;
 	}
-
 	return align_to(g.offset, 16);
 }
 

@@ -7,12 +7,16 @@
 
 func alloc(size i32) *u8; // src/builtin.s
 
-func fputs(fd i32, str *u8) i32 {
+func strlen(str *u8) i32 {
 	var start *u8 = str;
-	while *str != 0 {
+	while *str != nil {
 		str++;
 	}
-	write(fd, start, str - start);
+	return str - start;
+}
+
+func fputs(fd i32, str *u8) i32 {
+	write(fd, str, strlen(str));
 	return 0;
 }
 
@@ -79,7 +83,7 @@ func memcpy(dest *u8, source *u8, size i32) *u8 {
 	return dest;
 }
 
-func isalpha(c i8) bool {
+func isalpha(c u8) bool {
 	//  A .. Z             a .. z
 	if 65 <= c <= 90 || 97 <= c <= 122 {
 		return true;
@@ -87,7 +91,7 @@ func isalpha(c i8) bool {
 	return false;
 }
 
-func isdigit(c i8) bool {
+func isdigit(c u8) bool {
 	if 48 <= c <= 57 { // 0 .. 9
 		return true;
 	}
