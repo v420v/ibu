@@ -109,12 +109,30 @@ func main() i32 {
 ```
 
 ```go
+// Allows "13 <= age < 20" instead of "13 <= age && age < 20"
+
 func main() i32 {
     var age i8 = 19;
 
-    if 13 <= age < 20 { // Allows "13 <= age < 20" instead of "13 <= age && age < 20"
+    if 13 <= age < 20 {
         printf("Teen-ager\n");
     }
+
+    return 0;
+}
+```
+
+#### Variable length args
+```go
+// Variable-length arguments can be accessed using the built-in variable argv
+
+func add_nums(...) i32 {
+    return argv[0] + argv[1] + argv[2];
+}
+
+func main() i32 {
+    var d i32 = add_nums(1, 2, 3);
+    printf("%d\n", d);
 
     return 0;
 }

@@ -1,3 +1,13 @@
+
+.set HEAP_CAPACITY, 1610612736 # 1.5GB
+
+# Allocator
+.bss
+heap:
+	.zero	HEAP_CAPACITY
+heap_size:
+	.zero	8
+
 .text
 
 # func syscall(trap *i8, a1 *i8, a2 *i8, a3 *i8) i64;
@@ -17,14 +27,6 @@ syscall:
 	leave
 	ret
 
-# Allocator
-.bss
-heap:
-	.zero	8040000
-heap_size:
-	.zero	8
-.text
-
 # func alloc(size i32) *u8;
 # size   16(rbp)
 .global	alloc
@@ -36,7 +38,7 @@ alloc:
 	movq	heap_size(%rip), %rdx
 	movq	-24(%rbp), %rax
 	addq	%rdx, %rax
-	cmpq	$8039999, %rax
+	cmpq	$HEAP_CAPACITY-1, %rax
 	jbe	.L.alloc.2
 	movl	$0, %eax
 	jmp	.L.alloc_ret_null

@@ -119,7 +119,7 @@ func is_two_c_punct(a *u8) bool {
 		if a[0] == puncts[idx] && a[1] == puncts[idx+1] {
 			return true;
 		}
-		idx = idx + 1;
+		idx++;
 	}
 }
 
@@ -460,6 +460,7 @@ func vec_append_type(vec *TypeVec, ty *Type) i32 {
 #define ND_LOGAND			26
 #define ND_LOGOR			27
 #define ND_MEMBER_ACCESS	28
+#define ND_EMPTY            29
 
 #define TypeKind	i32
 #define TY_I64		0
@@ -1349,13 +1350,15 @@ func parse_unary(p *Parser) *Node {
 			var rpar_tok *Token = p.tokens;
 			parser_skip(p, ")");
 
-			if func_call_node.args.len != node.ty.params.len {
-				if node.ty.is_variadic && func_call_node.args.len < node.ty.params.len {
+			if node.ty.is_variadic {
+				if func_call_node.args.len != (node.ty.params.len-1) {
+					if func_call_node.args.len < (node.ty.params.len-1) {
+						func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
+					}
+				}
+			} else {
+				if func_call_node.args.len != node.ty.params.len {
 					func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
-				} else if !node.ty.is_variadic {
-					func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
-				} else {
-					// ok
 				}
 			}
 
@@ -1750,7 +1753,7 @@ func parse_stmt(p *Parser) *Node {
 			parser_next(p);
 			node.else_block = parse_stmt(p);
 		} else {
-			node.else_block = nil;
+			node.else_block = new_node(ND_EMPTY);
 		}
 		return node;
 	}
@@ -1862,14 +1865,19 @@ func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *Object
 		var params_name_tok *Token = p.tokens;
 		parser_next(p);
 
+		var ty *Type;
 		if strcmp(params_name, "...") {
-			is_variadic = true;
 			if !strcmp(p.tokens.lit, ")") {
 				print_error(params_name_tok, "must be at the end of the paramaters");
 			}
+			is_variadic = true;
+			ty = new_pointer_type(p.ty_i64);
+			vec_append_type(types, ty);
+			params_name = "argv";
+			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
 		} else {
 			var ty_tok *Token = p.tokens;
-			var ty *Type = parse_ty(p);
+			ty = parse_ty(p);
 			if ty.kind == TY_STRUCT {
 				print_error(ty_tok, "unsupported feature: function parameter of struct");
 			}
@@ -1988,25 +1996,6 @@ struct Gen {
 	stack_offset i32,
 }
 
-func amd64_system_v_call_regs64(idx i32) *u8 {
-	if idx == 0 {
-		"%rdi";
-	} else if idx == 1 {
-		"%rsi";
-	} else if idx == 2 {
-		"%rdx";
-	} else if idx == 3 {
-		"%rcx";
-	} else if idx == 4 {
-		"%r8";
-	} else if idx == 5 {
-		"%r9";
-	} else {
-		eprintf("unreachable\n");
-		exit(1);
-	}
-}
-
 func new_gen() *Gen {
 	var g *Gen = alloc(typesize(Gen));
 	g.no_deref = false;
@@ -2077,6 +2066,8 @@ func load_instr(ty *Type) *u8 {
 }
 
 func gen_load(g *Gen, ty *Type) i32 {
+	var instr *u8;
+
 	if ty.kind == TY_STRUCT {
 		return 0;
 	}
@@ -2085,7 +2076,11 @@ func gen_load(g *Gen, ty *Type) i32 {
 		return 0;
 	}
 
-	var instr *u8 = load_instr(ty);
+	if ty.is_unsigned {
+		instr = "movz";
+	} else {
+		instr = "movs";
+	}
 
 	if ty.size == 8 {
 		printf("\tmovq (%rax), %rax\n");
@@ -2121,30 +2116,8 @@ func gen_condition_store(ty *Type) i32 {
 	}
 }
 
-func func_call_args_to_regi(g *Gen, args *NodeVec) i32 {
-	if args.len == 0 {
-		return 0;
-	}
-
-	var idx i32 = args.len - 1;
-	while 0 <= idx {
-		gen_expr(g, args.ptr[idx--]);
-		printf("\tpush %rax\n");
-	}
-
-	var i i32 = 0;
-
-	while i < args.len {
-		if !(args.ptr[i].ty.size > 8) {
-			printf("\tpop %s\n", amd64_system_v_call_regs64(i));
-		}
-		i++;
-	}
-
-	return 0;
-}
-
-func all_func_call_args_to_stack(g *Gen, args *NodeVec, fn *Object) i32 {
+// TODO
+func func_call_args_to_stack(g *Gen, args *NodeVec, ty *Type) i32 {
 	if args.len == 0 {
 		return 0;
 	}
@@ -2152,11 +2125,32 @@ func all_func_call_args_to_stack(g *Gen, args *NodeVec, fn *Object) i32 {
 	var stack i32 = 0;
 
 	var idx i32 = args.len - 1;
-	while 0 <= idx {
-		gen_expr(g, args.ptr[idx]);
-		printf("\tpush %rax\n");
-		stack = stack + 8;
-		idx--;
+	var c i32 = 0;
+
+	if ty.is_variadic {
+		while 0 <= idx {
+			if c == (args.len - ty.params.len) + 1 {
+				printf("\tleaq (%rsp), %rax\n");
+			} else {
+				gen_expr(g, args.ptr[idx]);
+				idx--;
+			}
+			printf("\tpush %rax\n");
+			stack = stack + 8;
+			c++;
+		}
+		if ty.params.len == 1 {
+			printf("\tleaq (%rsp), %rax\n");
+			printf("\tpush %rax\n");
+			stack = stack + 8;
+		}
+	} else {
+		while 0 <= idx {
+			gen_expr(g, args.ptr[idx]);
+			printf("\tpush %rax\n");
+			stack = stack + 8;
+			idx--;
+		}
 	}
 
 	return stack;
@@ -2164,6 +2158,9 @@ func all_func_call_args_to_stack(g *Gen, args *NodeVec, fn *Object) i32 {
 
 func gen_expr(g *Gen, node *Node) i32 {
 	var c i32 = 0;
+	if node.kind == ND_EMPTY {
+		return 0;
+	}
 	if node.kind == ND_MEMBER_ACCESS {
 		gen_addr(g, node);
 		gen_load(g, node.ty);
@@ -2204,7 +2201,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_FUNC_CALL {
 		var stack i32 = 0;
-		stack = all_func_call_args_to_stack(g, node.args, node.lhs.obj);
+		stack = func_call_args_to_stack(g, node.args, node.lhs.ty);
 
 		gen_expr(g, node.lhs);
 		printf("\tmovq %rax, %r10\n");
@@ -2395,16 +2392,25 @@ func gen_node_block(g *Gen, stmts *NodeVec) i32 {
 
 func gen_stmt(g *Gen, node *Node) i32 {
 	var c i32 = 0;
+	if node.kind == ND_EMPTY {
+		return 0;
+	}
 	if node.kind == ND_BLOCK {
 		gen_node_block(g, node.body);
-	} else if node.kind == ND_EXPR_STMT {
+		return 0;
+	}
+	if node.kind == ND_EXPR_STMT {
 		gen_expr(g, node.lhs);
-	} else if node.kind == ND_RETURN {
+		return 0;
+	}
+	if node.kind == ND_RETURN {
 		gen_expr(g, node.lhs);
 		printf("\tmovq %rbp, %rsp\n");
 		printf("\tpop %rbp\n");
 		printf("\tretq\n");
-	} else if node.kind == ND_IF {
+		return 0;
+	}
+	if node.kind == ND_IF {
 		c = g.label_count++;
 		gen_expr(g, node.cond);
 		printf("\tcmpq $1, %rax\n");
@@ -2416,11 +2422,17 @@ func gen_stmt(g *Gen, node *Node) i32 {
 			gen_stmt(g, node.else_block);
 		}
 		printf(".L.end.%d:\n", c);
-	} else if node.kind == ND_GOTO {
+		return 0;
+	}
+	if node.kind == ND_GOTO {
 		printf("\tjmp .L.%s.%s\n", g.cur_func_name, node.label_name);
-	} else if node.kind == ND_LABEL {
+		return 0;
+	}
+	if node.kind == ND_LABEL {
 		printf(".L.%s.%s:\n", g.cur_func_name, node.label_name);
-	} else if node.kind == ND_WHILE {
+		return 0;
+	}
+	if node.kind == ND_WHILE {
 		c = g.label_count++;
 		printf(".L.while.start.%d:\n", c);
 		gen_expr(g, node.cond);
@@ -2429,17 +2441,18 @@ func gen_stmt(g *Gen, node *Node) i32 {
 		gen_stmt(g, node.then_block);
 		printf("\tjmp .L.while.start.%d\n", c);
 		printf(".L.while.end.%d:\n", c);
-	} else if node.kind == ND_ASSIGN {
+		return 0;
+	}
+	if node.kind == ND_ASSIGN {
 		gen_addr(g, node.lhs);
 		printf("\tpush %rax\n");
 		gen_expr(g, node.rhs);
 		printf("\tpop %rdi\n");
 		gen_store(node.ty);
-	} else {
-		eprintf("kind: %d\n", node.kind);
-		eprintf("gen_stmt unreachable\n");
-		exit(1);
+		return 0;
 	}
+	eprintf("unreachable\n");
+	exit(1);
 }
 
 func assign_offset(g *Gen, obj *Object) i32;

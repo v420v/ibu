@@ -59,14 +59,12 @@ func vfprintf(fd i32, fmt *u8, args *u64) i32 {
 }
 
 func printf(fmt *u8, ...) i32 {
-	var args *u64 = (&fmt)+8;
-	vfprintf(STDIO, fmt, args);
+	vfprintf(STDIO, fmt, argv);
 	return 0;
 }
 
 func eprintf(fmt *u8, ...) i32 {
-	var args *u64 = (&fmt)+8;
-	vfprintf(STDERR, fmt, args);
+	vfprintf(STDERR, fmt, argv);
 	return 0;
 }
 
