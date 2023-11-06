@@ -517,7 +517,7 @@ func plural_or_singular2(n i32) *u8 {
 func func_call_args_length_error(exp_len i32, got_len i32, tok *Token, msg *u8) i32 {
 	print_error_with_code(tok, msg);
 	eprintf(
-		"this function takes %d argument%s but %d argument%s were supplied\n",
+		"help: this function takes %d argument%s but %d argument%s were supplied\n",
 		exp_len,
 		plural_or_singular(exp_len),
 		got_len,
@@ -532,7 +532,7 @@ func unkown_type_error(types *TypeVec, tok *Token, msg *u8) i32 {
 	if types.len == 0 {
 		exit(1);
 	} else {
-		eprintf("%d possibilit%s:", plural_or_singular2(types.len));
+		eprintf("help: %d possibilit%s:", plural_or_singular2(types.len));
 	}
 
 	var idx i32 = 0;
@@ -556,7 +556,7 @@ func unkown_member_error(members *MemberVec, tok *Token, msg *u8) i32 {
 	if members.len == 0 {
 		exit(1);
 	} else {
-		eprintf("%d possibilit:", plural_or_singular2(members.len));
+		eprintf("help: %d possibilit:", plural_or_singular2(members.len));
 	}
 
 	var idx i32 = 0;
@@ -665,9 +665,7 @@ func vec_append_object(vec *ObjectVec, ty *Object) i32 {
 
 func unexpected_token_error(expected *u8, tok *Token, msg *u8) i32 {
 	print_error_with_code(tok, msg);
-
-	eprintf("expected `%s` but got `%s`\n", expected, tok.lit);
-
+	eprintf("help: expected `%s` but got `%s`\n", expected, tok.lit);
 	exit(1);
 }
 
@@ -973,7 +971,17 @@ func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32 {
 	var locals *Object = p.locals;
 	while locals != nil {
 		if strcmp(locals.name, name) {
-			print_error(tok, "name already exist");
+			print_error_with_code(tok, "name already exist");
+			if strcmp(tok.lit, "...") {
+				eprintf("help: by default, variable-length arguments are accessed using the built-in variable `argv`, which can be renamed as the following example\n");
+				eprintf(" |\n");
+				eprintf(" |// simple example of renaming `argv` to `nums`.\n");
+				eprintf(" |func add_nums(nums ...) i32 {\n");
+				eprintf(" |    return nums[0] + nums[1] + nums[2];\n");
+				eprintf(" |}\n");
+				eprintf(" |\n");
+			}
+			exit(1);
 		}
 		locals = locals.next;
 	}
@@ -1351,6 +1359,7 @@ func parse_unary(p *Parser) *Node {
 			parser_skip(p, ")");
 
 			if node.ty.is_variadic {
+				// subtract builtin params. argv etc...
 				if func_call_node.args.len != (node.ty.params.len-1) {
 					if func_call_node.args.len < (node.ty.params.len-1) {
 						func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
@@ -1866,17 +1875,26 @@ func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *Object
 		parser_next(p);
 
 		var ty *Type;
+		var ty_tok *Token = p.tokens;
 		if strcmp(params_name, "...") {
 			if !strcmp(p.tokens.lit, ")") {
 				print_error(params_name_tok, "must be at the end of the paramaters");
 			}
 			is_variadic = true;
-			ty = new_pointer_type(p.ty_i64);
+			ty = new_pointer_type(p.ty_u64);
 			vec_append_type(types, ty);
 			params_name = "argv";
 			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
+		} else if strcmp(p.tokens.lit, "...") {
+			parser_skip(p, "...");
+			if !strcmp(p.tokens.lit, ")") {
+				print_error(ty_tok, "must be at the end of the paramaters");
+			}
+			is_variadic = true;
+			ty = new_pointer_type(p.ty_u64);
+			vec_append_type(types, ty);
+			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
 		} else {
-			var ty_tok *Token = p.tokens;
 			ty = parse_ty(p);
 			if ty.kind == TY_STRUCT {
 				print_error(ty_tok, "unsupported feature: function parameter of struct");
@@ -2116,7 +2134,6 @@ func gen_condition_store(ty *Type) i32 {
 	}
 }
 
-// TODO
 func func_call_args_to_stack(g *Gen, args *NodeVec, ty *Type) i32 {
 	if args.len == 0 {
 		return 0;
@@ -2125,32 +2142,16 @@ func func_call_args_to_stack(g *Gen, args *NodeVec, ty *Type) i32 {
 	var stack i32 = 0;
 
 	var idx i32 = args.len - 1;
-	var c i32 = 0;
-
-	if ty.is_variadic {
-		while 0 <= idx {
-			if c == (args.len - ty.params.len) + 1 {
-				printf("\tleaq (%rsp), %rax\n");
-			} else {
-				gen_expr(g, args.ptr[idx]);
-				idx--;
-			}
-			printf("\tpush %rax\n");
-			stack = stack + 8;
-			c++;
-		}
-		if ty.params.len == 1 {
+	while 0 <= idx {
+		if ty.is_variadic && idx == (ty.params.len - 2) {
 			printf("\tleaq (%rsp), %rax\n");
 			printf("\tpush %rax\n");
 			stack = stack + 8;
 		}
-	} else {
-		while 0 <= idx {
-			gen_expr(g, args.ptr[idx]);
-			printf("\tpush %rax\n");
-			stack = stack + 8;
-			idx--;
-		}
+		gen_expr(g, args.ptr[idx]);
+		printf("\tpush %rax\n");
+		stack = stack + 8;
+		idx--;
 	}
 
 	return stack;

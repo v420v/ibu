@@ -130,8 +130,15 @@ func add_nums(...) i32 {
     return argv[0] + argv[1] + argv[2];
 }
 
+func add_nums2(nums ...) i32 {
+    return nums[0] + nums[1] + nums[2];
+}
+
 func main() i32 {
     var d i32 = add_nums(1, 2, 3);
+    printf("%d\n", d);
+
+    var d i32 = add_nums2(4, 5, 6);
     printf("%d\n", d);
 
     return 0;
