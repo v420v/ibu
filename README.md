@@ -13,6 +13,7 @@
 Ibu is similar to C and is also influenced by Go, HolyC, and Python.
 
 ```go
+#include "src/std.ibu"
 
 func main() i32 {
     printf("Hello, world!\n");
@@ -60,7 +61,6 @@ $ make self
 ```
 
 ## How to build, compile programs written in Ibu
-***Don't forget to pass `src/builtin.o` to the linker***
 ```sh
 $ ./ibuc <filename>.ibu | as - -o <filename>.o
 $ ld -o <filename> <filename>.o src/builtin.o
@@ -70,8 +70,10 @@ $ ld -o <filename> <filename>.o src/builtin.o
 
 #### Hello, world!
 ```go
+#include "src/std.ibu"
+
 func main() i32 {
-    printf("Hello, world!\n"); // printf is a builtin function
+    printf("Hello, world!\n");
     return 0;
 }
 ```
@@ -135,10 +137,11 @@ func add_nums2(nums ...) i32 {
 }
 
 func main() i32 {
-    var d i32 = add_nums(1, 2, 3);
+    var d i32;
+    d = add_nums(1, 2, 3);
     printf("%d\n", d);
 
-    var d i32 = add_nums2(4, 5, 6);
+    d = add_nums2(4, 5, 6);
     printf("%d\n", d);
 
     return 0;
