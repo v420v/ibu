@@ -1,7 +1,10 @@
 
-# The Ibu programming language
+<div align="center" style="display:grid;place-items:center;">
+    <h1>The Ibu programming language</h1>
 
-<img src="https://github.com/v420v/ibu/assets/106643445/476c1310-4546-4fac-ac59-38f36e3d0716"  width=600 align="right">
+<a href="https://marketplace.visualstudio.com/items?itemName=ibuki.ibu">vscode</a>
+
+</div>
 
 - No strict type checker
 - No global variables
@@ -245,24 +248,6 @@ func main(argc i32, argv **u8) i32 {
 
     return 0;
 }
-
-```
-
-## Contributing
-Welcome!
-
-```go
-
-func print_user_defined_types(p *Parser) i32;
-
-func print_all_tokens(tok *Token) i32;
-
-```
-
-### Update bootstrap folder
-```sh
-
-$ make update_bootstrap
 
 ```
 
