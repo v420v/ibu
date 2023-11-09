@@ -9,7 +9,7 @@ func alloc(size i32) *u8; // src/builtin.s
 
 func strlen(str *u8) i32 {
 	var start *u8 = str;
-	while *str != nil {
+	while *str != '\0' {
 		str++;
 	}
 	return str - start;
@@ -34,11 +34,11 @@ func vfprintf(fd i32, fmt *u8, args *u64) i32 {
 	var i i32 = 0;
 
 	while *fmt != 0 {
-		if *fmt == 37 {
+		if *fmt == '%' {
 			fmt++;
-			if *fmt == 115 { // %s
+			if *fmt == 's' { // %s
 				fputs(fd, args[i++]);
-			} else if *fmt == 100 { // %d
+			} else if *fmt == 'd' { // %d
 				var num i32 = args[i++];
 				if (num < 0) {
                 	write(fd, "-", 1);
@@ -82,15 +82,14 @@ func memcpy(dest *u8, source *u8, size i32) *u8 {
 }
 
 func isalpha(c u8) bool {
-	//  A .. Z             a .. z
-	if 65 <= c <= 90 || 97 <= c <= 122 {
+	if 'A' <= c <= 'Z' || 'a' <= c <= 'z' {
 		return true;
 	}
 	return false;
 }
 
 func isdigit(c u8) bool {
-	if 48 <= c <= 57 { // 0 .. 9
+	if '0' <= c <= '9' { // 0 .. 9
 		return true;
 	}
 	return false;
@@ -101,17 +100,17 @@ func atoi(str *i8) i32 {
 	var n i32 = 0;
 	var is_neg bool = 0;
 
-	if str[i] == 45 {
+	if str[i] == '-' {
 		is_neg = true;
 		i++;
 	}
 
-	while str[i] != 0 {
-		n = n * 10 + str[i++] - 48;
+	while str[i] != '\0' {
+		n = n * 10 + str[i++] - '0';
 	}
 
 	if is_neg {
-	    n = n - n*2;
+	    n = 0 - n;
 	}
 
 	return n;
@@ -149,7 +148,7 @@ func itoa(num i32, str *u8, base i32) *u8 {
 	var i i32 = 0;
 
     if (num == 0) {
-        str[i++] = 48;
+        str[i++] = '0';
         str[i] = 0;
         return str;
     }
@@ -157,9 +156,9 @@ func itoa(num i32, str *u8, base i32) *u8 {
     while num != 0 {
         var rem i32 = num % base;
 		if (rem > 9) {
-			str[i++] = (rem - 10) + 97;
+			str[i++] = (rem - 10) + 'a';
 		} else {
-			str[i++] = rem + 48;
+			str[i++] = rem + '0';
 		}
         num = num / base;
     }

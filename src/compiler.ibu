@@ -56,7 +56,7 @@ func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 
 func get_program_line_length(str *u8) i32 {
 	var start *u8 = str;
-	while (*str != 10) && (*str != 0) {
+	while (*str != '\n') && (*str != '\0') {
 		str++;
 	}
 	return str - start;
@@ -105,7 +105,7 @@ func print_error(tok *Token, msg *u8) i32 {
 }
 
 func is_three_c_punct(a *u8) bool {
-	if a[0] == 46 && a[1] == 46 && a[2] == 46 {
+	if a[0] == '.' && a[1] == '.' && a[2] == '.' {
 		return true;
 	}
 	return false;
@@ -124,7 +124,7 @@ func is_two_c_punct(a *u8) bool {
 }
 
 func tokenizer_next(t *Tokenizer) i32 {
-	if *t.program == 10 { // new line
+	if *t.program == '\n' { // new line
 		t.line++;
 		t.col = 0;
 		t.program++;
@@ -189,9 +189,9 @@ func tokenize_number(t *Tokenizer) *Token {
 }
 
 func skip_single_line_comment(t *Tokenizer) i32 {
-	if (*t.program == 47) && (*(t.program+1) == 47) {
+	if (*t.program == '/') && (*(t.program+1) == '/') {
 		tokenizer_n_next(t, 2);
-		while (*t.program != 10) && (*t.program != 0) {
+		while (*t.program != '\n') && (*t.program != '\0') {
 			tokenizer_next(t);
 		}
 	}
@@ -200,11 +200,11 @@ func skip_single_line_comment(t *Tokenizer) i32 {
 
 func string_end(t *Tokenizer, str *u8) *u8 {
 	while *str != 34 {
-		if *str == 10 || *str == 0 {
+		if *str == '\n' || *str == '\0' {
 			eprintf("%s:%d:%d: error: unclosed string literal\n", t.file_name, t.line, t.col);
 			exit(1);
 		}
-		if *str == 92 { // back slash
+		if *str == '\\' { // back slash
 			str++;
 		}
 		str++;
@@ -213,39 +213,39 @@ func string_end(t *Tokenizer, str *u8) *u8 {
 }
 
 func is_hex_digit(c u8) bool {
-	return (48 <= c <= 57) || (65 <= c <= 70) || (97 <= c <= 102);
+	return ('0' <= c <= '9') || ('A' <= c <= 'F') || ('a' <= c <= 'f');
 }
 
 func from_hex(c u8) bool {
-	if 48 <= c <= 57 {
-		return c - 48;
+	if '0' <= c <= '9' {
+		return c - '0';
 	}
-	if 97 <= c <= 102 {
-		return c - 97 + 10;
+	if 'a' <= c <= 'f' {
+		return c - 'a' + 10;
 	}
-	return c - 65 + 10;
+	return c - 'A' + 10;
 }
 
 func read_escaped_char(t *Tokenizer) i32 {
 	var c i32;
 	tokenizer_next(t);
-	if 48 <= *t.program <= 55 {
-		c = *t.program - 48;
-		tokenizer_next(t);
-		if 48 <= *t.program <= 55 {
-			c = (c << 3) + (*t.program - 48);
+	if '0' <= *t.program <= '7' {
+		c = *t.program - '0';
+		if '0' <= *(t.program+1) <= '7' {
 			tokenizer_next(t);
-			if 48 <= *t.program <= 55 {
-        		c = (c << 3) + (*t.program - 48);
+			c = (c << 3) + (*t.program - '0');
+			if '0' <= *(t.program+1) <= '7' {
+				tokenizer_next(t);
+        		c = (c << 3) + (*t.program - '0');
 			}
 		}
 		return c;
 	}
 
-	if *t.program == 120 {
+	if *t.program == 'x' {
 		tokenizer_next(t);
 		if !is_hex_digit(*t.program) {
-			eprintf("invalid hex digit\n");
+			eprintf("%s:%d:%d: error: invalid hex escape sequence\n", t.file_name, t.line, t.col);
 			exit(1);
 		}
 
@@ -255,29 +255,29 @@ func read_escaped_char(t *Tokenizer) i32 {
 		}
 	}
 
-	if *t.program == 97 {
-		return 7;
+	if *t.program == 'a' {
+		return '\a';
 	}
-	if *t.program == 98 {
-		return 8;
+	if *t.program == 'b' {
+		return '\b';
 	}
-	if *t.program == 116 {
-		return 9;
+	if *t.program == 't' {
+		return '\t';
 	}
-	if *t.program == 110 {
-		return 10;
+	if *t.program == 'n' {
+		return '\n';
 	}
-	if *t.program == 118 {
-		return 11;
+	if *t.program == 'v' {
+		return '\v';
 	}
-	if *t.program == 102 {
-		return 12;
+	if *t.program == 'f' {
+		return '\f';
 	}
-	if *t.program == 114 {
-		return 13;
+	if *t.program == 'r' {
+		return '\r';
 	}
 
-	return c;
+	return *t.program;
 }
 
 func tokenize_char(t *Tokenizer) *Token {
@@ -313,7 +313,7 @@ func tokenize_string(t *Tokenizer) *Token {
 	var len i32 = 0;
 
 	while t.program < end {
-		if *t.program == 92 {
+		if *t.program == '\\' {
 			buf[len++] = read_escaped_char(t);
 		} else {
 			buf[len++] = *t.program;
@@ -359,7 +359,7 @@ func tokenize(t *Tokenizer) *Token {
 			cur = cur.next = tokenize_number(t);
 		} else if isalpha(*t.program) {
 			cur = cur.next = tokenize_ident(t);
-		} else if *t.program == 39 {
+		} else if *t.program == '\'' {
 			cur = cur.next = tokenize_char(t);
 		} else if *t.program == 34 {
 			cur = cur.next = tokenize_string(t);
@@ -378,11 +378,11 @@ func tokenize(t *Tokenizer) *Token {
 			cur.lit = strndup(t.program, 1);
 			cur.len = 1;
 			tokenizer_next(t);
-		} else if *t.program == 32 { // Space
+		} else if *t.program == ' ' { // Space
 			tokenizer_next(t);
-		} else if *t.program == 10 { // New line
+		} else if *t.program == '\n' { // New line
 			tokenizer_next(t);
-		} else if *t.program == 9 { // Tab
+		} else if *t.program == '\t' { // Tab
 			tokenizer_next(t);
 		} else {
 			var invalid *Token = new_token(t, TK_UNKOWN);

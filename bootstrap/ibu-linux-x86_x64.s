@@ -24039,18 +24039,14 @@ read_escaped_char:
 	subl %edi, %eax
 	pop %rdi
 	movl %eax, (%rdi)
-	leaq 16(%rbp), %rax
-	movq (%rax), %rax
+	movq $1, %rax
 	push %rax
-	leaq tokenizer_next(%rip), %rax
-	movq %rax, %r10
-	movq $0, %rax
-	callq *%r10
-	addq $8, %rsp
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $24, %rax
 	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
 	movzbl (%rax), %eax
 	push %rax
 	movq $48, %rax
@@ -24062,10 +24058,14 @@ read_escaped_char:
 	je .L.false.357
 	movq $55, %rax
 	push %rax
+	movq $1, %rax
+	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $24, %rax
 	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
 	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
@@ -24080,6 +24080,14 @@ read_escaped_char:
 .L.end.357:
 	cmpq $1, %rax
 	jne .L.else.356
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq tokenizer_next(%rip), %rax
+	movq %rax, %r10
+	movq $0, %rax
+	callq *%r10
+	addq $8, %rsp
 	leaq -4(%rbp), %rax
 	push %rax
 	movq $48, %rax
@@ -24103,18 +24111,14 @@ read_escaped_char:
 	addl %edi, %eax
 	pop %rdi
 	movl %eax, (%rdi)
-	leaq 16(%rbp), %rax
-	movq (%rax), %rax
+	movq $1, %rax
 	push %rax
-	leaq tokenizer_next(%rip), %rax
-	movq %rax, %r10
-	movq $0, %rax
-	callq *%r10
-	addq $8, %rsp
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $24, %rax
 	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
 	movzbl (%rax), %eax
 	push %rax
 	movq $48, %rax
@@ -24126,10 +24130,14 @@ read_escaped_char:
 	je .L.false.359
 	movq $55, %rax
 	push %rax
+	movq $1, %rax
+	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $24, %rax
 	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
 	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
@@ -24144,6 +24152,14 @@ read_escaped_char:
 .L.end.359:
 	cmpq $1, %rax
 	jne .L.else.358
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq tokenizer_next(%rip), %rax
+	movq %rax, %r10
+	movq $0, %rax
+	callq *%r10
+	addq $8, %rsp
 	leaq -4(%rbp), %rax
 	push %rax
 	movq $48, %rax
@@ -24219,10 +24235,42 @@ read_escaped_char:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.else.361
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	addq $16, %rax
+	movslq (%rax), %rax
+	push %rax
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	addq $20, %rax
+	movslq (%rax), %rax
+	push %rax
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	addq $0, %rax
+	movq (%rax), %rax
+	push %rax
 	leaq (%rsp), %rax
 	push %rax
 .data
 .L.str.333:
+	.byte 37
+	.byte 115
+	.byte 58
+	.byte 37
+	.byte 100
+	.byte 58
+	.byte 37
+	.byte 100
+	.byte 58
+	.byte 32
+	.byte 101
+	.byte 114
+	.byte 114
+	.byte 111
+	.byte 114
+	.byte 58
+	.byte 32
 	.byte 105
 	.byte 110
 	.byte 118
@@ -24235,11 +24283,21 @@ read_escaped_char:
 	.byte 101
 	.byte 120
 	.byte 32
-	.byte 100
-	.byte 105
-	.byte 103
-	.byte 105
-	.byte 116
+	.byte 101
+	.byte 115
+	.byte 99
+	.byte 97
+	.byte 112
+	.byte 101
+	.byte 32
+	.byte 115
+	.byte 101
+	.byte 113
+	.byte 117
+	.byte 101
+	.byte 110
+	.byte 99
+	.byte 101
 	.byte 10
 	.byte 0
 .text
@@ -24249,7 +24307,7 @@ read_escaped_char:
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
-	addq $16, %rsp
+	addq $40, %rsp
 	movq $1, %rax
 	push %rax
 	leaq exit(%rip), %rax
@@ -24454,8 +24512,11 @@ read_escaped_char:
 	jmp .L.end.369
 .L.else.369:
 .L.end.369:
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	addq $24, %rax
+	movq (%rax), %rax
+	movzbl (%rax), %eax
 	movq %rbp, %rsp
 	pop %rbp
 	retq
