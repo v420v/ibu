@@ -72,11 +72,11 @@ func frepeat_str(fd i32, str *u8, n i32) i32 {
 }
 
 func print_error_with_code(tok *Token, msg *u8) i32 {
-	eprintf("--> %s:%d:%d: error:\n", tok.file_name, tok.line, tok.col);
+	eprintf("\033[1m\033[31m--> %s:%d:%d: error:\033[0m\n", tok.file_name, tok.line, tok.col);
 
-	eprintf(" |\n");
+	eprintf(" | \n");
 
-	eprintf(" |");
+	eprintf(" | ");
 	while (*tok.program != 10) && (*tok.program != 0) {
 		if *tok.program == 9 {
 			write(2, " ", 1);
@@ -87,14 +87,15 @@ func print_error_with_code(tok *Token, msg *u8) i32 {
 	}
 	eprintf("\n");
 
-	eprintf(" |");
+	eprintf(" | ");
 
+	eprintf("\033[1m\033[31m");
 	frepeat_str(STDERR, " ", tok.col);
 	frepeat_str(STDERR, "^", tok.len);
 
-	eprintf(" %s\n", msg);
+	eprintf(" %s\033[0m\n", msg);
 
-	eprintf(" |\n");
+	eprintf(" | \n");
 
 	return 0;
 }
@@ -199,9 +200,9 @@ func skip_single_line_comment(t *Tokenizer) i32 {
 }
 
 func string_end(t *Tokenizer, str *u8) *u8 {
-	while *str != 34 {
+	while *str != '\"' {
 		if *str == '\n' || *str == '\0' {
-			eprintf("%s:%d:%d: error: unclosed string literal\n", t.file_name, t.line, t.col);
+			eprintf("\033[1m\033[31m--> %s:%d:%d: error: unclosed string literal\033[0m\n", t.file_name, t.line, t.col);
 			exit(1);
 		}
 		if *str == '\\' { // back slash
@@ -245,7 +246,7 @@ func read_escaped_char(t *Tokenizer) i32 {
 	if *t.program == 'x' {
 		tokenizer_next(t);
 		if !is_hex_digit(*t.program) {
-			eprintf("%s:%d:%d: error: invalid hex escape sequence\n", t.file_name, t.line, t.col);
+			eprintf("\033[1m\033[31m--> %s:%d:%d: error: invalid hex escape sequence\033[0m\n", t.file_name, t.line, t.col);
 			exit(1);
 		}
 
@@ -286,7 +287,7 @@ func tokenize_char(t *Tokenizer) *Token {
 	tokenizer_next(t); // skip start '\''
 
 	var c i32;
-	if *t.program == 92 {
+	if *t.program == '\\' {
 		c = read_escaped_char(t);
 	} else {
 		c = *t.program;
@@ -361,7 +362,7 @@ func tokenize(t *Tokenizer) *Token {
 			cur = cur.next = tokenize_ident(t);
 		} else if *t.program == '\'' {
 			cur = cur.next = tokenize_char(t);
-		} else if *t.program == 34 {
+		} else if *t.program == '\"' {
 			cur = cur.next = tokenize_string(t);
 		} else if is_two_c_punct(t.program) {
 			cur = cur.next = new_token(t, TK_PUNCT);
@@ -397,21 +398,6 @@ func tokenize(t *Tokenizer) *Token {
 	cur.len = 1;
 
 	return head.next;
-}
-
-func print_all_tokens(tok *Token) i32;
-func print_all_tokens(tok *Token) i32 {
-	if tok == nil {
-		return 1;
-	}
-
-	printf("kind = %d\nlit = %s\n----------\n", tok.kind, tok.lit);
-
-	if tok.next != nil {
-		print_all_tokens(tok.next);
-	}
-
-	return 0;
 }
 
 // ----------------------------------
@@ -823,26 +809,6 @@ func strcmp(a *u8, b *u8) bool {
 	return false;
 }
 
-func print_user_defined_types(types *TypeVec) i32 {
-	var type_idx i32 = 0;
-	while type_idx < types.len {
-		if types.ptr[type_idx].kind == TY_STRUCT {
-			printf("struct %s {\n", types.ptr[type_idx].name);
-			var member_idx i32 = 0;
-			while member_idx < types.ptr[member_idx].members.len {
-				printf("  %s\n", types.ptr[member_idx].members.ptr[member_idx].name);
-				member_idx++;
-			}
-			printf("}\n");
-		} else {
-			eprintf("error: unkown user-defined type `%s`", types.ptr[type_idx].name);
-			exit(1);
-		}
-		type_idx++;
-	}
-	return 0;
-}
-
 func get_user_defined_type(p *Parser, name *u8) *Type {
 	var idx i32 = 0;
 
@@ -1059,10 +1025,10 @@ func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32 {
 			if strcmp(tok.lit, "...") {
 				eprintf("help: by default, variable-length arguments are accessed using the built-in variable `argv`, which can be renamed as the following example\n");
 				eprintf(" |\n");
-				eprintf(" |// simple example of renaming `argv` to `nums`.\n");
-				eprintf(" |func add_nums(nums ...) i32 {\n");
-				eprintf(" |    return nums[0] + nums[1] + nums[2];\n");
-				eprintf(" |}\n");
+				eprintf(" | // simple example of renaming `argv` to `nums`.\n");
+				eprintf(" | func add_nums(nums ...) i32 {\n");
+				eprintf(" |     return nums[0] + nums[1] + nums[2];\n");
+				eprintf(" | }\n");
 				eprintf(" |\n");
 			}
 			exit(1);
@@ -2722,7 +2688,7 @@ func preprocess(tok *Token, p *Preprocessor) i32 {
 
 			var fd i32 = open(file_name, 0, 420);
 			if fd < 0 {
-				eprintf("error: opening file %s\n", file_name);
+				eprintf("\033[1m\033[31merror\033[0m: opening file %s\n", file_name);
 				exit(1);
 			}
 
@@ -2752,15 +2718,6 @@ break:
 	return 0;
 }
 
-func print_all_macros(p *Preprocessor) i32 {
-	var m *Macro = p.macros;
-	while m != nil {
-		eprintf("name: %s, token lit: %s\n", m.name, m.tok.lit);
-		m = m.next;
-	}
-	return 0;
-}
-
 // ----------------------------------
 // Start
 // ----------------------------------
@@ -2779,7 +2736,7 @@ func main(argc i32, argv **u8) i32 {
 	} else {
 		fd = open(file_name, 0, 420);
 		if fd < 0 {
-			eprintf("error: opening file %s\n", file_name);
+			eprintf("\033[1m\033[31merror\033[0m: opening file %s\n", file_name);
 			exit(1);
 		}
 	}
