@@ -1,4 +1,6 @@
 
+#include "src/std.ibu"
+
 func main() i32 {
     var c i32 = 1;
     while c <= 100 {

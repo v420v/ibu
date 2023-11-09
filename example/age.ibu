@@ -1,4 +1,6 @@
 
+#include "src/std.ibu"
+
 func main() i32 {
     var age i8;
     age = 19;

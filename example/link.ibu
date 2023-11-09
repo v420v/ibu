@@ -1,4 +1,6 @@
 
+#include "src/std.ibu"
+
 struct User;
 struct User {
     name *u8,
