@@ -18,11 +18,12 @@ struct Tokenizer {
 // Tokens
 #define TokenKind	i32
 #define TK_NUM		0
-#define TK_IDENT	1
-#define TK_STR		2
-#define TK_PUNCT	3
-#define TK_EOF		4
-#define TK_UNKOWN	5
+#define TK_CHAR     1
+#define TK_IDENT	2
+#define TK_STR		3
+#define TK_PUNCT	4
+#define TK_EOF		5
+#define TK_UNKOWN	6
 
 struct Token;
 
@@ -35,6 +36,7 @@ struct Token {
 	lit *u8,
 	len i32,
 	str_val *u8,
+	char_val u8,
 	next *Token,
 }
 
@@ -110,7 +112,7 @@ func is_three_c_punct(a *u8) bool {
 }
 
 func is_two_c_punct(a *u8) bool {
-	var puncts *u8 = "==<=>=!=++--||&&";
+	var puncts *u8 = "==<=>=!=++--||&&<<>>";
 	var idx i32 = 0;
 	while idx < strlen(puncts) {
 		if a[0] == puncts[idx] && a[1] == puncts[idx+1] {
@@ -210,16 +212,93 @@ func string_end(t *Tokenizer, str *u8) *u8 {
 	return str;
 }
 
-func read_escaped_char(t *Tokenizer) u8 {
-	tokenizer_next(t);
-	var c u8 = *t.program;
-	if c == 110 {
-		return 10;
+func is_hex_digit(c u8) bool {
+	return (48 <= c <= 57) || (65 <= c <= 70) || (97 <= c <= 102);
+}
+
+func from_hex(c u8) bool {
+	if 48 <= c <= 57 {
+		return c - 48;
 	}
-	if c == 116 {
+	if 97 <= c <= 102 {
+		return c - 97 + 10;
+	}
+	return c - 65 + 10;
+}
+
+func read_escaped_char(t *Tokenizer) i32 {
+	var c i32;
+	tokenizer_next(t);
+	if 48 <= *t.program <= 55 {
+		c = *t.program - 48;
+		tokenizer_next(t);
+		if 48 <= *t.program <= 55 {
+			c = (c << 3) + (*t.program - 48);
+			tokenizer_next(t);
+			if 48 <= *t.program <= 55 {
+        		c = (c << 3) + (*t.program - 48);
+			}
+		}
+		return c;
+	}
+
+	if *t.program == 120 {
+		tokenizer_next(t);
+		if !is_hex_digit(*t.program) {
+			eprintf("invalid hex digit\n");
+			exit(1);
+		}
+
+		while is_hex_digit(*t.program) {
+			c = (c << 4) + from_hex(*t.program);
+			tokenizer_next(t);
+		}
+	}
+
+	if *t.program == 97 {
+		return 7;
+	}
+	if *t.program == 98 {
+		return 8;
+	}
+	if *t.program == 116 {
 		return 9;
 	}
+	if *t.program == 110 {
+		return 10;
+	}
+	if *t.program == 118 {
+		return 11;
+	}
+	if *t.program == 102 {
+		return 12;
+	}
+	if *t.program == 114 {
+		return 13;
+	}
+
 	return c;
+}
+
+func tokenize_char(t *Tokenizer) *Token {
+	var tok *Token = new_token(t, TK_CHAR);
+	var char_start *u8 = t.program;
+	tokenizer_next(t); // skip start '\''
+
+	var c i32;
+	if *t.program == 92 {
+		c = read_escaped_char(t);
+	} else {
+		c = *t.program;
+	}
+	tokenizer_next(t);
+	tokenizer_next(t); // skip end '\''
+
+	tok.lit = strndup(char_start, t.program - char_start);
+	tok.len = t.program - char_start;
+	tok.char_val = c;
+
+	return tok;
 }
 
 func tokenize_string(t *Tokenizer) *Token {
@@ -280,6 +359,8 @@ func tokenize(t *Tokenizer) *Token {
 			cur = cur.next = tokenize_number(t);
 		} else if isalpha(*t.program) {
 			cur = cur.next = tokenize_ident(t);
+		} else if *t.program == 39 {
+			cur = cur.next = tokenize_char(t);
 		} else if *t.program == 34 {
 			cur = cur.next = tokenize_string(t);
 		} else if is_two_c_punct(t.program) {
@@ -459,6 +540,8 @@ func vec_append_type(vec *TypeVec, ty *Type) i32 {
 #define ND_LOGOR			27
 #define ND_MEMBER_ACCESS	28
 #define ND_EMPTY            29
+#define ND_SHL              30
+#define ND_SHR              31
 
 #define TypeKind	i32
 #define TY_I64		0
@@ -1065,7 +1148,8 @@ func add_type(p *Parser, node *Node) i32 {
 
 	if (node.kind == ND_ADD || node.kind == ND_SUB
 		|| node.kind == ND_MUL || node.kind == ND_DIV
-		|| node.kind == ND_MOD || node.kind == ND_ASSIGN) {
+		|| node.kind == ND_MOD || node.kind == ND_ASSIGN
+		|| node.kind == ND_SHL || node.kind == ND_SHR) {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
@@ -1226,6 +1310,10 @@ func parse_number(p *Parser) *Node {
 	if p.tokens.kind == TK_NUM {
 		node = new_node(ND_NUM);
 		node.int_val = atoi(p.tokens.lit);
+		parser_next(p);
+	} else if p.tokens.kind == TK_CHAR {
+		node = new_node(ND_NUM);
+		node.int_val = p.tokens.char_val;
 		parser_next(p);
 	} else if p.tokens.kind == TK_STR {
 		node = new_node(ND_STR);
@@ -1490,6 +1578,28 @@ func parse_add(p *Parser) *Node {
 	return node;
 }
 
+func parse_shift(p *Parser) *Node {
+	var node *Node = parse_add(p);
+
+	while {
+		if strcmp(p.tokens.lit, "<<") {
+			parser_next(p);
+			node = new_binop(ND_SHL, node, parse_add(p));
+      		goto continue;
+		}
+		if strcmp(p.tokens.lit, ">>") {
+			parser_next(p);
+			node = new_binop(ND_SHR, node, parse_add(p));
+      		goto continue;
+		}
+		goto break;
+	continue:
+	}
+
+break:
+    return node;
+}
+
 func is_comparison_node(node *Node) i32 {
 	if node.kind == ND_LE {
 		return true;
@@ -1566,13 +1676,13 @@ func new_equality(kind NodeKind, lhs *Node, rhs *Node) *Node {
 }
 
 func parse_relational(p *Parser) *Node {
-	var node *Node = parse_add(p);
+	var node *Node = parse_shift(p);
 	var rhs *Node;
 
 	while {
 		if strcmp(p.tokens.lit, "<=") {
 			parser_next(p);
-			rhs = parse_add(p);
+			rhs = parse_shift(p);
 			if is_comparison_node(node) {
 				node = new_relational(ND_LE, node, rhs);
 			} else {
@@ -1580,7 +1690,7 @@ func parse_relational(p *Parser) *Node {
 			}
 		} else if strcmp(p.tokens.lit, ">=") {
 			parser_next(p);
-			rhs = parse_add(p);
+			rhs = parse_shift(p);
 			if is_comparison_node(node) {
 				node = new_relational(ND_GE, node, rhs);
 			} else {
@@ -1588,7 +1698,7 @@ func parse_relational(p *Parser) *Node {
 			}
 		} else if strcmp(p.tokens.lit, "<") {
 			parser_next(p);
-			rhs = parse_add(p);
+			rhs = parse_shift(p);
 			if is_comparison_node(node) {
 				node = new_relational(ND_LT, node, rhs);
 			} else {
@@ -1596,7 +1706,7 @@ func parse_relational(p *Parser) *Node {
 			}
 		} else if strcmp(p.tokens.lit, ">") {
 			parser_next(p);
-			rhs = parse_add(p);
+			rhs = parse_shift(p);
 			if is_comparison_node(node) {
 				node = new_relational(ND_GT, node, rhs);
 			} else {
@@ -2158,6 +2268,14 @@ func func_call_args_to_stack(g *Gen, args *NodeVec, ty *Type) i32 {
 	return stack;
 }
 
+func binop_ax_by_type_size(ty *Type) *u8 {
+	if ty.size == 8 {
+    	"%rax";
+	} else {
+		"%eax";
+	}
+}
+
 func gen_expr(g *Gen, node *Node) i32 {
 	var c i32 = 0;
 	if node.kind == ND_EMPTY {
@@ -2249,6 +2367,18 @@ func gen_expr(g *Gen, node *Node) i32 {
 	if node.kind == ND_ADD {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("add", node.ty);
+		return 0;
+	}
+	if node.kind == ND_SHL {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		printf("\tmovq %rdi, %rcx\n");
+    	printf("\tshl %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
+		return 0;
+	}
+	if node.kind == ND_SHR {
+		gen_lhs_rhs(g, node.lhs, node.rhs);
+		printf("\tmovq %rdi, %rcx\n");
+    	printf("\tshr %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
 		return 0;
 	}
 	if node.kind == ND_SUB {
