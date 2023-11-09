@@ -112,15 +112,13 @@ func is_three_c_punct(a *u8) bool {
 func is_two_c_punct(a *u8) bool {
 	var puncts *u8 = "==<=>=!=++--||&&";
 	var idx i32 = 0;
-	while {
-		if idx >= 15 {
-			return false;
-		}
+	while idx < strlen(puncts) {
 		if a[0] == puncts[idx] && a[1] == puncts[idx+1] {
 			return true;
 		}
 		idx++;
 	}
+	return false;
 }
 
 func tokenizer_next(t *Tokenizer) i32 {
@@ -475,6 +473,7 @@ func vec_append_type(vec *TypeVec, ty *Type) i32 {
 #define TY_U32		9
 #define TY_U16		10
 #define TY_U8		11
+#define TY_U0       12
 
 struct Type {
 	kind TypeKind,
@@ -717,6 +716,7 @@ struct Parser {
 	ty_i16 *Type,
 	ty_i32 *Type,
 	ty_i64 *Type,
+	ty_u0 *Type,
 	ty_u8 *Type,
 	ty_u16 *Type,
 	ty_u32 *Type,
@@ -834,6 +834,7 @@ func new_parser(program *u8, tokens *Token) *Parser {
 	p.ty_u32 = new_builtin_type(TY_U32, 4, "u32", true);
 	p.ty_u16 = new_builtin_type(TY_U16, 2, "u16", true);
 	p.ty_u8 = new_builtin_type(TY_U8, 1, "u8", true);
+	p.ty_u0 = new_builtin_type(TY_U0, 0, "u0", true);
 
 	p.program = program;
 

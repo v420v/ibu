@@ -13,8 +13,6 @@
 - No `break`, `continue` stmt. Use `goto`
 - No block scopes
 
-Ibu is similar to C and is also influenced by Go, HolyC, and Python.
-
 ```go
 #include "src/std.ibu"
 
@@ -94,8 +92,8 @@ func main() i32 {
 ```
 
 #### Types
-```rs
-i8, i16, i32, i64, u8, u16, u32, u64
+```hc
+i8, i16, i32, i64, u0, u8, u16, u32, u64
 ```
 
 #### If
