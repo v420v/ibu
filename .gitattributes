@@ -1,2 +1,2 @@
 
-**/*.s linguist-vendored
+bootstrap/*.s linguist-vendored
