@@ -1,10 +1,6 @@
+<h1>The Ibu programming language</h1>
 
-<div align="center" style="display:grid;place-items:center;">
-    <h1>The Ibu programming language</h1>
-
-<a href="https://marketplace.visualstudio.com/items?itemName=ibuki.ibu">vscode</a>
-
-</div>
+[![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
 - No strict type checker
 - No global variables
@@ -248,6 +244,9 @@ func main(argc i32, argv **u8) i32 {
 }
 
 ```
+
+### Syntax highlighter
+<a href="https://marketplace.visualstudio.com/items?itemName=ibuki.ibu">Visual Studio Code</a>
 
 ### Selfhosting
 `make self` will compile `src/compiler.ibu` using the ./ibuc executable
