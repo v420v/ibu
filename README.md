@@ -67,7 +67,7 @@ $ ld -o <filename> <filename>.o src/builtin.o
 
 #### Hello, world!
 ```go
-#include "src/std.ibu"
+#include "std.ibu"
 
 func main() i32 {
     printf("Hello, world!\n");
@@ -77,6 +77,8 @@ func main() i32 {
 
 #### Variables
 ```go
+#include "std.ibu"
+
 func main() i32 {
     var name *u8 = "Ibuki";
     var age i8 = 19;
@@ -94,6 +96,8 @@ i8, i16, i32, i64, u0, u8, u16, u32, u64
 
 #### If
 ```go
+#include "std.ibu"
+
 func main() i32 {
     var x i32 = 34;
     var y i32 = 35;
@@ -108,6 +112,8 @@ func main() i32 {
 ```
 
 ```go
+#include "std.ibu"
+
 // Allows "13 <= age < 20" instead of "13 <= age && age < 20"
 
 func main() i32 {
@@ -123,22 +129,24 @@ func main() i32 {
 
 #### Variable length args
 ```go
-// Variable-length arguments can be accessed using the built-in variable argv
+#include "std.ibu"
+
+// Variable-length arguments can be accessed using the built-in variable argv, argc
 
 func add_nums(...) i32 {
-    return argv[0] + argv[1] + argv[2];
-}
+    var n i32 = 0;
+    var idx i32 = 0;
 
-func add_nums2(nums ...) i32 {
-    return nums[0] + nums[1] + nums[2];
+    while idx < argc {
+        n = n + argv[idx];
+        idx++;
+    }
+
+    return n;
 }
 
 func main() i32 {
-    var d i32;
-    d = add_nums(1, 2, 3);
-    printf("%d\n", d);
-
-    d = add_nums2(4, 5, 6);
+    var d i32 = add_nums(1, 2, 3);
     printf("%d\n", d);
 
     return 0;
@@ -147,6 +155,8 @@ func main() i32 {
 
 #### While
 ```go
+#include "std.ibu"
+
 func main() i32 {
     // Like go's for loop, the condition is true if it is empty.
     while {
@@ -165,6 +175,8 @@ func main() i32 {
 
 #### Struct
 ```go
+#include "std.ibu"
+
 struct Person {
     name *u8,
     age i8,
@@ -183,6 +195,8 @@ func main() i32 {
 
 #### Struct Pointer
 ```go
+#include "std.ibu"
+
 struct Person {
     name *u8,
     age i8,
@@ -202,15 +216,12 @@ func main() i32 {
 
 #### Linked list
 ```go
-
-struct User;
+#include "std.ibu"
 
 struct User {
     name *u8,
     next *User,
 }
-
-func user_print_names(user *User) i32;
 
 func user_print_names(user *User) i32 {
     printf("%s\n", user.name);
@@ -249,7 +260,7 @@ func main(argc i32, argv **u8) i32 {
 <a href="https://marketplace.visualstudio.com/items?itemName=ibuki.ibu">Visual Studio Code</a>
 
 ### Selfhosting
-`make self` will compile `src/compiler.ibu` using the ./ibuc executable
+`make self` will compile `src/main.ibu` using the ./ibuc executable
 ```sh
 
 $ make self

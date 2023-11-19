@@ -1,13 +1,10 @@
 
-#include "src/std.ibu"
+#include "std.ibu"
 
-struct User;
 struct User {
     name *u8,
     next *User,
 }
-
-func user_print_names(user *User) i32;
 
 func user_print_names(user *User) i32 {
     printf("%s\n", user.name);

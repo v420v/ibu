@@ -1,5 +1,5 @@
 
-#include "src/linux-syscall.ibu"
+#include "linux-syscall.ibu"
 
 #define STDIN 0
 #define STDIO 1
@@ -20,7 +20,6 @@ func fputs(fd i32, str *u8) i32 {
 	return 0;
 }
 
-func fputnum(fd i32, n i32, r i32) i32;
 func fputnum(fd i32, n i32, r i32) i32 {
 	if n >= r {
 		fputnum(fd, n / r, r);
@@ -55,12 +54,15 @@ func vfprintf(fd i32, fmt *u8, args *u64) i32 {
 		fmt++;
 	}
 
-	return 0;
+	return 0; // TODO: return the number of characters that are printed.
+}
+
+func fprintf(fd i32, fmt *u8, ...) i32 {
+	return vfprintf(fd, fmt, argv);
 }
 
 func printf(fmt *u8, ...) i32 {
-	vfprintf(STDIO, fmt, argv);
-	return 0;
+	return vfprintf(STDIO, fmt, argv);
 }
 
 func eprintf(fmt *u8, ...) i32 {
@@ -70,6 +72,58 @@ func eprintf(fmt *u8, ...) i32 {
 
 func align_to(n i32, align i32) i32 {
 	return (n + align - 1) / align * align;
+}
+
+func memmove(dest *u8, src *u8, n u32) i32 {
+	var p_dest *u8 = dest;
+	var p_src *u8 = src;
+
+	var tmp *u8 = alloc(typesize(u8) * n); // TODO: free() before return
+
+	if tmp == nil {
+		return nil;
+	} else {
+		var i u32 = 0;
+		while i < n {
+			*(tmp + i) = *(p_src + i);
+			i++;
+		}
+
+		i = 0;
+		while i < n {
+			*(p_dest + i) = *(tmp + i);
+			i++;
+		}
+	}
+
+	return dest;
+}
+
+func byte_to_lower(c u8) u8 {
+	if 'A' <= c <= 'Z' {
+		return c + 32;
+	}
+	return c;
+}
+
+func byte_to_upper(c u8) u8 {
+	if 'A' <= c <= 'Z' {
+		return c - 32;
+	}
+	return c;
+}
+
+func strrchr(str *u8, ch i32) *u8 {
+    var last_occurrence *u8 = nil;
+
+    while *str != '\0' {
+        if *str == ch {
+            last_occurrence = str;
+        }
+        str++;
+    }
+
+    return last_occurrence;
 }
 
 func memcpy(dest *u8, source *u8, size i32) *u8 {
@@ -144,7 +198,7 @@ func reverse(str *u8, length i32) i32 {
     }
 }
 
-func itoa(num i32, str *u8, base i32) *u8 {
+func itoa(num i32, str *u8, base i32) i32 {
 	var i i32 = 0;
 
     if (num == 0) {
@@ -152,6 +206,13 @@ func itoa(num i32, str *u8, base i32) *u8 {
         str[i] = 0;
         return str;
     }
+
+	var is_neg bool = false;
+
+	if num < 0 {
+		is_neg = true;
+		num = 0 - num;
+	}
  
     while num != 0 {
         var rem i32 = num % base;
@@ -162,11 +223,53 @@ func itoa(num i32, str *u8, base i32) *u8 {
 		}
         num = num / base;
     }
- 
-    str[i] = 0;
 
-    reverse(str, i);
+	if is_neg {
+		str[i++] = '-';
+	}
  
-    return str;
+	reverse(str, i);
+
+    str[i] = 0;
+ 
+    return i;
+}
+
+func vsprintf(buf *u8, fmt *u8, argv *u64) i32 {
+	var buf_start *u8 = buf;
+
+	var i i32 = 0;
+
+	while *fmt != 0 {
+		if *fmt == '%' {
+			fmt++;
+			if *fmt == 's' { // %s
+				var str_length i32 = strlen(argv[i]);
+				memcpy(buf, argv[i], str_length);
+				buf = buf + str_length;
+				i++;
+			} else if *fmt == 'd' { // %d
+				buf = buf + itoa(argv[i++], buf, 10);
+			} else {
+				*buf = '%';
+				buf++;
+				fmt--;
+			}
+		} else {
+			*buf = *fmt;
+			buf++;
+		}
+		fmt++;
+	}
+
+	var length i32 = buf - buf_start;
+
+	buf[length] = '\0';
+
+	return length;
+}
+
+func sprintf(buf *u8, fmt *u8, ...) i32 {
+	return vsprintf(buf, fmt, argv);
 }
 

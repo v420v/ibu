@@ -1,410 +1,92 @@
 
-#include "src/std.ibu"
+#define NodeKind			i32
+#define ND_ADD				0
+#define ND_SUB				1
+#define ND_MUL				2
+#define ND_DIV				3
+#define ND_MOD				4
+#define ND_NOT				5
+#define ND_NE				6
+#define ND_EQ				7
+#define ND_LE				8
+#define ND_LT				9
+#define ND_GE				10
+#define ND_GT				11
+#define ND_STR				12
+#define ND_NUM				13
+#define ND_VAR				14
+#define ND_IF				15
+#define ND_WHILE			16
+#define ND_ASSIGN			17
+#define ND_RETURN			18
+#define ND_REF				19
+#define ND_DEREF			20
+#define ND_BLOCK			21
+#define ND_EXPR_STMT		22
+#define ND_GOTO				23
+#define ND_LABEL			24
+#define ND_FUNC_CALL		25
+#define ND_LOGAND			26
+#define ND_LOGOR			27
+#define ND_MEMBER_ACCESS	28
+#define ND_EMPTY            29
+#define ND_SHL              30
+#define ND_SHR              31
 
-#define PROGRAM_MAX_SIZE 60000
+#define TypeKind	i32
+#define TY_I64		0
+#define TY_I32		1
+#define TY_I16		2
+#define TY_I8		3
+#define TY_BOOL		4
+#define TY_STRUCT	5
+#define TY_FUNC		6
+#define TY_PTR		7
+#define TY_U64		8
+#define TY_U32		9
+#define TY_U16		10
+#define TY_U8		11
+#define TY_U0       12
 
-// ----------------------------------
-// Tokenizer
-// ----------------------------------
-
-struct Tokenizer {
-	file_name *u8,
-	cur_line *u8,
-	col i32,
-	line i32,
-	program *u8,
-}
-
-// Tokens
-#define TokenKind	i32
-#define TK_NUM		0
-#define TK_CHAR     1
-#define TK_IDENT	2
-#define TK_STR		3
-#define TK_PUNCT	4
-#define TK_EOF		5
-#define TK_UNKOWN	6
-
-struct Token;
-
-struct Token {
-	kind TokenKind,
-	file_name *u8,
-	program *u8,
-	line i32,
-	col i32,
-	lit *u8,
+struct StrVec {
+	ptr **u8,
 	len i32,
-	str_val *u8,
-	char_val u8,
-	next *Token,
+	cap i32,
 }
 
-func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
-	var t *Tokenizer = alloc(typesize(Tokenizer));
-	if t == nil {
-		eprintf("alloc() returned nil\n");
+func new_str_vec(cap i32) *StrVec {
+	var vec *StrVec = alloc(typesize(StrVec));
+	vec.ptr = alloc(typesize(*u8) * cap);
+	if vec.ptr == nil {
+		eprintf("alloc returned nil\n");
 		exit(1);
 	}
-	t.line = 1;
-	t.col = 0;
-	t.program = program;
-	t.cur_line = program;
-	t.file_name = file_name;
-	return t;
+	vec.len = 0;
+	vec.cap = cap;
+	return vec;
 }
 
-func get_program_line_length(str *u8) i32 {
-	var start *u8 = str;
-	while (*str != '\n') && (*str != '\0') {
-		str++;
-	}
-	return str - start;
-}
-
-func frepeat_str(fd i32, str *u8, n i32) i32 {
-	var i i32 = 0;
-	while i < n {
-		fputs(fd, str);
-		i++;
-	}
-	return 0;
-}
-
-func print_error_with_code(tok *Token, msg *u8) i32 {
-	eprintf("\033[1m\033[31m--> %s:%d:%d: error:\033[0m\n", tok.file_name, tok.line, tok.col);
-
-	eprintf(" | \n");
-
-	eprintf(" | ");
-	while (*tok.program != 10) && (*tok.program != 0) {
-		if *tok.program == 9 {
-			write(2, " ", 1);
-		} else {
-			write(2, tok.program, 1);
-		}
-		tok.program++;
-	}
-	eprintf("\n");
-
-	eprintf(" | ");
-
-	eprintf("\033[1m\033[31m");
-	frepeat_str(STDERR, " ", tok.col);
-	frepeat_str(STDERR, "^", tok.len);
-
-	eprintf(" %s\033[0m\n", msg);
-
-	eprintf(" | \n");
-
-	return 0;
-}
-
-func print_error(tok *Token, msg *u8) i32 {
-	print_error_with_code(tok, msg);
-	exit(1);
-}
-
-func is_three_c_punct(a *u8) bool {
-	if a[0] == '.' && a[1] == '.' && a[2] == '.' {
-		return true;
-	}
-	return false;
-}
-
-func is_two_c_punct(a *u8) bool {
-	var puncts *u8 = "==<=>=!=++--||&&<<>>";
-	var idx i32 = 0;
-	while idx < strlen(puncts) {
-		if a[0] == puncts[idx] && a[1] == puncts[idx+1] {
-			return true;
-		}
-		idx++;
-	}
-	return false;
-}
-
-func tokenizer_next(t *Tokenizer) i32 {
-	if *t.program == '\n' { // new line
-		t.line++;
-		t.col = 0;
-		t.program++;
-		t.cur_line = t.program;
-	} else {
-		t.col++;
-		t.program++;
-	}
-	return 0;
-}
-
-func tokenizer_n_next(t *Tokenizer, n i32) i32 {
-	var idx i32 = 0;
-	while idx < n {
-		tokenizer_next(t);
-		idx++;
-	}
-	return 0;
-}
-
-func new_token(t *Tokenizer, kind TokenKind) *Token {
-	var tok *Token = alloc(typesize(Token));
-	if tok == nil {
-		eprintf("alloc() returned nil\n");
+func str_vec_realloc(vec *StrVec) i32 {
+	var new_ptr *u8 = alloc(typesize(*u8) * vec.cap * 2);
+	if new_ptr == nil {
+		eprintf("alloc returned nil\n");
 		exit(1);
 	}
-
-	tok.line = t.line;
-	tok.col = t.col;
-	tok.file_name = t.file_name;
-	tok.kind = kind;
-	tok.program = t.cur_line;
-
-	return tok;
-}
-
-func ispunct(c u8) bool {
-	var punct_list *u8 = "+-<>;:{}=,()[].*#!%&/";
-
-	while *punct_list != nil {
-		if *punct_list == c {
-			return true;
-		}
-		punct_list++;
-	}
-
-	return false;
-}
-
-func tokenize_number(t *Tokenizer) *Token {
-	var tok *Token = new_token(t, TK_NUM);
-
-	var digit_start *u8 = t.program;
-	while isdigit(*t.program) {
-		tokenizer_next(t);
-	}
-
-	tok.lit = strndup(digit_start, t.program-digit_start);
-	tok.len = t.program-digit_start;
-
-	return tok;
-}
-
-func skip_single_line_comment(t *Tokenizer) i32 {
-	if (*t.program == '/') && (*(t.program+1) == '/') {
-		tokenizer_n_next(t, 2);
-		while (*t.program != '\n') && (*t.program != '\0') {
-			tokenizer_next(t);
-		}
-	}
+	memcpy(new_ptr, vec.ptr, (typesize(*u8) * vec.cap));
+	vec.cap = vec.cap * 2;
+	vec.ptr = new_ptr;
 	return 0;
 }
 
-func string_end(t *Tokenizer, str *u8) *u8 {
-	while *str != '\"' {
-		if *str == '\n' || *str == '\0' {
-			eprintf("\033[1m\033[31m--> %s:%d:%d: error: unclosed string literal\033[0m\n", t.file_name, t.line, t.col);
-			exit(1);
-		}
-		if *str == '\\' { // back slash
-			str++;
-		}
-		str++;
+func vec_append_str(vec *StrVec, ty *u8) i32 {
+	if vec.len >= vec.cap {
+		str_vec_realloc(vec);
 	}
-	return str;
+	vec.ptr[vec.len] = ty;
+	vec.len++;
+	return 0;
 }
 
-func is_hex_digit(c u8) bool {
-	return ('0' <= c <= '9') || ('A' <= c <= 'F') || ('a' <= c <= 'f');
-}
-
-func from_hex(c u8) bool {
-	if '0' <= c <= '9' {
-		return c - '0';
-	}
-	if 'a' <= c <= 'f' {
-		return c - 'a' + 10;
-	}
-	return c - 'A' + 10;
-}
-
-func read_escaped_char(t *Tokenizer) i32 {
-	var c i32;
-	tokenizer_next(t);
-	if '0' <= *t.program <= '7' {
-		c = *t.program - '0';
-		if '0' <= *(t.program+1) <= '7' {
-			tokenizer_next(t);
-			c = (c << 3) + (*t.program - '0');
-			if '0' <= *(t.program+1) <= '7' {
-				tokenizer_next(t);
-        		c = (c << 3) + (*t.program - '0');
-			}
-		}
-		return c;
-	}
-
-	if *t.program == 'x' {
-		tokenizer_next(t);
-		if !is_hex_digit(*t.program) {
-			eprintf("\033[1m\033[31m--> %s:%d:%d: error: invalid hex escape sequence\033[0m\n", t.file_name, t.line, t.col);
-			exit(1);
-		}
-
-		while is_hex_digit(*t.program) {
-			c = (c << 4) + from_hex(*t.program);
-			tokenizer_next(t);
-		}
-	}
-
-	if *t.program == 'a' {
-		return '\a';
-	}
-	if *t.program == 'b' {
-		return '\b';
-	}
-	if *t.program == 't' {
-		return '\t';
-	}
-	if *t.program == 'n' {
-		return '\n';
-	}
-	if *t.program == 'v' {
-		return '\v';
-	}
-	if *t.program == 'f' {
-		return '\f';
-	}
-	if *t.program == 'r' {
-		return '\r';
-	}
-
-	return *t.program;
-}
-
-func tokenize_char(t *Tokenizer) *Token {
-	var tok *Token = new_token(t, TK_CHAR);
-	var char_start *u8 = t.program;
-	tokenizer_next(t); // skip start '\''
-
-	var c i32;
-	if *t.program == '\\' {
-		c = read_escaped_char(t);
-	} else {
-		c = *t.program;
-	}
-	tokenizer_next(t);
-	tokenizer_next(t); // skip end '\''
-
-	tok.lit = strndup(char_start, t.program - char_start);
-	tok.len = t.program - char_start;
-	tok.char_val = c;
-
-	return tok;
-}
-
-func tokenize_string(t *Tokenizer) *Token {
-	var tok *Token = new_token(t, TK_STR);
-
-	var string_start *u8 = t.program;
-
-	tokenizer_next(t); // skip start `"`
-
-	var end *u8 = string_end(t, t.program);
-	var buf *u8 = alloc(end - t.program + 1);
-	var len i32 = 0;
-
-	while t.program < end {
-		if *t.program == '\\' {
-			buf[len++] = read_escaped_char(t);
-		} else {
-			buf[len++] = *t.program;
-		}
-
-		tokenizer_next(t);
-	}
-	buf[len] = 0; // null terminator
-
-	tokenizer_next(t); // skip end `"`
-
-	tok.lit = strndup(string_start, t.program - string_start);
-	tok.len = t.program - string_start;
-
-	tok.str_val = buf;
-
-	return tok;
-}
-
-func tokenize_ident(t *Tokenizer) *Token {
-	var tok *Token = new_token(t, TK_IDENT);
-
-	var ident_start *u8 = t.program;
-	while isalpha(*t.program) || isdigit(*t.program) || *t.program == 95 {
-		tokenizer_next(t);
-	}
-	ident_end:
-
-	tok.lit = strndup(ident_start, t.program-ident_start);
-	tok.len = t.program-ident_start;
-
-	return tok;
-}
-
-func tokenize(t *Tokenizer) *Token {
-	var head Token;
-	var cur *Token = &head;
-
-	while *t.program != nil {
-		skip_single_line_comment(t);
-
-		if isdigit(*t.program) {
-			cur = cur.next = tokenize_number(t);
-		} else if isalpha(*t.program) {
-			cur = cur.next = tokenize_ident(t);
-		} else if *t.program == '\'' {
-			cur = cur.next = tokenize_char(t);
-		} else if *t.program == '\"' {
-			cur = cur.next = tokenize_string(t);
-		} else if is_two_c_punct(t.program) {
-			cur = cur.next = new_token(t, TK_PUNCT);
-			cur.lit = strndup(t.program, 2);
-			cur.len = 2;
-			tokenizer_n_next(t, 2);
-		} else if is_three_c_punct(t.program) { // ...
-			cur = cur.next = new_token(t, TK_PUNCT);
-			cur.lit = strndup(t.program, 3);
-			cur.len = 3;
-			tokenizer_n_next(t, 3);
-		} else if ispunct(*t.program) {
-			cur = cur.next = new_token(t, TK_PUNCT);
-			cur.lit = strndup(t.program, 1);
-			cur.len = 1;
-			tokenizer_next(t);
-		} else if *t.program == ' ' { // Space
-			tokenizer_next(t);
-		} else if *t.program == '\n' { // New line
-			tokenizer_next(t);
-		} else if *t.program == '\t' { // Tab
-			tokenizer_next(t);
-		} else {
-			var invalid *Token = new_token(t, TK_UNKOWN);
-			invalid.lit = strndup(t.program, 1);
-			invalid.len = 1;
-			print_error(invalid, "unkown character found");
-		}
-	}
-
-	cur = cur.next = new_token(t, TK_EOF);
-	cur.lit = "EOF";
-	cur.len = 1;
-
-	return head.next;
-}
-
-// ----------------------------------
-// Parser
-// ----------------------------------
-
-struct Member;
 struct Type;
 
 struct Member {
@@ -494,55 +176,6 @@ func vec_append_type(vec *TypeVec, ty *Type) i32 {
 	vec.len++;
 	return 0;
 }
-
-#define NodeKind			i32
-#define ND_ADD				0
-#define ND_SUB				1
-#define ND_MUL				2
-#define ND_DIV				3
-#define ND_MOD				4
-#define ND_NOT				5
-#define ND_NE				6
-#define ND_EQ				7
-#define ND_LE				8
-#define ND_LT				9
-#define ND_GE				10
-#define ND_GT				11
-#define ND_STR				12
-#define ND_NUM				13
-#define ND_VAR				14
-#define ND_IF				15
-#define ND_WHILE			16
-#define ND_ASSIGN			17
-#define ND_RETURN			18
-#define ND_REF				19
-#define ND_DEREF			20
-#define ND_BLOCK			21
-#define ND_EXPR_STMT		22
-#define ND_GOTO				23
-#define ND_LABEL			24
-#define ND_FUNC_CALL		25
-#define ND_LOGAND			26
-#define ND_LOGOR			27
-#define ND_MEMBER_ACCESS	28
-#define ND_EMPTY            29
-#define ND_SHL              30
-#define ND_SHR              31
-
-#define TypeKind	i32
-#define TY_I64		0
-#define TY_I32		1
-#define TY_I16		2
-#define TY_I8		3
-#define TY_BOOL		4
-#define TY_STRUCT	5
-#define TY_FUNC		6
-#define TY_PTR		7
-#define TY_U64		8
-#define TY_U32		9
-#define TY_U16		10
-#define TY_U8		11
-#define TY_U0       12
 
 struct Type {
 	kind TypeKind,
@@ -1023,13 +656,7 @@ func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32 {
 		if strcmp(locals.name, name) {
 			print_error_with_code(tok, "name already exist");
 			if strcmp(tok.lit, "...") {
-				eprintf("help: by default, variable-length arguments are accessed using the built-in variable `argv`, which can be renamed as the following example\n");
-				eprintf(" |\n");
-				eprintf(" | // simple example of renaming `argv` to `nums`.\n");
-				eprintf(" | func add_nums(nums ...) i32 {\n");
-				eprintf(" |     return nums[0] + nums[1] + nums[2];\n");
-				eprintf(" | }\n");
-				eprintf(" |\n");
+				eprintf("help: by default, variable-length arguments are accessed using the built-in variable `argv` and `argc`.\n");
 			}
 			exit(1);
 		}
@@ -1189,6 +816,7 @@ func parse_ty(p *Parser) *Type {
 	else if strcmp(name, "u32") { ty = p.ty_u32; }
 	else if strcmp(name, "u16") { ty = p.ty_u16; }
 	else if strcmp(name, "u8") { ty = p.ty_u8; }
+	else if strcmp(name, "u0") { ty = p.ty_u0; }
 	else if strcmp(name, "bool") { ty = p.ty_bool; }
 	else if strcmp(name, "*") { ty = new_pointer_type(parse_ty(p)); }
 	else if strcmp(name, "func") {
@@ -1265,9 +893,7 @@ func parse_ident(p *Parser) *Node {
 
 	parser_next(p);
 
-	//if !strcmp(p.tokens.lit, "(") {
-		return var_node;
-	//}
+	return var_node;
 }
 
 func parse_number(p *Parser) *Node {
@@ -1414,9 +1040,9 @@ func parse_unary(p *Parser) *Node {
 			parser_skip(p, ")");
 
 			if node.ty.is_variadic {
-				// subtract builtin params. argv etc...
-				if func_call_node.args.len != (node.ty.params.len-1) {
-					if func_call_node.args.len < (node.ty.params.len-1) {
+				// subtract builtin params. argv argc
+				if func_call_node.args.len != (node.ty.params.len-2) {
+					if func_call_node.args.len < (node.ty.params.len-2) {
 						func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
 					}
 				}
@@ -1566,7 +1192,7 @@ break:
     return node;
 }
 
-func is_comparison_node(node *Node) i32 {
+func is_comparison_node(node *Node) bool {
 	if node.kind == ND_LE {
 		return true;
 	}
@@ -1891,57 +1517,55 @@ func calc_sizof_struct_members(members *MemberVec) i32 {
 }
 
 func parse_struct(p *Parser) i32 {
-	var members *MemberVec = new_member_vec(4);
-
 	parser_skip(p, "struct");
-	var name *u8 = p.tokens.lit;
-	var name_token *Token = p.tokens;
+	var name_tok *Token = p.tokens;
 	parser_next(p);
+
+	var members *MemberVec = new_member_vec(4);
 
 	var ty *Type = alloc(typesize(Type));
 	ty.kind = TY_STRUCT;
-	ty.name = name;
+	ty.name = name_tok.lit;
+	ty.size = 0;
+	ty.members = members;
+
+	var user_defined_struct *Type = get_user_defined_type(p, name_tok.lit);
+
+	if user_defined_struct == nil {
+		vec_append_type(p.user_defined_types, ty);
+	}
 
 	if strcmp(p.tokens.lit, ";") {
-		ty.is_declaration = true;
-		ty.members = members;
-		ty.size = 0;
-		parser_skip(p, ";");
-
-		if get_user_defined_type(p, name) == nil {
-			vec_append_type(p.user_defined_types, ty);
+		if user_defined_struct == nil {
+			ty.is_declaration = true;
 		}
+		parser_skip(p, ";");
 	} else {
 		parser_skip(p, "{");
-
 		while !strcmp(p.tokens.lit, "}") {
 			var member_name *u8 = p.tokens.lit;
 			parser_next(p);
 			vec_append_member(members, new_member(member_name, parse_ty(p)));
 			parser_skip(p, ",");
 		}
-
 		parser_skip(p, "}");
 
-		ty.members = members;
-		ty.size = calc_sizof_struct_members(members);
+		var struct_size i32 = calc_sizof_struct_members(members);
 
-		var user_defined_struct *Type = get_user_defined_type(p, name); 
 		if user_defined_struct == nil {
-			vec_append_type(p.user_defined_types, ty);
+			ty.size = struct_size;
+			ty.members = members;
 		} else if !user_defined_struct.is_declaration {
-			print_error(name_token, "struct is already defined");
+			print_error(name_tok, "struct is already defined");
 		} else {
 			user_defined_struct.members = members;
-			user_defined_struct.size = ty.size;
+			user_defined_struct.size = struct_size;
 			user_defined_struct.is_declaration = false;
 		}
 	}
-
-	return 0;
 }
 
-func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *ObjectVec) bool {
+func parse_function_params(p *Parser, types *TypeVec, params *ObjectVec) bool {
 	var is_variadic bool = false;
 
 	parser_skip(p, "(");
@@ -1958,19 +1582,13 @@ func parse_function_params(p *Parser, fn *Object, types *TypeVec, params *Object
 				print_error(params_name_tok, "must be at the end of the paramaters");
 			}
 			is_variadic = true;
+
+			vec_append_type(types, p.ty_i32);
+			vec_append_object(params, new_local_object(p, OBJ_VAR, "argc", p.ty_i32, params_name_tok, true));
+
 			ty = new_pointer_type(p.ty_u64);
 			vec_append_type(types, ty);
-			params_name = "argv";
-			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
-		} else if strcmp(p.tokens.lit, "...") {
-			parser_skip(p, "...");
-			if !strcmp(p.tokens.lit, ")") {
-				print_error(ty_tok, "must be at the end of the paramaters");
-			}
-			is_variadic = true;
-			ty = new_pointer_type(p.ty_u64);
-			vec_append_type(types, ty);
-			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
+			vec_append_object(params, new_local_object(p, OBJ_VAR, "argv", ty, params_name_tok, true));
 		} else {
 			ty = parse_ty(p);
 			if ty.kind == TY_STRUCT {
@@ -1991,8 +1609,6 @@ break:
 
 	parser_skip(p, ")");
 
-	fn.params = params;
-
 	return is_variadic;
 }
 
@@ -2002,62 +1618,62 @@ func add_function_object(p *Parser, fn *Object) i32 {
 }
 
 func parse_func(p *Parser) i32 {
-	p.locals = nil; // init local variables
-
 	parser_skip(p, "func");
 
-	var fn *Object = alloc(typesize(Object));
-	fn.kind = OBJ_FUNC;
+	p.locals = nil;
 
-	var name *u8 = p.tokens.lit;
 	var name_tok *Token = p.tokens;
 	parser_next(p);
 
-	fn.name = name;
-	fn.is_global = true;
-
 	var types *TypeVec = new_type_vec(4);
 	var params *ObjectVec = new_object_vec(4);
+	var is_variadic bool = parse_function_params(p, types, params);
+	var func_return_ty *Type = parse_ty(p);
+	var found_obj *Object = find_globals(p, name_tok.lit);
 
-	var is_variadic bool = parse_function_params(p, fn, types, params);
-
-	if strcmp(p.tokens.lit, "{") || strcmp(p.tokens.lit, ";") {
-		print_error(p.tokens, "function must have a return type");
+	if found_obj != nil {
+		if !cmp_func_params(found_obj.params, params) {
+			print_error(name_tok, "arguments doesn't match to prototype");
+		}
+		if !cmp_type(func_return_ty, found_obj.ty.return_type) {
+			print_error(name_tok, "return type doesn't match to prototype");
+		}
 	}
 
-	var func_return_ty *Type = parse_ty(p);
-	var found_func *Object = find_globals(p, name);
+	var fn *Object = alloc(typesize(Object));
+	if fn == nil {
+		eprintf("alloc returned nil\n");
+	}
 
-	if strcmp(p.tokens.lit, ";") { // function declartion
+	if strcmp(p.tokens.lit, ";") {
 		parser_skip(p, ";");
-		if found_func != nil {
-			print_error(name_tok, "function is already declared somewhere.");
+		if found_obj == nil {
+			fn.kind = OBJ_FUNC;
+			fn.name = name_tok.lit;
+			fn.params = params;
+			fn.is_global = true;
+			fn.ty = new_func_type(types, func_return_ty, is_variadic);
+			fn.locals = p.locals;
+			fn.is_declaration = true;
+			add_function_object(p, fn);
 		}
-		fn.ty = new_func_type(types, func_return_ty, is_variadic);
-		fn.locals = nil;
-		fn.is_declaration = true;
-
-		add_function_object(p, fn);
-	} else if found_func != nil {
-		if !found_func.is_declaration {
+	} else {
+		if found_obj == nil {
+			fn.kind = OBJ_FUNC;
+			fn.name = name_tok.lit;
+			fn.params = params;
+			fn.is_global = true;
+			fn.ty = new_func_type(types, func_return_ty, is_variadic);
+			add_function_object(p, fn);
+			fn.body = parse_block(p);
+			fn.locals = p.locals;
+		} else if found_obj.is_declaration {
+			found_obj.is_declaration = false;
+			found_obj.body = parse_block(p);
+			found_obj.locals = p.locals;
+		} else {
 			print_error(name_tok, "function is already defined somewhere");
 		}
-		if !cmp_func_params(found_func.params, fn.params) {
-			print_error(name_tok, "function declaration paramaters does not match to definition");
-		}
-		if !cmp_type(func_return_ty, found_func.ty.return_type) {
-			print_error(name_tok, "function declaration return type does not match to definition");
-		}
-		found_func.body = parse_block(p);
-		found_func.locals = p.locals;
-		found_func.is_declaration = false;
-		found_func.params = fn.params;
-	} else {
-		fn.ty = new_func_type(types, func_return_ty, is_variadic);
-		fn.body = parse_block(p);
-		fn.locals = p.locals;
-		fn.is_declaration = false;
-		add_function_object(p, fn);
 	}
 }
 
@@ -2074,691 +1690,4 @@ func parse(p *Parser) i32 {
 
 	return 0;
 }
-
-
-// ----------------------------------
-// Asm Gen
-// ----------------------------------
-
-struct Gen {
-	label_count i32,
-	str_label_count i32,
-	cur_func_name *u8,
-	has_main bool,
-	no_deref bool,
-
-	offset i32,
-	stack_offset i32,
-}
-
-func new_gen() *Gen {
-	var g *Gen = alloc(typesize(Gen));
-	g.no_deref = false;
-
-	g.label_count = 0;
-	g.str_label_count = 0;
-	return g;
-}
-
-func gen_expr(g *Gen, node *Node) i32;
-
-func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32 {
-	gen_expr(g, rhs);
-	printf("\tpush %rax\n");
-	gen_expr(g, lhs);
-	printf("\tpop %rdi\n");
-}
-
-func gen_addr(g *Gen, node *Node) i32;
-func gen_addr(g *Gen, node *Node) i32 {
-	if node.kind == ND_MEMBER_ACCESS {
-		gen_addr(g, node.lhs);
-		printf("\taddq $%d, %rax\n", node.offset);
-	} else if node.kind == ND_VAR {
-		if node.obj.is_global {
-			g.no_deref = true;
-			printf("\tleaq %s(%rip), %rax\n", node.obj.name);
-		} else {
-			printf("\tleaq %d(%rbp), %rax\n", node.obj.offset);
-		}
-	} else if node.kind == ND_DEREF {
-		gen_expr(g, node.lhs);
-	}
-	return 0;
-}
-
-func gen_store(ty *Type) i32 {
-	if ty.kind == TY_STRUCT {
-		var idx i32 = 0;
-		while idx < ty.size {
-			printf("\tmovb %d(%rax), %r8b\n", idx);
-			printf("\tmovb %r8b, %d(%rdi)\n", idx);
-			idx++;
-		}
-		return 0;
-	}
-	if ty.size == 1 {
-		printf("\tmovb %al, (%rdi)\n");
-	} else if ty.size == 2 {
-		printf("\tmovw %ax, (%rdi)\n");
-	} else if ty.size == 4 {
-		printf("\tmovl %eax, (%rdi)\n");
-	} else if ty.size == 8 {
-		printf("\tmovq %rax, (%rdi)\n");
-	} else {
-		eprintf("unreachable\n");
-		exit(1);
-	}
-	return 0;
-}
-
-func load_instr(ty *Type) *u8 {
-	if ty.is_unsigned {
-		"movz";
-	} else {
-		"movs";
-	}
-}
-
-func gen_load(g *Gen, ty *Type) i32 {
-	var instr *u8;
-
-	if ty.kind == TY_STRUCT {
-		return 0;
-	}
-	if g.no_deref {
-		g.no_deref = false;
-		return 0;
-	}
-
-	if ty.is_unsigned {
-		instr = "movz";
-	} else {
-		instr = "movs";
-	}
-
-	if ty.size == 8 {
-		printf("\tmovq (%rax), %rax\n");
-	} else if ty.size == 4 {
-		printf("\tmovslq (%rax), %rax\n");
-	} else if ty.size == 2 {
-		printf("\t%swl (%rax), %eax\n", instr); 
-	} else if ty.size == 1 {
-		printf("\t%sbl (%rax), %eax\n", instr);
-	} else {
-		eprintf("unreachable\n");
-		exit(1);
-	}
-	return 0;
-}
-
-func gen_binop(instr_name *u8, ty *Type) i32 {
-	if ty.kind == TY_PTR {
-		printf("\t%sq %rdi, %rax\n", instr_name);
-	} else {
-		printf("\t%sl %edi, %eax\n", instr_name);
-	}
-	return 0;
-}
-
-func gen_condition_store(ty *Type) i32 {
-	if ty.kind == TY_PTR {
-		printf("\tmovzbq %al, %rax\n");
-	} else if ty.kind == TY_I64 {
-		printf("\tmovzbq %al, %rax\n");
-	} else {
-		printf("\tmovzbl %al, %eax\n");
-	}
-}
-
-func func_call_args_to_stack(g *Gen, args *NodeVec, ty *Type) i32 {
-	if args.len == 0 {
-		return 0;
-	}
-
-	var stack i32 = 0;
-
-	var idx i32 = args.len - 1;
-	while 0 <= idx {
-		if ty.is_variadic && idx == (ty.params.len - 2) {
-			printf("\tleaq (%rsp), %rax\n");
-			printf("\tpush %rax\n");
-			stack = stack + 8;
-		}
-		gen_expr(g, args.ptr[idx]);
-		printf("\tpush %rax\n");
-		stack = stack + 8;
-		idx--;
-	}
-
-	return stack;
-}
-
-func binop_ax_by_type_size(ty *Type) *u8 {
-	if ty.size == 8 {
-    	"%rax";
-	} else {
-		"%eax";
-	}
-}
-
-func gen_expr(g *Gen, node *Node) i32 {
-	var c i32 = 0;
-	if node.kind == ND_EMPTY {
-		return 0;
-	}
-	if node.kind == ND_MEMBER_ACCESS {
-		gen_addr(g, node);
-		gen_load(g, node.ty);
-		return 0;
-	}
-	if node.kind == ND_STR {
-		c = g.str_label_count++;
-		printf(".data\n");
-		printf(".L.str.%d:\n", c);
-
-		var str *u8 = node.str_val;
-		while *str != nil {
-			printf("\t.byte %d\n", *str);
-			str++;
-		}
-		printf("\t.byte 0\n");
-
-		printf(".text\n");
-		printf("\tleaq .L.str.%d(%rip), %rax\n", c);
-		return 0;
-	}
-	if node.kind == ND_NUM {
-		printf("\tmovq $%d, %rax\n", node.int_val);
-		return 0;
-	}
-	if node.kind == ND_ASSIGN {
-		gen_addr(g, node.lhs);
-		printf("\tpush %rax\n");
-		gen_expr(g, node.rhs);
-		printf("\tpop %rdi\n");
-		gen_store(node.ty);
-		return 0;
-	}
-	if node.kind == ND_VAR {
-		gen_addr(g, node);
-		gen_load(g, node.ty);
-		return 0;
-	}
-	if node.kind == ND_FUNC_CALL {
-		var stack i32 = 0;
-		stack = func_call_args_to_stack(g, node.args, node.lhs.ty);
-
-		gen_expr(g, node.lhs);
-		printf("\tmovq %rax, %r10\n");
-		printf("\tmovq $0, %rax\n");
-
-		printf("\tcallq *%r10\n");
-		printf("\taddq $%d, %rsp\n", stack);
-
-		if node.ty.kind == TY_BOOL {
-			printf("\tmovzx %al, %eax\n");
-		} else if node.ty.kind == TY_I8 {
-			printf("\tmovsbl %al, %eax\n");
-		} else if node.ty.kind == TY_U8 {
-			printf("\tmovzbl %al, %eax\n");
-		} else if node.ty.kind == TY_I16 {
-			printf("\tmovswl %ax, %eax\n");
-		} else if node.ty.kind == TY_U16 {
-			printf("\tmovzwl %ax, %eax\n");
-		} else {}
-
-		return 0;
-	}
-	if node.kind == ND_EXPR_STMT {
-		gen_expr(g, node.lhs);
-		return 0;
-	}
-	if node.kind == ND_REF {
-		gen_addr(g, node.lhs);
-		return 0;
-	}
-	if node.kind == ND_DEREF {
-		gen_expr(g, node.lhs);
-		gen_load(g, node.ty);
-		return 0;
-	}
-	if node.kind == ND_NOT {
-		gen_expr(g, node.lhs);
-		printf("\tcmpq $0, %rax\n");
-		printf("\tsete %al\n");
-		printf("\tmovzbq %al, %rax\n");
-		return 0;
-	}
-	if node.kind == ND_ADD {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("add", node.ty);
-		return 0;
-	}
-	if node.kind == ND_SHL {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		printf("\tmovq %rdi, %rcx\n");
-    	printf("\tshl %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
-		return 0;
-	}
-	if node.kind == ND_SHR {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		printf("\tmovq %rdi, %rcx\n");
-    	printf("\tshr %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
-		return 0;
-	}
-	if node.kind == ND_SUB {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("sub", node.ty);
-		return 0;
-	}
-	if node.kind == ND_MUL {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("imul", node.ty);
-		return 0;
-	}
-	if node.kind == ND_DIV || node.kind == ND_MOD {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-
-		if node.ty.is_unsigned {
-			if node.ty.size == 8 {
-				printf("\tmov $0, %rdx\n");
-      			printf("\tdivq %rdi\n");
-			} else {
-				printf("\tmov $0, %edx\n");
-      			printf("\tdivl %edi\n");
-			}
-		} else {
-			if node.lhs.ty.size == 8 {
-				printf("\tcqto\n");
-			} else {
-				printf("\tcltd\n");
-			}
-			if node.ty.size == 8 {
-				printf("\tidivq %rdi\n");
-			} else {
-				printf("\tidivl %edi\n");
-			}
-		}
-		if node.kind == ND_MOD {
-			printf("\tmovq %rdx, %rax\n");
-		}
-		return 0;
-	}
-	if node.kind == ND_EQ {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("cmp", node.ty);
-		printf("\tsete %al\n");
-		gen_condition_store(node.ty);
-		return 0;
-	}
-	if node.kind == ND_NE {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("cmp", node.ty);
-		printf("\tsetne %al\n");
-		gen_condition_store(node.ty);
-		return 0;
-	}
-	if node.kind == ND_LOGAND {
-		c = g.label_count++;
-		gen_expr(g, node.lhs);
-		printf("\tcmpq $0, %rax\n");
-		printf("\tje .L.false.%d\n", c);
-		gen_expr(g, node.rhs);
-		printf("\tcmpq $0, %rax\n");
-		printf("\tje .L.false.%d\n", c);
-		printf("\tmovq $1, %rax\n");
-		printf("\tjmp .L.end.%d\n", c);
-		printf(".L.false.%d:\n", c);
-		printf("\tmovq $0, %rax\n");
-		printf(".L.end.%d:\n", c);
-		return 0;
-	}
-	if node.kind == ND_LOGOR {
-		c = g.label_count++;
-		gen_expr(g, node.lhs);
-		printf("\tcmpq $0, %rax\n");
-		printf("\tjne .L.true.%d\n", c);
-		gen_expr(g, node.rhs);
-		printf("\tcmp $0, %rax\n");
-		printf("\tjne .L.true.%d\n", c);
-		printf("\tmov $0, %rax\n");
-		printf("\tjmp .L.end.%d\n", c);
-		printf(".L.true.%d:\n", c);
-		printf("\tmov $1, %rax\n");
-		printf(".L.end.%d:\n", c);
-		return 0;
-	}
-	if node.kind == ND_GE {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("cmp", node.ty);
-		if node.lhs.ty.is_unsigned {
-       		printf("\tsetae %al\n");
-		} else {
-        	printf("\tsetge %al\n");
-		}
-		gen_condition_store(node.ty);
-		return 0;
-	}
-	if node.kind == ND_GT {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("cmp", node.ty);
-		if node.lhs.ty.is_unsigned {
-       		printf("\tseta %al\n");
-		} else {
-        	printf("\tsetg %al\n");
-		}
-		gen_condition_store(node.ty);
-		return 0;
-	}
-	if node.kind == ND_LE {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("cmp", node.ty);
-		if node.lhs.ty.is_unsigned {
-       		printf("\tsetbe %al\n");
-		} else {
-        	printf("\tsetle %al\n");
-		}
-		gen_condition_store(node.ty);
-		return 0;
-	}
-	if node.kind == ND_LT {
-		gen_lhs_rhs(g, node.lhs, node.rhs);
-		gen_binop("cmp", node.ty);
-		if node.lhs.ty.is_unsigned {
-       		printf("\tsetb %al\n");
-		} else {
-        	printf("\tsetl %al\n");
-		}
-		gen_condition_store(node.ty);
-		return 0;
-	}
-	printf("kind: %d unreachable\n", node.kind);
-	exit(1);
-}
-
-func gen_stmt(g *Gen, node *Node) i32;
-
-func gen_node_block(g *Gen, stmts *NodeVec) i32 {
-	var idx i32 = 0;
-	while idx < stmts.len {
-		gen_stmt(g, stmts.ptr[idx]);
-		idx++;
-	}
-	return 0;
-}
-
-func gen_stmt(g *Gen, node *Node) i32 {
-	var c i32 = 0;
-	if node.kind == ND_EMPTY {
-		return 0;
-	}
-	if node.kind == ND_BLOCK {
-		gen_node_block(g, node.body);
-		return 0;
-	}
-	if node.kind == ND_EXPR_STMT {
-		gen_expr(g, node.lhs);
-		return 0;
-	}
-	if node.kind == ND_RETURN {
-		gen_expr(g, node.lhs);
-		printf("\tmovq %rbp, %rsp\n");
-		printf("\tpop %rbp\n");
-		printf("\tretq\n");
-		return 0;
-	}
-	if node.kind == ND_IF {
-		c = g.label_count++;
-		gen_expr(g, node.cond);
-		printf("\tcmpq $1, %rax\n");
-		printf("\tjne .L.else.%d\n", c);
-		gen_stmt(g, node.then_block);
-		printf("\tjmp .L.end.%d\n", c);
-		printf(".L.else.%d:\n", c);
-		if node.else_block != nil {
-			gen_stmt(g, node.else_block);
-		}
-		printf(".L.end.%d:\n", c);
-		return 0;
-	}
-	if node.kind == ND_GOTO {
-		printf("\tjmp .L.%s.%s\n", g.cur_func_name, node.label_name);
-		return 0;
-	}
-	if node.kind == ND_LABEL {
-		printf(".L.%s.%s:\n", g.cur_func_name, node.label_name);
-		return 0;
-	}
-	if node.kind == ND_WHILE {
-		c = g.label_count++;
-		printf(".L.while.start.%d:\n", c);
-		gen_expr(g, node.cond);
-		printf("\tcmpq $1, %rax\n");
-		printf("\tjne .L.while.end.%d\n", c);
-		gen_stmt(g, node.then_block);
-		printf("\tjmp .L.while.start.%d\n", c);
-		printf(".L.while.end.%d:\n", c);
-		return 0;
-	}
-	if node.kind == ND_ASSIGN {
-		gen_addr(g, node.lhs);
-		printf("\tpush %rax\n");
-		gen_expr(g, node.rhs);
-		printf("\tpop %rdi\n");
-		gen_store(node.ty);
-		return 0;
-	}
-	eprintf("unreachable\n");
-	exit(1);
-}
-
-func assign_offset(g *Gen, obj *Object) i32;
-func assign_offset(g *Gen, obj *Object) i32 {
-	if obj == nil {
-		return align_to(g.offset, 16);
-	}
-	if obj.next != nil {
-		assign_offset(g, obj.next);
-	}
-	if obj.is_func_param {
-		obj.offset = g.stack_offset;
-		g.stack_offset = g.stack_offset + 8;
-	} else {
-		g.offset = g.offset + obj.ty.size;
-		obj.offset = g.offset - g.offset * 2;
-	}
-	return align_to(g.offset, 16);
-}
-
-func check_global_objects(g *Gen, object *Object) i32 {
-	while object != nil {
-		if strcmp(object.name, "main") {
-			g.has_main = true;
-		}
-		object = object.next;
-	}
-	return 0;
-}
-
-func gen(g *Gen, object *Object) i32 {
-	check_global_objects(g, object);
-
-	printf(".text\n");
-
-	if g.has_main {
-		printf(".global _start\n");
-		printf("_start:\n");
-		printf("\tpush %rbp\n");
-		printf("\tmovq %rsp, %rbp\n");
-		printf("\tleaq 16(%rbp), %rax\n");
-		printf("\tpush %rax\n");
-		printf("\tpushq 8(%rbp)\n"); 
-		printf("\tcallq main\n");
-		printf("\tmovq %rax, %rdi\n");
-		printf("\tmovq $60, %rax\n");
-		printf("\tsyscall\n");
-	}
-
-	while object != nil {
-		if object.kind == OBJ_FUNC && !object.is_declaration {
-			g.cur_func_name = object.name;
-
-			g.offset = 0;
-			g.stack_offset = 16;
-			object.stack_size = assign_offset(g, object.locals);
-
-			printf(".global %s\n", object.name);
-			printf("%s:\n", object.name);
-			printf("\tpush %rbp\n");
-			printf("\tmovq %rsp, %rbp\n");
-			printf("\tsubq $%d, %rsp\n", object.stack_size);
-
-			gen_stmt(g, object.body);
-			printf("\tleave\n");
-			printf("\tret\n");
-		}
-		object = object.next;
-	}
-
-	return 0;
-}
-
-// ----------------------------------
-// Preprocessor
-// ----------------------------------
-
-struct Macro;
-struct Macro {
-	name *u8,
-	tok *Token,
-	next *Macro,
-}
-
-struct Preprocessor {
-	macros *Macro,
-}
-
-func new_macro(name *u8, tok *Token) *Macro {
-	var macro *Macro = alloc(typesize(Macro));
-	macro.name = name;
-	macro.tok = tok;
-	macro.next = nil;
-	return macro;
-}
-
-func find_macro(name *u8, p *Preprocessor) *Macro {
-	var m *Macro = p.macros;
-	while m != nil {
-		if strcmp(m.name, name) {
-			return m;
-		}
-		m = m.next;
-	}
-	return nil;
-}
-
-func copy_token(source *Token, dest *Token) i32 {
-	var tok *Token = *dest;
-	tok.lit = source.lit;
-	tok.kind = source.kind;
-	tok.file_name = source.file_name;
-	tok.line = source.line;
-	tok.col = source.col;
-	return 0;
-}
-
-func get_eof_from_tokens(tokens *Token) *Token {
-	while tokens.kind != TK_EOF {
-		tokens = tokens.next;
-	}
-	return tokens;
-}
-
-func preprocess(tok *Token, p *Preprocessor) i32;
-func preprocess(tok *Token, p *Preprocessor) i32 {
-	while {
-		if tok.next != nil && strcmp(tok.lit, "#") && strcmp(tok.next.lit, "define") {
-			var macro *Macro = new_macro(tok.next.next.lit, tok.next.next.next);
-			macro.next = p.macros;
-			p.macros = macro;
-			*tok = *tok.next.next.next.next;
-		} else if tok.next != nil && strcmp(tok.lit, "#") && strcmp(tok.next.lit, "include") {
-			var file_name *u8 = tok.next.next.str_val;
-
-			var fd i32 = open(file_name, 0, 420);
-			if fd < 0 {
-				eprintf("\033[1m\033[31merror\033[0m: opening file %s\n", file_name);
-				exit(1);
-			}
-
-			var buf *u8 = alloc(PROGRAM_MAX_SIZE);
-			read(fd, buf, PROGRAM_MAX_SIZE);
-			close(fd);
-
-			var tokens *Token = tokenize(new_tokenizer(file_name, buf));
-			*get_eof_from_tokens(tokens) = *tok.next.next.next;
-			*tok = *tokens;
-		} else {
-			goto break;
-		}
-	}
-
-break:
-
-	var m *Macro = find_macro(tok.lit, p);
-	if m != nil {
-		copy_token(m.tok, tok);
-	}
-
-	if tok.next != nil {
-		preprocess(tok.next, p);
-	}
-
-	return 0;
-}
-
-// ----------------------------------
-// Start
-// ----------------------------------
-
-func main(argc i32, argv **u8) i32 {
-	if argc != 2 {
-		printf("usage\n\tibuc <filename>.ibu\n");
-		exit(0);
-	}
-
-	var file_name *u8 = argv[1];
-
-	var fd i32;
-	if strcmp(file_name, "-") {
-		fd = STDIN;
-	} else {
-		fd = open(file_name, 0, 420);
-		if fd < 0 {
-			eprintf("\033[1m\033[31merror\033[0m: opening file %s\n", file_name);
-			exit(1);
-		}
-	}
-
-	var buf *u8 = alloc(PROGRAM_MAX_SIZE);
-	read(fd, buf, PROGRAM_MAX_SIZE);
-	close(fd);
-
-	var t *Tokenizer = new_tokenizer(file_name, buf);
-	var tokens *Token = tokenize(t);
-
-	var preprocessor *Preprocessor = alloc(typesize(Preprocessor));
-	preprocessor.macros = nil;
-	preprocess(tokens, preprocessor);
-
-	var p *Parser = new_parser(buf, tokens);
-	parse(p);
-
-	var g *Gen = new_gen();
-	gen(g, p.globals);
-
-	return 0;
-}
-
 
