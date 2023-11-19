@@ -10,7 +10,7 @@
 - No block scopes
 
 ```go
-#include "src/std.ibu"
+#include "std.ibu"
 
 func main() i32 {
     printf("Hello, world!\n");
