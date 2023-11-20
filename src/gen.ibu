@@ -81,9 +81,10 @@ func load_instr(ty *Type) *u8 {
 func gen_load(g *Gen, ty *Type) i32 {
 	var instr *u8;
 
-	if ty.kind == TY_STRUCT {
+	if ty.kind == TY_STRUCT || ty.kind == TY_ARRAY {
 		return 0;
 	}
+
 	if g.no_deref {
 		g.no_deref = false;
 		return 0;
@@ -111,7 +112,7 @@ func gen_load(g *Gen, ty *Type) i32 {
 }
 
 func gen_binop(instr_name *u8, ty *Type) i32 {
-	if ty.kind == TY_PTR {
+	if ty.kind == TY_PTR || ty.kind == TY_ARRAY {
 		printf("\t%sq %rdi, %rax\n", instr_name);
 	} else {
 		printf("\t%sl %edi, %eax\n", instr_name);
@@ -120,9 +121,7 @@ func gen_binop(instr_name *u8, ty *Type) i32 {
 }
 
 func gen_condition_store(ty *Type) i32 {
-	if ty.kind == TY_PTR {
-		printf("\tmovzbq %al, %rax\n");
-	} else if ty.kind == TY_I64 {
+	if ty.kind == TY_PTR || ty.kind == TY_ARRAY || ty.size == 8 {
 		printf("\tmovzbq %al, %rax\n");
 	} else {
 		printf("\tmovzbl %al, %eax\n");
@@ -160,7 +159,7 @@ func func_call_args_to_stack(g *Gen, args *NodeVec, ty *Type) i32 {
 }
 
 func binop_ax_by_type_size(ty *Type) *u8 {
-	if ty.size == 8 {
+	if ty.kind == TY_ARRAY || ty.kind == TY_PTR || ty.size == 8  {
     	"%rax";
 	} else {
 		"%eax";
@@ -490,7 +489,7 @@ func assign_offset(g *Gen, obj *Object) i32 {
 		g.stack_offset = g.stack_offset + 8;
 	} else {
 		g.offset = g.offset + obj.ty.size;
-		obj.offset = g.offset - g.offset * 2;
+		obj.offset = 0 - g.offset;
 	}
 	return align_to(g.offset, 16);
 }

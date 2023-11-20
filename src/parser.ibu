@@ -47,6 +47,7 @@
 #define TY_U16		10
 #define TY_U8		11
 #define TY_U0       12
+#define TY_ARRAY    13
 
 struct StrVec {
 	ptr **u8,
@@ -193,47 +194,23 @@ struct Type {
 	// pointer type
 	pointer_to *Type,
 
+	array_len i32,
+
 	is_unsigned bool,
 	is_declaration bool,
 
 	tok *Token,
 }
 
-func plural_or_singular(n i32) *u8 {
-	if n == 1 {
-		"";
-	} else {
-		"s";
-	}
-}
-
-func plural_or_singular2(n i32) *u8 {
-	if n == 1 {
-		"y";
-	} else {
-		"ies";
-	}
-}
-
-func func_call_args_length_error(exp_len i32, got_len i32, tok *Token, msg *u8) i32 {
-	print_error_with_code(tok, msg);
-	eprintf(
-		"help: this function takes %d argument%s but %d argument%s were supplied\n",
-		exp_len,
-		plural_or_singular(exp_len),
-		got_len,
-		plural_or_singular(got_len)
-	);
-	exit(1);
-}
-
-func unkown_type_error(types *TypeVec, tok *Token, msg *u8) i32 {
+func unkown_type_error(types *TypeVec, tok *Token, msg *u8) i32{
 	print_error_with_code(tok, msg);
 
 	if types.len == 0 {
 		exit(1);
+	} else if types.len == 1 {
+		eprintf("help: %d possibility:", types.len);
 	} else {
-		eprintf("help: %d possibilit%s:", plural_or_singular2(types.len));
+		eprintf("help: %d possibilities:", types.len);
 	}
 
 	var idx i32 = 0;
@@ -256,8 +233,10 @@ func unkown_member_error(members *MemberVec, tok *Token, msg *u8) i32 {
 
 	if members.len == 0 {
 		exit(1);
+	} else if members.len == 1 {
+		eprintf("help: %d possibility:", members.len);
 	} else {
-		eprintf("help: %d possibilit:", plural_or_singular2(members.len));
+		eprintf("help: %d possibilities:", members.len);
 	}
 
 	var idx i32 = 0;
@@ -478,6 +457,19 @@ func new_pointer_type(base *Type) *Type {
 	ty.kind = TY_PTR;
 	ty.size = 8;
 	ty.pointer_to = base;
+	return ty;
+}
+
+func new_array_type(base *Type, len i32) *Type {
+	var ty *Type = alloc(typesize(Type));
+	if ty == nil {
+		eprintf("alloc returned nil\n");
+		exit(1);
+	}
+	ty.kind = TY_ARRAY;
+	ty.size = base.size * len;
+	ty.pointer_to = base;
+	ty.array_len = len;
 	return ty;
 }
 
@@ -762,7 +754,11 @@ func add_type(p *Parser, node *Node) i32 {
 	}
 
 	if node.kind == ND_REF {
-		node.ty = new_pointer_type(node.lhs.ty);
+		if node.lhs.ty.kind == TY_ARRAY {
+    		node.ty = new_pointer_type(node.lhs.ty.pointer_to);
+		} else {
+    		node.ty = new_pointer_type(node.lhs.ty);
+		}
 		return 0;
 	}
 
@@ -781,14 +777,18 @@ func add_type(p *Parser, node *Node) i32 {
 
 func parse_ty(p *Parser) *Type;
 
-func parse_params_types(p *Parser, types *TypeVec) *TypeVec {
+func parse_params_types(p *Parser, types *TypeVec) bool {
 	var is_variadic bool = false;
 	while !strcmp(p.tokens.lit, ")") {
 		if strcmp(p.tokens.lit, "...") {
 			is_variadic = true;
 			parser_next(p);
 		} else {
-			vec_append_type(types, parse_ty(p));
+			var ty *Type = parse_ty(p);
+			if ty.kind == TY_ARRAY {
+				ty = new_pointer_type(ty.pointer_to);
+			}
+			vec_append_type(types, ty);
 		}
 		if !strcmp(p.tokens.lit, ",") {
 			goto break;
@@ -823,15 +823,20 @@ func parse_ty(p *Parser) *Type {
 		parser_skip(p, "(");
 		var types *TypeVec = new_type_vec(4);
 		var is_variadic bool = parse_params_types(p, types);
-		// parse params types
 		parser_skip(p, ")");
 		ty = new_func_type(types, parse_ty(p), is_variadic);
-	}
-	else {
+	} else if strcmp(name, "[") {
+		if p.tokens.kind != TK_NUM {
+			print_error(p.tokens, "expected number");
+		}
+		var array_len i32 = atoi(p.tokens.lit);
+		parser_next(p);
+		parser_skip(p, "]");
+		ty = new_array_type(parse_ty(p), array_len);
+	} else {
 		ty = get_user_defined_type(p, name);
 		if ty == nil {
 			unkown_type_error(p.user_defined_types, type_name_tok, "unkown type found");
-			print_error(type_name_tok, "unkown type found");
 		}
 	}
 
@@ -978,7 +983,8 @@ func parse_deref(p *Parser) *Node {
 	node.lhs = parse_unary(p);
 
 	add_type(p, node.lhs);
-	if node.lhs.ty.kind != TY_PTR {
+
+	if node.lhs.ty.kind != TY_PTR && node.lhs.ty.kind != TY_ARRAY {
 		print_error(tok, "invalid pointer dereference");
 	}
 
@@ -997,6 +1003,14 @@ func node_num_one(p *Parser) *Node {
 	node.int_val = 1;
 	node.ty = p.ty_i32;
 	return node;
+}
+
+func func_params_length_without_builtin(ty *Type) i32 {
+	if ty.is_variadic {
+		return ty.params.len - 2;
+	} else {
+		return ty.params.len;
+	}
 }
 
 func parse_unary(p *Parser) *Node {
@@ -1040,15 +1054,12 @@ func parse_unary(p *Parser) *Node {
 			parser_skip(p, ")");
 
 			if node.ty.is_variadic {
-				// subtract builtin params. argv argc
-				if func_call_node.args.len != (node.ty.params.len-2) {
-					if func_call_node.args.len < (node.ty.params.len-2) {
-						func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
-					}
+				if func_call_node.args.len < func_params_length_without_builtin(node.ty) {
+					print_error(lpar_tok, "The number of arguments does not match the function definition");
 				}
 			} else {
 				if func_call_node.args.len != node.ty.params.len {
-					func_call_args_length_error(node.ty.params.len, func_call_node.args.len, lpar_tok, "The number of arguments does not match the function definition");
+					print_error(lpar_tok, "The number of arguments does not match the function definition");
 				}
 			}
 
@@ -1072,7 +1083,7 @@ func parse_unary(p *Parser) *Node {
 			var idx *Node = parse_expr(p);
 			parser_skip(p, "]");
 
-			if node.ty.kind != TY_PTR {
+			if node.ty.kind != TY_PTR && node.ty.kind != TY_ARRAY {
 				print_error(access_tok, "`[]` cannot access to none pointer type.");
 			}
 
@@ -1593,6 +1604,9 @@ func parse_function_params(p *Parser, types *TypeVec, params *ObjectVec) bool {
 			ty = parse_ty(p);
 			if ty.kind == TY_STRUCT {
 				print_error(ty_tok, "unsupported feature: function parameter of struct");
+			}
+			if ty.kind == TY_ARRAY {
+				ty = new_pointer_type(ty.pointer_to);
 			}
 			vec_append_type(types, ty);
 			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));

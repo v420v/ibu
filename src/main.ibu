@@ -26,18 +26,18 @@ func main(argc i32, argv **u8) i32 {
 		}
 	}
 
-	var buf *u8 = alloc(PROGRAM_MAX_SIZE);
-	read(fd, buf, PROGRAM_MAX_SIZE);
+	var program *u8 = alloc(PROGRAM_MAX_SIZE);
+	read(fd, program, PROGRAM_MAX_SIZE);
 	var file_full_path *u8 = fd_get_file_full_path(fd);
 	close(fd);
 
-	var t *Tokenizer = new_tokenizer(file_name, buf);
+	var t *Tokenizer = new_tokenizer(file_name, program);
 	var tokens *Token = tokenize(t);
 
 	var preprocessor *Preprocessor = new_preprocessor();
 	preprocess(tokens, preprocessor);
 
-	var p *Parser = new_parser(buf, tokens);
+	var p *Parser = new_parser(program, tokens);
 	parse(p);
 
 	var g *Gen = new_gen();
