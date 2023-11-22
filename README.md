@@ -183,9 +183,10 @@ struct Person {
 }
 
 func main() i32 {
-    var p Person;
-    p.name = "Ibuki";
-    p.age = 19;
+    var p Person = {
+        "Ibuki",
+        19
+    };
 
     printf("name: %s age: %d\n", p.name, p.age);
 
@@ -239,7 +240,7 @@ func new_user(name *u8) *User {
 }
 
 func main(argc i32, argv **u8) i32 {
-    var head User;
+    var head User = {};
     var cur *User = &head;
 
     cur = cur.next = new_user("Ibu");

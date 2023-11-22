@@ -32,6 +32,7 @@
 #define ND_EMPTY            29
 #define ND_SHL              30
 #define ND_SHR              31
+#define ND_MEMZERO          32
 
 #define TypeKind	i32
 #define TY_I64		0
@@ -734,7 +735,7 @@ func add_type(p *Parser, node *Node) i32 {
 	if (node.kind == ND_ADD || node.kind == ND_SUB
 		|| node.kind == ND_MUL || node.kind == ND_DIV
 		|| node.kind == ND_MOD || node.kind == ND_ASSIGN
-		|| node.kind == ND_SHL || node.kind == ND_SHR) {
+		|| node.kind == ND_SHL || node.kind == ND_SHR || node.kind == ND_MEMZERO) {
 		node.ty = node.lhs.ty;
 		return 0;
 	}
@@ -964,13 +965,12 @@ func search_struct_member(members *MemberVec, exp_member_name *u8) *Member {
 	return nil;
 }
 
-func new_struct_access_node(kind NodeKind, lhs *Node, offset i32, obj *Object, ty *Type) *Node {
+func new_struct_access_node(kind NodeKind, lhs *Node, offset i32, ty *Type) *Node {
 	var node *Node = alloc(typesize(Node));
 
 	node.kind = kind;
 	node.lhs = lhs;
 	node.offset = offset;
-	node.obj = obj;
 	node.ty = ty;
 
 	return node;
@@ -1011,6 +1011,12 @@ func func_params_length_without_builtin(ty *Type) i32 {
 	} else {
 		return ty.params.len;
 	}
+}
+
+func new_node_num(n i32) *Node {
+	var node *Node = new_node(ND_NUM);
+	node.int_val = n;
+	return node;
 }
 
 func parse_unary(p *Parser) *Node {
@@ -1095,7 +1101,7 @@ func parse_unary(p *Parser) *Node {
 			var idx_pointer_arith *Node = new_binop(ND_MUL, idx, base_number_node);
 			node = new_binop(ND_ADD, node, idx_pointer_arith);
 
-			node = new_struct_access_node(ND_DEREF, node, 0, nil, nil);
+			node = new_struct_access_node(ND_DEREF, node, 0, nil);
 			goto continue;
 		}
 		if strcmp(p.tokens.lit, ".") {
@@ -1117,7 +1123,7 @@ func parse_unary(p *Parser) *Node {
 				if member == nil {
 					unkown_member_error(node.ty.pointer_to.members, member_tok, "member name not found");
 				}
-				node = new_struct_access_node(ND_DEREF, node, 0, node.obj, node.ty.pointer_to);
+				node = new_struct_access_node(ND_DEREF, node, 0, node.ty.pointer_to);
 			} else {
 				if node.ty.kind != TY_STRUCT {
 					print_error(access_tok, "cannot access from none struct type");
@@ -1129,7 +1135,7 @@ func parse_unary(p *Parser) *Node {
 			}
 			var offset i32 = member.offset;
 			var member_ty *Type = member.ty;
-			node = new_struct_access_node(ND_MEMBER_ACCESS, node, offset, node.obj, member_ty);
+			node = new_struct_access_node(ND_MEMBER_ACCESS, node, offset, member_ty);
 			goto continue;
 		}
 		goto break;
@@ -1422,22 +1428,129 @@ func node_true() *Node {
 	return node;
 }
 
+func initializer2(p *Parser, lhs *Node) *Node {
+	var expr *Node;
+	var deref_lhs *Node;
+	var idx i32 = 0;
+
+	var nodes *NodeVec = new_node_vec(10);
+
+	if lhs.ty.kind != TY_ARRAY && lhs.ty.kind != TY_STRUCT {
+		print_error(p.tokens, "unexpected initializer");
+	}
+
+	parser_skip(p, "{");
+
+	if strcmp(p.tokens.lit, "}") {
+		expr = new_node(ND_MEMZERO);
+		expr.lhs = lhs;
+		vec_append_node(nodes, expr);
+	} else if lhs.ty.kind == TY_ARRAY {
+		while idx < lhs.ty.array_len {
+			deref_lhs = new_node(ND_DEREF);
+			deref_lhs.lhs = new_binop(ND_ADD, lhs, new_node_num(lhs.ty.pointer_to.size * idx));
+
+			add_type(p, deref_lhs);
+			if strcmp(p.tokens.lit, "{") {
+				expr = initializer2(p, deref_lhs);
+			} else {
+				expr = new_binop(ND_ASSIGN, deref_lhs, parse_expr(p));
+			}
+			vec_append_node(nodes, expr);
+
+			idx++;
+
+			if idx < lhs.ty.array_len {
+				parser_skip(p, ",");
+			}
+		}
+	} else if lhs.ty.kind == TY_STRUCT {
+		while idx < lhs.ty.members.len {
+			var struct_member *Member = lhs.ty.members.ptr[idx];
+			deref_lhs = new_struct_access_node(ND_MEMBER_ACCESS, lhs, struct_member.offset, struct_member.ty);
+
+			if strcmp(p.tokens.lit, "{") {
+				expr = initializer2(p, deref_lhs);
+			} else {
+				expr = new_binop(ND_ASSIGN, deref_lhs, parse_expr(p));
+			}
+			vec_append_node(nodes, expr);
+
+			idx++;
+
+			if idx < lhs.ty.members.len {
+				parser_skip(p, ",");
+			}
+		}
+	} else {}
+
+	parser_skip(p, "}");
+
+	var node *Node = new_node(ND_BLOCK);
+	node.body = nodes;
+	add_type(p, node);
+
+	return node;
+}
+
+// 
+//func initializer(p *Parser, lhs *Node) *Node {
+//	var node *Node;
+//
+//	if strcmp(p.tokens.lit, "{") && p.tokens.next && strcmp(p.tokens.next.lit, "}") {
+//		node = initializer2(p, lhs);
+//	} else if lhs.ty.kind == TY_ARRAY && lhs.ty.pointer_to && lhs.ty.pointer_to.kind == TY_ARRAY {
+//		var nodes *NodeVec = new_node_vec(lhs.ty.array_len);
+//
+//		parser_skip(p, "{");
+//
+//		var idx i32 = 0;
+//		while idx < lhs.ty.array_len {
+//			var deref_lhs *Node = new_node(ND_DEREF);
+//			deref_lhs.lhs = new_binop(ND_ADD, lhs, new_node_num(lhs.ty.pointer_to.size * idx));
+//			add_type(p, deref_lhs);
+//			vec_append_node(nodes, initializer2(p, deref_lhs));
+//
+//			idx++;
+//			if idx < lhs.ty.array_len {
+//				parser_skip(p, ",");
+//			}
+//		}
+//
+//		parser_skip(p, "}");
+//
+//		node = new_node(ND_BLOCK);
+//		node.body = nodes;
+//		add_type(p, node);
+//	} else {
+//		node = initializer2(p, lhs);
+//	}
+//
+//	return node;
+//}
+
 func parse_stmt(p *Parser) *Node {
 	var node *Node;
 
 	if strcmp(p.tokens.lit, "var") {
 		parser_next(p);
-		var var_name *u8 = p.tokens.lit;
 		var var_name_tok *Token = p.tokens;
 		parser_next(p);
 		var var_ty *Type = parse_ty(p);
-		var obj *Object = new_local_object(p, OBJ_VAR, var_name, var_ty, var_name_tok, false);
+		var obj *Object = new_local_object(p, OBJ_VAR, var_name_tok.lit, var_ty, var_name_tok, false);
 		if strcmp(p.tokens.lit, "=") {
 			parser_skip(p, "=");
-			var node_var *Node;
-			node_var = new_node(ND_VAR);
+			var node_var *Node = new_node(ND_VAR);
 			node_var.obj = obj;
-			node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
+			add_type(p, node_var);
+
+			if strcmp(p.tokens.lit, "{") {
+				node = initializer2(p, node_var);
+				parser_skip(p, ";");
+			} else {
+				node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
+			}
+
 			return node;
 		} else {
 			parser_skip(p, ";");

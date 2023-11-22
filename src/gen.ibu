@@ -61,11 +61,8 @@ func gen_store(ty *Type) i32 {
 		printf("\tmovw %ax, (%rdi)\n");
 	} else if ty.size == 4 {
 		printf("\tmovl %eax, (%rdi)\n");
-	} else if ty.size == 8 {
-		printf("\tmovq %rax, (%rdi)\n");
 	} else {
-		eprintf("unreachable\n");
-		exit(1);
+		printf("\tmovq %rax, (%rdi)\n");
 	}
 	return 0;
 }
@@ -397,7 +394,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_condition_store(node.ty);
 		return 0;
 	}
-	printf("kind: %d unreachable\n", node.kind);
+	printf("gen_expr unreachable\n");
 	exit(1);
 }
 
@@ -423,6 +420,14 @@ func gen_stmt(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_EXPR_STMT {
 		gen_expr(g, node.lhs);
+		return 0;
+	}
+	if node.kind == ND_MEMZERO {
+		gen_expr(g, node.lhs);
+		printf("\tmovq %rax, %rdi\n");
+		printf("\tmovq $%d, %rcx\n", node.ty.size);
+		printf("\tmov $0, %al\n");
+    	printf("\trep stosb\n");
 		return 0;
 	}
 	if node.kind == ND_RETURN {
@@ -473,23 +478,34 @@ func gen_stmt(g *Gen, node *Node) i32 {
 		gen_store(node.ty);
 		return 0;
 	}
-	eprintf("unreachable\n");
+	eprintf("gen_stmt unreachable\n");
 	exit(1);
 }
 
-func assign_offset(g *Gen, obj *Object) i32 {
+func assign_func_params_offset(g *Gen, obj *Object) i32 {
 	if obj == nil {
-		return align_to(g.offset, 16);
+		return 0;
 	}
 	if obj.next != nil {
-		assign_offset(g, obj.next);
+		assign_func_params_offset(g, obj.next);
 	}
 	if obj.is_func_param {
 		obj.offset = g.stack_offset;
 		g.stack_offset = g.stack_offset + 8;
-	} else {
+	}
+	return 0;
+}
+
+func assign_local_var_offset(g *Gen, obj *Object) i32 {
+	if obj == nil {
+		return align_to(g.offset, 16);
+	}
+	if !obj.is_func_param {
 		g.offset = g.offset + obj.ty.size;
 		obj.offset = 0 - g.offset;
+	}
+	if obj.next != nil {
+		assign_local_var_offset(g, obj.next);
 	}
 	return align_to(g.offset, 16);
 }
@@ -529,7 +545,8 @@ func gen(g *Gen, object *Object) i32 {
 
 			g.offset = 0;
 			g.stack_offset = 16;
-			object.stack_size = assign_offset(g, object.locals);
+			assign_func_params_offset(g, object.locals);
+			object.stack_size = assign_local_var_offset(g, object.locals);
 
 			printf(".global %s\n", object.name);
 			printf("%s:\n", object.name);
