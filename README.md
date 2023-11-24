@@ -3,11 +3,12 @@
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
 - No strict type checker
-- No global variables
 - No C-like pointer arithmetic
 - No function-like macros
 - No `break`, `continue` stmt. Use `goto`
-- No block scopes
+- Allows `13 <= age < 20` instead of `13 <= age && age < 20`
+- Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
+- Default function args. Default args don't have to be on the end. (WIP)
 
 ```go
 #include "std.ibu"
@@ -90,7 +91,7 @@ func main() i32 {
 ```
 
 #### Types
-```hc
+```go
 i8, i16, i32, i64, u0, u8, u16, u32, u64
 ```
 
@@ -263,48 +264,6 @@ func main() i32 {
 
     return 0;
 }
-```
-
-#### Linked list
-```go
-#include "std.ibu"
-
-struct User {
-    name *u8,
-    next *User,
-}
-
-func user_print_names(user *User) i32 {
-    printf("%s\n", user.name);
-
-    if user.next != nil {
-        user_print_names(user.next);
-    }
-    return 0;
-}
-
-func new_user(name *u8) *User {
-    var user *User = alloc(typesize(User));
-    user.name = name;
-    return user;
-}
-
-func main(argc i32, argv **u8) i32 {
-    var head User = {};
-    var cur *User = &head;
-
-    cur = cur.next = new_user("Ibu");
-    cur = cur.next = new_user("Ibuki");
-    cur = cur.next = new_user("Foo");
-    cur = cur.next = new_user("Bar");
-
-    user_print_names(head.next);
-
-    printf("%s\n", head.next.next.next.next.name);
-
-    return 0;
-}
-
 ```
 
 ### Syntax highlighter
