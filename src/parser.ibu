@@ -50,45 +50,6 @@
 #define TY_U0       12
 #define TY_ARRAY    13
 
-struct StrVec {
-	ptr **u8,
-	len i32,
-	cap i32,
-}
-
-func new_str_vec(cap i32) *StrVec {
-	var vec *StrVec = alloc(typesize(StrVec));
-	vec.ptr = alloc(typesize(*u8) * cap);
-	if vec.ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	vec.len = 0;
-	vec.cap = cap;
-	return vec;
-}
-
-func str_vec_realloc(vec *StrVec) i32 {
-	var new_ptr *u8 = alloc(typesize(*u8) * vec.cap * 2);
-	if new_ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	memcpy(new_ptr, vec.ptr, (typesize(*u8) * vec.cap));
-	vec.cap = vec.cap * 2;
-	vec.ptr = new_ptr;
-	return 0;
-}
-
-func vec_append_str(vec *StrVec, ty *u8) i32 {
-	if vec.len >= vec.cap {
-		str_vec_realloc(vec);
-	}
-	vec.ptr[vec.len] = ty;
-	vec.len++;
-	return 0;
-}
-
 struct Type;
 
 struct Member {
@@ -97,99 +58,17 @@ struct Member {
 	offset i32,
 }
 
-// MemberVec
-
-struct MemberVec {
-	ptr **Member,
-	len i32,
-	cap i32,
-}
-
-func new_member_vec(cap i32) *MemberVec {
-	var vec *MemberVec = alloc(typesize(MemberVec));
-	vec.ptr = alloc(typesize(*Member) * cap);
-	if vec.ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	vec.len = 0;
-	vec.cap = cap;
-	return vec;
-}
-
-func member_vec_realloc(vec *MemberVec) i32 {
-	var new_ptr *u8 = alloc(typesize(*Member) * vec.cap * 2);
-	if new_ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	memcpy(new_ptr, vec.ptr, (typesize(*Member) * vec.cap));
-	vec.cap = vec.cap * 2;
-	vec.ptr = new_ptr;
-	return 0;
-}
-
-func vec_append_member(vec *MemberVec, ty *Member) i32 {
-	if vec.len >= vec.cap {
-		member_vec_realloc(vec);
-	}
-	vec.ptr[vec.len] = ty;
-	vec.len++;
-	return 0;
-}
-
-// TypeVec
-
-struct TypeVec {
-	ptr **Type,
-	len i32,
-	cap i32,
-}
-
-func new_type_vec(cap i32) *TypeVec {
-	var vec *TypeVec = alloc(typesize(TypeVec));
-	vec.ptr = alloc(typesize(*Type) * cap);
-	if vec.ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	vec.len = 0;
-	vec.cap = cap;
-	return vec;
-}
-
-func type_vec_realloc(vec *TypeVec) i32 {
-	var new_ptr *u8 = alloc(typesize(*Type) * vec.cap * 2);
-	if new_ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	memcpy(new_ptr, vec.ptr, (typesize(*Type) * vec.cap));
-	vec.cap = vec.cap * 2;
-	vec.ptr = new_ptr;
-	return 0;
-}
-
-func vec_append_type(vec *TypeVec, ty *Type) i32 {
-	if vec.len >= vec.cap {
-		type_vec_realloc(vec);
-	}
-	vec.ptr[vec.len] = ty;
-	vec.len++;
-	return 0;
-}
-
 struct Type {
 	kind TypeKind,
 	size i32,
 	name *u8,
 
 	// struct type
-	members *MemberVec,
+	members *Vec,
 
 	// func type
 	return_type *Type,
-	params *TypeVec,
+	params *Vec,
 	is_variadic bool,
 
 	// pointer type
@@ -203,7 +82,7 @@ struct Type {
 	tok *Token,
 }
 
-func unkown_type_error(types *TypeVec, tok *Token, msg *u8) i32{
+func unkown_type_error(types *Vec, tok *Token, msg *u8) i32{
 	print_error_with_code(tok, msg);
 
 	if types.len == 0 {
@@ -216,10 +95,11 @@ func unkown_type_error(types *TypeVec, tok *Token, msg *u8) i32{
 
 	var idx i32 = 0;
 	while idx < types.len {
+		var type *Type = vec_get(types, idx);
 		if idx+1 < types.len {
-			eprintf(" `%s`,", types.ptr[idx].name);
+			eprintf(" `%s`,", type.name);
 		} else {
-			eprintf(" `%s`", types.ptr[idx].name);
+			eprintf(" `%s`", type.name);
 		}
 		idx++;
 	}
@@ -229,7 +109,7 @@ func unkown_type_error(types *TypeVec, tok *Token, msg *u8) i32{
 	exit(1);
 }
 
-func unkown_member_error(members *MemberVec, tok *Token, msg *u8) i32 {
+func unkown_member_error(members *Vec, tok *Token, msg *u8) i32 {
 	print_error_with_code(tok, msg);
 
 	if members.len == 0 {
@@ -242,10 +122,11 @@ func unkown_member_error(members *MemberVec, tok *Token, msg *u8) i32 {
 
 	var idx i32 = 0;
 	while idx < members.len {
+		var member *Member = vec_get(members, idx);
 		if idx+1 < members.len {
-			eprintf(" `%s`,", members.ptr[idx].name);
+			eprintf(" `%s`,", member.name);
 		} else {
-			eprintf(" `%s`", members.ptr[idx].name);
+			eprintf(" `%s`", member.name);
 		}
 		idx++;
 	}
@@ -261,88 +142,6 @@ func unkown_member_error(members *MemberVec, tok *Token, msg *u8) i32 {
 
 struct Object;
 struct Node;
-
-// NodeVec
-
-struct NodeVec {
-	ptr **Node,
-	len i32,
-	cap i32,
-}
-
-func new_node_vec(cap i32) *NodeVec {
-	var vec *NodeVec = alloc(typesize(NodeVec));
-	vec.ptr = alloc(typesize(*Node) * cap);
-	if vec.ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	vec.len = 0;
-	vec.cap = cap;
-	return vec;
-}
-
-func node_vec_realloc(vec *NodeVec) i32 {
-	var new_ptr *u8 = alloc(typesize(*Node) * vec.cap * 2);
-	if new_ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	memcpy(new_ptr, vec.ptr, (typesize(*Node) * vec.cap));
-	vec.cap = vec.cap * 2;
-	vec.ptr = new_ptr;
-	return 0;
-}
-
-func vec_append_node(vec *NodeVec, node *Node) i32 {
-	if vec.len >= vec.cap {
-		node_vec_realloc(vec);
-	}
-	vec.ptr[vec.len] = node;
-	vec.len++;
-	return 0;
-}
-
-// ObjectVec
-
-struct ObjectVec {
-	ptr **Object,
-	len i32,
-	cap i32,
-}
-
-func new_object_vec(cap i32) *ObjectVec {
-	var vec *ObjectVec = alloc(typesize(ObjectVec));
-	vec.ptr = alloc(typesize(*Object) * cap);
-	if vec.ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	vec.len = 0;
-	vec.cap = cap;
-	return vec;
-}
-
-func object_vec_realloc(vec *ObjectVec) i32 {
-	var new_ptr *u8 = alloc(typesize(*Object) * vec.cap * 2);
-	if new_ptr == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
-	memcpy(new_ptr, vec.ptr, (typesize(*Object) * vec.cap));
-	vec.cap = vec.cap * 2;
-	vec.ptr = new_ptr;
-	return 0;
-}
-
-func vec_append_object(vec *ObjectVec, ty *Object) i32 {
-	if vec.len >= vec.cap {
-		object_vec_realloc(vec);
-	}
-	vec.ptr[vec.len] = ty;
-	vec.len++;
-	return 0;
-}
 
 func unexpected_token_error(expected *u8, tok *Token, msg *u8) i32 {
 	print_error_with_code(tok, msg);
@@ -360,7 +159,7 @@ struct Object {
 
 	// function
 	body *Node,
-	params *ObjectVec,
+	params *Vec,
 	locals *Object,
 	stack_size i32,
 
@@ -375,7 +174,7 @@ struct Node {
 	kind NodeKind,
 	lhs *Node,
 	rhs *Node,
-	body *NodeVec,
+	body *Vec,
 	then_block *Node,
 	else_block *Node,
 	cond *Node,
@@ -386,14 +185,14 @@ struct Node {
 	ty *Type,
 	func_name *u8,
 	offset i32,
-	args *NodeVec,
+	args *Vec,
 }
 
 struct Parser {
 	tokens *Token,
 	globals *Object,
 	locals *Object,
-	user_defined_types *TypeVec,
+	user_defined_types *Vec,
 	ty_i8 *Type,
 	ty_i16 *Type,
 	ty_i32 *Type,
@@ -426,8 +225,9 @@ func get_user_defined_type(p *Parser, name *u8) *Type {
 	var idx i32 = 0;
 
 	while idx < p.user_defined_types.len {
-		if strcmp(p.user_defined_types.ptr[idx].name, name) {
-			return p.user_defined_types.ptr[idx];
+		var type *Type = vec_get(p.user_defined_types, idx);
+		if strcmp(type.name, name) {
+			return type;
 		}
 		idx++;
 	}
@@ -474,7 +274,7 @@ func new_array_type(base *Type, len i32) *Type {
 	return ty;
 }
 
-func new_func_type(params_types *TypeVec, return_type *Type, is_variadic bool) *Type {
+func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type {
 	var ty *Type;
 	ty = alloc(typesize(Type));
 	if ty == nil {
@@ -497,7 +297,7 @@ func new_parser(program *u8, tokens *Token) *Parser {
 	}
 	p.tokens = tokens;
 	p.locals = nil;
-	p.user_defined_types = new_type_vec(4);
+	p.user_defined_types = new_vec(4);
 
 	p.ty_i64 = new_builtin_type(TY_I64, 8, "i64", false);
 	p.ty_i32 = new_builtin_type(TY_I32, 4, "i32", false);
@@ -546,14 +346,14 @@ func parser_skip(p *Parser, str *u8) i32 {
 
 func cmp_type(ty1 *Type, ty2 *Type) bool;
 
-func cmp_type_vec(vec1 *TypeVec, vec2 *TypeVec) bool {
+func cmp_type_vec(vec1 *Vec, vec2 *Vec) bool {
 	if vec1.len != vec2.len {
 		return false;
 	}
 
 	var i i32 = 0;
 	while i < vec1.len {
-		if !cmp_type(vec1.ptr[i], vec2.ptr[i]) {
+		if !cmp_type(vec_get(vec1, i), vec_get(vec2, i)) {
 			return false;
 		}
 		i++;
@@ -584,31 +384,17 @@ func cmp_type(ty1 *Type, ty2 *Type) bool {
 }
 
 func cmp_func_param(p1 *Object, p2 *Object) bool {
-	if p1 == p2 {
-		return true;
-	}
-	if !strcmp(p1.name, p2.name) {
-		return false;
-	}
-	if cmp_type(p1.ty, p2.ty) {
-		return true;
-	}
-	return false;
+	return strcmp(p1.name, p2.name) && cmp_type(p1.ty, p2.ty);
 }
 
-func cmp_func_params(p1 *ObjectVec, p2 *ObjectVec) bool {
-	if p1 == nil || p2 == nil {
-		eprintf("something whent wrong function params must not be nil\n");
-		exit(1);
-	}
-
+func cmp_func_params(p1 *Vec, p2 *Vec) bool {
 	if p1.len != p2.len {
 		return false;
 	}
 
 	var idx i32 = 0;
 	while idx < p1.len {
-		if !cmp_func_param(p1.ptr[idx], p2.ptr[idx]) {
+		if !cmp_func_param(vec_get(p1, idx), vec_get(p2, idx)) {
 			return false;
 		}
 		idx++;
@@ -680,13 +466,14 @@ func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token
 
 func add_type(p *Parser, node *Node) i32;
 
-func add_type_block(p *Parser, stmts *NodeVec) i32 {
-	if stmts == nil {
+func add_type_block(p *Parser, nodes *Vec) i32 {
+	if nodes == nil {
 		return 0;
 	}
 	var idx i32 = 0;
-	while idx < stmts.len {
-		add_type(p, stmts.ptr[idx]);
+	while idx < nodes.len {
+		var node *Node = vec_get(nodes, idx);
+		add_type(p, node);
 		idx++;
 	}
 	return 0;
@@ -778,7 +565,7 @@ func add_type(p *Parser, node *Node) i32 {
 
 func parse_ty(p *Parser) *Type;
 
-func parse_params_types(p *Parser, types *TypeVec) bool {
+func parse_params_types(p *Parser, types *Vec) bool {
 	var is_variadic bool = false;
 	while !strcmp(p.tokens.lit, ")") {
 		if strcmp(p.tokens.lit, "...") {
@@ -789,7 +576,7 @@ func parse_params_types(p *Parser, types *TypeVec) bool {
 			if ty.kind == TY_ARRAY {
 				ty = new_pointer_type(ty.pointer_to);
 			}
-			vec_append_type(types, ty);
+			vec_append(types, ty);
 		}
 		if !strcmp(p.tokens.lit, ",") {
 			goto break;
@@ -822,7 +609,7 @@ func parse_ty(p *Parser) *Type {
 	else if strcmp(name, "*") { ty = new_pointer_type(parse_ty(p)); }
 	else if strcmp(name, "func") {
 		parser_skip(p, "(");
-		var types *TypeVec = new_type_vec(4);
+		var types *Vec = new_vec(4);
 		var is_variadic bool = parse_params_types(p, types);
 		parser_skip(p, ")");
 		ty = new_func_type(types, parse_ty(p), is_variadic);
@@ -846,11 +633,11 @@ func parse_ty(p *Parser) *Type {
 
 func parse_expr(p *Parser) *Node;
 
-func parse_func_call_args(p *Parser) *Node {
-	var args *NodeVec = new_node_vec(4);
+func parse_func_call_args(p *Parser) *Vec {
+	var args *Vec = new_vec(4);
 
 	while !strcmp(p.tokens.lit, ")") {
-		vec_append_node(args, parse_expr(p));
+		vec_append(args, parse_expr(p));
 		if !strcmp(p.tokens.lit, ",") {
 			goto break;
 		}
@@ -954,11 +741,12 @@ func parse_number(p *Parser) *Node {
 	return node;
 }
 
-func search_struct_member(members *MemberVec, exp_member_name *u8) *Member {
+func search_struct_member(members *Vec, exp_member_name *u8) *Member {
 	var idx i32 = 0;
 	while idx < members.len {
-		if strcmp(members.ptr[idx].name, exp_member_name) {
-			return members.ptr[idx];
+		var member *Member = vec_get(members, idx);
+		if strcmp(member.name, exp_member_name) {
+			return member;
 		}
 		idx++;
 	}
@@ -1403,7 +1191,7 @@ func parse_stmt(p *Parser) *Node;
 func parse_block(p *Parser) *Node {
 	var node *Node = new_node(ND_BLOCK);
 
-	var stmts *NodeVec = new_node_vec(4);
+	var stmts *Vec = new_vec(4);
 
 	parser_skip(p, "{");
 
@@ -1411,7 +1199,7 @@ func parse_block(p *Parser) *Node {
 		var stmt *Node = parse_stmt(p);
 		if stmt != nil {
 			add_type(p, stmt);
-			vec_append_node(stmts, stmt);
+			vec_append(stmts, stmt);
 		}
 	}
 
@@ -1433,7 +1221,7 @@ func initializer2(p *Parser, lhs *Node) *Node {
 	var deref_lhs *Node;
 	var idx i32 = 0;
 
-	var nodes *NodeVec = new_node_vec(10);
+	var nodes *Vec = new_vec(10);
 
 	if lhs.ty.kind != TY_ARRAY && lhs.ty.kind != TY_STRUCT {
 		print_error(p.tokens, "unexpected initializer");
@@ -1444,7 +1232,7 @@ func initializer2(p *Parser, lhs *Node) *Node {
 	if strcmp(p.tokens.lit, "}") {
 		expr = new_node(ND_MEMZERO);
 		expr.lhs = lhs;
-		vec_append_node(nodes, expr);
+		vec_append(nodes, expr);
 	} else if lhs.ty.kind == TY_ARRAY {
 		while idx < lhs.ty.array_len {
 			deref_lhs = new_node(ND_DEREF);
@@ -1456,7 +1244,7 @@ func initializer2(p *Parser, lhs *Node) *Node {
 			} else {
 				expr = new_binop(ND_ASSIGN, deref_lhs, parse_expr(p));
 			}
-			vec_append_node(nodes, expr);
+			vec_append(nodes, expr);
 
 			idx++;
 
@@ -1474,7 +1262,7 @@ func initializer2(p *Parser, lhs *Node) *Node {
 			} else {
 				expr = new_binop(ND_ASSIGN, deref_lhs, parse_expr(p));
 			}
-			vec_append_node(nodes, expr);
+			vec_append(nodes, expr);
 
 			idx++;
 
@@ -1492,42 +1280,6 @@ func initializer2(p *Parser, lhs *Node) *Node {
 
 	return node;
 }
-
-// 
-//func initializer(p *Parser, lhs *Node) *Node {
-//	var node *Node;
-//
-//	if strcmp(p.tokens.lit, "{") && p.tokens.next && strcmp(p.tokens.next.lit, "}") {
-//		node = initializer2(p, lhs);
-//	} else if lhs.ty.kind == TY_ARRAY && lhs.ty.pointer_to && lhs.ty.pointer_to.kind == TY_ARRAY {
-//		var nodes *NodeVec = new_node_vec(lhs.ty.array_len);
-//
-//		parser_skip(p, "{");
-//
-//		var idx i32 = 0;
-//		while idx < lhs.ty.array_len {
-//			var deref_lhs *Node = new_node(ND_DEREF);
-//			deref_lhs.lhs = new_binop(ND_ADD, lhs, new_node_num(lhs.ty.pointer_to.size * idx));
-//			add_type(p, deref_lhs);
-//			vec_append_node(nodes, initializer2(p, deref_lhs));
-//
-//			idx++;
-//			if idx < lhs.ty.array_len {
-//				parser_skip(p, ",");
-//			}
-//		}
-//
-//		parser_skip(p, "}");
-//
-//		node = new_node(ND_BLOCK);
-//		node.body = nodes;
-//		add_type(p, node);
-//	} else {
-//		node = initializer2(p, lhs);
-//	}
-//
-//	return node;
-//}
 
 func parse_stmt(p *Parser) *Node {
 	var node *Node;
@@ -1627,13 +1379,14 @@ func new_member(name *u8, ty *Type) *Member {
 	return member;
 }
 
-func calc_sizof_struct_members(members *MemberVec) i32 {
+func calc_sizof_struct_members(members *Vec) i32 {
 	var offset i32 = 0;
 	var idx i32 = 0;
 
 	while idx < members.len {
-		members.ptr[idx].offset = offset;
-		offset = offset + members.ptr[idx].ty.size;
+		var member *Member = vec_get(members, idx);
+		member.offset = offset;
+		offset = offset + member.ty.size;
 		idx++;
 	}
 
@@ -1645,7 +1398,7 @@ func parse_struct(p *Parser) i32 {
 	var name_tok *Token = p.tokens;
 	parser_next(p);
 
-	var members *MemberVec = new_member_vec(4);
+	var members *Vec = new_vec(4);
 
 	var ty *Type = alloc(typesize(Type));
 	ty.kind = TY_STRUCT;
@@ -1656,7 +1409,7 @@ func parse_struct(p *Parser) i32 {
 	var user_defined_struct *Type = get_user_defined_type(p, name_tok.lit);
 
 	if user_defined_struct == nil {
-		vec_append_type(p.user_defined_types, ty);
+		vec_append(p.user_defined_types, ty);
 	}
 
 	if strcmp(p.tokens.lit, ";") {
@@ -1669,7 +1422,7 @@ func parse_struct(p *Parser) i32 {
 		while !strcmp(p.tokens.lit, "}") {
 			var member_name *u8 = p.tokens.lit;
 			parser_next(p);
-			vec_append_member(members, new_member(member_name, parse_ty(p)));
+			vec_append(members, new_member(member_name, parse_ty(p)));
 			parser_skip(p, ",");
 		}
 		parser_skip(p, "}");
@@ -1689,7 +1442,7 @@ func parse_struct(p *Parser) i32 {
 	}
 }
 
-func parse_function_params(p *Parser, types *TypeVec, params *ObjectVec) bool {
+func parse_function_params(p *Parser, types *Vec, params *Vec) bool {
 	var is_variadic bool = false;
 
 	parser_skip(p, "(");
@@ -1707,12 +1460,12 @@ func parse_function_params(p *Parser, types *TypeVec, params *ObjectVec) bool {
 			}
 			is_variadic = true;
 
-			vec_append_type(types, p.ty_i32);
-			vec_append_object(params, new_local_object(p, OBJ_VAR, "argc", p.ty_i32, params_name_tok, true));
+			vec_append(types, p.ty_i32);
+			vec_append(params, new_local_object(p, OBJ_VAR, "argc", p.ty_i32, params_name_tok, true));
 
 			ty = new_pointer_type(p.ty_u64);
-			vec_append_type(types, ty);
-			vec_append_object(params, new_local_object(p, OBJ_VAR, "argv", ty, params_name_tok, true));
+			vec_append(types, ty);
+			vec_append(params, new_local_object(p, OBJ_VAR, "argv", ty, params_name_tok, true));
 		} else {
 			ty = parse_ty(p);
 			if ty.kind == TY_STRUCT {
@@ -1721,8 +1474,8 @@ func parse_function_params(p *Parser, types *TypeVec, params *ObjectVec) bool {
 			if ty.kind == TY_ARRAY {
 				ty = new_pointer_type(ty.pointer_to);
 			}
-			vec_append_type(types, ty);
-			vec_append_object(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
+			vec_append(types, ty);
+			vec_append(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
 
 			if !strcmp(p.tokens.lit, ")") && !strcmp(p.tokens.lit, ",") {
 				goto break;
@@ -1752,8 +1505,8 @@ func parse_func(p *Parser) i32 {
 	var name_tok *Token = p.tokens;
 	parser_next(p);
 
-	var types *TypeVec = new_type_vec(4);
-	var params *ObjectVec = new_object_vec(4);
+	var types *Vec = new_vec(4);
+	var params *Vec = new_vec(4);
 	var is_variadic bool = parse_function_params(p, types, params);
 	var func_return_ty *Type = parse_ty(p);
 	var found_obj *Object = find_globals(p, name_tok.lit);

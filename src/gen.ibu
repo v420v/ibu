@@ -125,7 +125,7 @@ func gen_condition_store(ty *Type) i32 {
 	}
 }
 
-func func_call_args_to_stack(g *Gen, args *NodeVec, ty *Type) i32 {
+func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
 	if args.len == 0 {
 		return 0;
 	}
@@ -134,7 +134,8 @@ func func_call_args_to_stack(g *Gen, args *NodeVec, ty *Type) i32 {
 
 	var idx i32 = args.len - 1;
 	while 0 <= idx {
-		gen_expr(g, args.ptr[idx]);
+		var arg *Node = vec_get(args, idx);
+		gen_expr(g, arg);
 		printf("\tpush %rax\n");
 		stack = stack + 8;
 
@@ -400,10 +401,11 @@ func gen_expr(g *Gen, node *Node) i32 {
 
 func gen_stmt(g *Gen, node *Node) i32;
 
-func gen_node_block(g *Gen, stmts *NodeVec) i32 {
+func gen_node_block(g *Gen, stmts *Vec) i32 {
 	var idx i32 = 0;
 	while idx < stmts.len {
-		gen_stmt(g, stmts.ptr[idx]);
+		var stmt *Node = vec_get(stmts, idx);
+		gen_stmt(g, stmt);
 		idx++;
 	}
 	return 0;

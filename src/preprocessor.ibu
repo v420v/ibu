@@ -6,14 +6,14 @@ struct Macro {
 }
 
 struct Preprocessor {
-	macros *Macro,
-	imported_names *StrVec,
+	macros                  *Macro,
+	imported_file_full_path *Vec,
 }
 
 func new_preprocessor() *Preprocessor {
 	var p *Preprocessor = alloc(typesize(Preprocessor));
 	p.macros = nil;
-	p.imported_names = new_str_vec(4);
+	p.imported_file_full_path = new_vec(4);
 	return p;
 }
 
@@ -183,15 +183,16 @@ func preprocess(tok *Token, p *Preprocessor) i32 {
 			var already_imported bool = false;
 
 			var i i32 = 0;
-			while i < p.imported_names.len {
-				if strcmp(file_full_path, p.imported_names.ptr[i]) {
+			while i < p.imported_file_full_path.len {
+				var imported_name *u8 = vec_get(p.imported_file_full_path, i);
+				if strcmp(file_full_path, imported_name) {
 					already_imported = true;
 				}
 				i++;
 			}
 
 			if !already_imported {
-				vec_append_str(p.imported_names, file_full_path);
+				vec_append(p.imported_file_full_path, file_full_path);
 
 				var buf *u8 = alloc(PROGRAM_MAX_SIZE);
 				read(fd, buf, PROGRAM_MAX_SIZE);

@@ -339,7 +339,7 @@ func tokenize_ident(t *Tokenizer) *Token {
 }
 
 func tokenize(t *Tokenizer) *Token {
-	var head Token;
+	var head Token = {};
 	var cur *Token = &head;
 
 	while *t.program != nil {

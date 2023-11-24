@@ -2,6 +2,7 @@
 #define PROGRAM_MAX_SIZE 40000
 
 #include "std.ibu"
+#include "vec.ibu"
 #include "tokenizer.ibu"
 #include "parser.ibu"
 #include "gen.ibu"
