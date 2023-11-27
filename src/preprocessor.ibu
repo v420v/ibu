@@ -7,13 +7,13 @@ struct Macro {
 
 struct Preprocessor {
 	macros                  *Macro,
-	imported_file_full_path *Vec,
+	included_file_full_path *Vec,
 }
 
 func new_preprocessor() *Preprocessor {
 	var p *Preprocessor = alloc(typesize(Preprocessor));
 	p.macros = nil;
-	p.imported_file_full_path = new_vec(4);
+	p.included_file_full_path = new_vec(4);
 	return p;
 }
 
@@ -84,11 +84,7 @@ func dirname(path *u8) *u8 {
 #define MAX_PATH_LENGTH 4096
 
 func get_ibu_lib_path(file_name *u8) *u8 {
-	var ibu_exe_path *u8 = alloc(MAX_PATH_LENGTH);
-	if ibu_exe_path == nil {
-		eprintf("alloc returned nil\n");
-		exit(1);
-	}
+	var ibu_exe_path [MAX_PATH_LENGTH]u8 = {};
 
 	var ibu_exe_path_len i32 = readlink("/proc/self/exe", ibu_exe_path, MAX_PATH_LENGTH-1);
 
@@ -108,7 +104,7 @@ func get_ibu_lib_path(file_name *u8) *u8 {
 	);
 
 	if ibu_lib_path == nil {
-		eprintf("alloc returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 
@@ -120,7 +116,7 @@ func get_ibu_lib_path(file_name *u8) *u8 {
 func fd_get_file_full_path(fd i32) *u8 {
     var result *u8 = alloc(MAX_PATH_LENGTH);
 	if result == nil {
-		eprintf("alloc returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 
@@ -139,7 +135,7 @@ func fd_get_file_full_path(fd i32) *u8 {
     return result;
 }
 
-func preprocess(tok *Token, p *Preprocessor) i32 {
+func preprocess(tok *Token, p *Preprocessor) u0 {
 	var start_folder_name *u8 = strndup(tok.file_name, strlen(tok.file_name));
 	dirname(start_folder_name);
 
@@ -164,7 +160,7 @@ func preprocess(tok *Token, p *Preprocessor) i32 {
 			);
 
 			if new_file_name == nil {
-				eprintf("alloc returned nil\n");
+				eprintf("allocation failed\n");
 				exit(1);
 			}
 
@@ -183,8 +179,8 @@ func preprocess(tok *Token, p *Preprocessor) i32 {
 			var already_imported bool = false;
 
 			var i i32 = 0;
-			while i < p.imported_file_full_path.len {
-				var imported_name *u8 = vec_get(p.imported_file_full_path, i);
+			while i < p.included_file_full_path.len {
+				var imported_name *u8 = vec_get(p.included_file_full_path, i);
 				if strcmp(file_full_path, imported_name) {
 					already_imported = true;
 				}
@@ -192,7 +188,7 @@ func preprocess(tok *Token, p *Preprocessor) i32 {
 			}
 
 			if !already_imported {
-				vec_append(p.imported_file_full_path, file_full_path);
+				vec_append(p.included_file_full_path, file_full_path);
 
 				var buf *u8 = alloc(PROGRAM_MAX_SIZE);
 				read(fd, buf, PROGRAM_MAX_SIZE);
@@ -221,6 +217,4 @@ break:
 	if tok.next != nil {
 		preprocess(tok.next, p);
 	}
-
-	return 0;
 }

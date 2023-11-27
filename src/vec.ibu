@@ -9,7 +9,7 @@ func new_vec(cap i32) *Vec {
     var vec *Vec = alloc(typesize(Vec));
     vec.ptr = alloc(typesize(*u8) * cap);
     if vec.ptr == nil {
-		eprintf("alloc returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
     vec.len = 0;
@@ -20,7 +20,7 @@ func new_vec(cap i32) *Vec {
 func vec_realloc(vec *Vec) u0 {
     var new_ptr *u8 = alloc(typesize(*u8) * vec.cap * 2);
 	if new_ptr == nil {
-		eprintf("alloc returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 	memcpy(new_ptr, vec.ptr, (typesize(*u8) * vec.cap));

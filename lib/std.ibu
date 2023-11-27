@@ -78,7 +78,7 @@ func memmove(dest *u8, src *u8, n u32) i32 {
 	var p_dest *u8 = dest;
 	var p_src *u8 = src;
 
-	var tmp *u8 = alloc(typesize(u8) * n); // TODO: free() before return
+	var tmp *u8 = alloc(typesize(u8) * n);
 
 	if tmp == nil {
 		return nil;
@@ -173,7 +173,7 @@ func atoi(str *i8) i32 {
 func strndup(str *u8, n i32) *u8 {
 	var r *u8 = alloc(n+1);
 	if r == nil {
-		eprintf("alloc() returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 	var idx i32 = 0;

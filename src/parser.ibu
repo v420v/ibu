@@ -191,7 +191,11 @@ struct Node {
 struct Parser {
 	tokens *Token,
 	globals *Object,
+
+	// function local variables
 	locals *Object,
+
+	// types
 	user_defined_types *Vec,
 	ty_i8 *Type,
 	ty_i16 *Type,
@@ -203,18 +207,16 @@ struct Parser {
 	ty_u32 *Type,
 	ty_u64 *Type,
 	ty_bool *Type,
-	program *u8,
 }
 
 func strcmp(a *u8, b *u8) bool {
 	var idx i32 = 0;
 	while {
-		if a[idx] == b[idx] {
-			if a[idx] == 0 {
-				return true;
-			}
-		} else {
+		if a[idx] != b[idx] {
 			return false;
+		}
+		if a[idx] == '\0' {
+			return true;
 		}
 		idx++;
 	}
@@ -238,7 +240,7 @@ func get_user_defined_type(p *Parser, name *u8) *Type {
 func new_builtin_type(kind TypeKind, size i32, name *u8, is_unsigned bool) *Type {
 	var ty *Type = alloc(typesize(Type));
 	if ty == nil {
-		eprintf("alloc returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 	ty.kind = kind;
@@ -252,7 +254,7 @@ func new_builtin_type(kind TypeKind, size i32, name *u8, is_unsigned bool) *Type
 func new_pointer_type(base *Type) *Type {
 	var ty *Type = alloc(typesize(Type));
 	if ty == nil {
-		eprintf("alloc returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 	ty.kind = TY_PTR;
@@ -264,7 +266,7 @@ func new_pointer_type(base *Type) *Type {
 func new_array_type(base *Type, len i32) *Type {
 	var ty *Type = alloc(typesize(Type));
 	if ty == nil {
-		eprintf("alloc returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 	ty.kind = TY_ARRAY;
@@ -278,7 +280,7 @@ func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type
 	var ty *Type;
 	ty = alloc(typesize(Type));
 	if ty == nil {
-		eprintf("alloc returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 	ty.kind = TY_FUNC;
@@ -289,7 +291,7 @@ func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type
 	return ty;
 }
 
-func new_parser(program *u8, tokens *Token) *Parser {
+func new_parser(tokens *Token) *Parser {
 	var p *Parser = alloc(typesize(Parser));
 	if p == nil {
 		eprintf("alloc() returned nil\n");
@@ -310,8 +312,6 @@ func new_parser(program *u8, tokens *Token) *Parser {
 	p.ty_u16 = new_builtin_type(TY_U16, 2, "u16", true);
 	p.ty_u8 = new_builtin_type(TY_U8, 1, "u8", true);
 	p.ty_u0 = new_builtin_type(TY_U0, 0, "u0", true);
-
-	p.program = program;
 
 	return p;
 }
@@ -508,12 +508,6 @@ func add_type(p *Parser, node *Node) i32 {
 		return 0;
 	}
 
-	if node.kind == ND_GOTO || node.kind == ND_LABEL
-		|| node.kind == ND_IF || node.kind == ND_WHILE
-		|| node.kind == ND_RETURN {
-		return 0;
-	}
-
 	if node.kind == ND_FUNC_CALL {
 		node.ty = node.lhs.ty.return_type;
 		return 0;
@@ -689,12 +683,17 @@ func parse_ident(p *Parser) *Node {
 	return var_node;
 }
 
+func new_node_num(n i32) *Node {
+	var node *Node = new_node(ND_NUM);
+	node.int_val = n;
+	return node;
+}
+
 func parse_number(p *Parser) *Node {
 	var node *Node;
 
 	if p.tokens.kind == TK_NUM {
-		node = new_node(ND_NUM);
-		node.int_val = atoi(p.tokens.lit);
+		node = new_node_num(atoi(p.tokens.lit));
 		parser_next(p);
 	} else if p.tokens.kind == TK_CHAR {
 		node = new_node(ND_NUM);
@@ -786,25 +785,12 @@ func new_binop(kind NodeKind, lhs *Node, rhs *Node) *Node {
 	return node;
 }
 
-func node_num_one(p *Parser) *Node {
-	var node *Node = new_node(ND_NUM);
-	node.int_val = 1;
-	node.ty = p.ty_i32;
-	return node;
-}
-
-func func_params_length_without_builtin(ty *Type) i32 {
+func params_length_without_argv_argc(ty *Type) i32 {
 	if ty.is_variadic {
 		return ty.params.len - 2;
 	} else {
 		return ty.params.len;
 	}
-}
-
-func new_node_num(n i32) *Node {
-	var node *Node = new_node(ND_NUM);
-	node.int_val = n;
-	return node;
 }
 
 func parse_unary(p *Parser) *Node {
@@ -848,7 +834,7 @@ func parse_unary(p *Parser) *Node {
 			parser_skip(p, ")");
 
 			if node.ty.is_variadic {
-				if func_call_node.args.len < func_params_length_without_builtin(node.ty) {
+				if func_call_node.args.len < params_length_without_argv_argc(node.ty) {
 					print_error(lpar_tok, "The number of arguments does not match the function definition");
 				}
 			} else {
@@ -863,12 +849,12 @@ func parse_unary(p *Parser) *Node {
 		var access_tok *Token = p.tokens;
 		if strcmp(p.tokens.lit, "++") {
 			parser_next(p);
-			node = new_binop(ND_SUB, new_binop(ND_ASSIGN, node, new_binop(ND_ADD, node, node_num_one(p))), node_num_one(p));
+			node = new_binop(ND_SUB, new_binop(ND_ASSIGN, node, new_binop(ND_ADD, node, new_node_num(1))), new_node_num(1));
 			goto continue;
 		}
 		if strcmp(p.tokens.lit, "--") {
 			parser_next(p);
-			node = new_binop(ND_ADD, new_binop(ND_ASSIGN, node, new_binop(ND_SUB, node, node_num_one(p))), node_num_one(p));
+			node = new_binop(ND_ADD, new_binop(ND_ASSIGN, node, new_binop(ND_SUB, node, new_node_num(1))), new_node_num(1));
 			goto continue;
 		}
 		if strcmp(p.tokens.lit, "[") {
@@ -1043,13 +1029,11 @@ func search_relational_lhs(node *Node) *Node {
 func new_relational(kind NodeKind, lhs *Node, rhs *Node) *Node {
 	var node *Node;
 
-	if is_comparison_node(lhs) {
-		if is_comparison_node(rhs) {
-			node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
-			node = new_binop(ND_LOGAND, node, rhs);
-			node = new_binop(ND_LOGAND, lhs, node);
-			return node;
-		}
+	if is_comparison_node(lhs) && is_comparison_node(rhs) {
+		node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
+		node = new_binop(ND_LOGAND, node, rhs);
+		node = new_binop(ND_LOGAND, lhs, node);
+		return node;
 	}
 
 	node = new_binop(kind, search_relational_rhs(lhs.rhs), rhs);
@@ -1059,13 +1043,11 @@ func new_relational(kind NodeKind, lhs *Node, rhs *Node) *Node {
 
 func new_equality(kind NodeKind, lhs *Node, rhs *Node) *Node {
 	var node *Node;
-	if is_comparison_node(lhs) {
-		if is_comparison_node(rhs) {
-			node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
-			node = new_binop(ND_LOGAND, lhs, node);
-			node = new_binop(ND_LOGAND, node, rhs);
-			return node;
-		}
+	if is_comparison_node(lhs) && is_comparison_node(rhs) {
+		node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
+		node = new_binop(ND_LOGAND, lhs, node);
+		node = new_binop(ND_LOGAND, node, rhs);
+		return node;
 	}
 	node = new_binop(kind, lhs, search_relational_lhs(rhs.lhs));
 	node = new_binop(ND_LOGAND, node, rhs);
@@ -1216,7 +1198,7 @@ func node_true() *Node {
 	return node;
 }
 
-func initializer2(p *Parser, lhs *Node) *Node {
+func initializer(p *Parser, lhs *Node) *Node {
 	var expr *Node;
 	var deref_lhs *Node;
 	var idx i32 = 0;
@@ -1240,7 +1222,7 @@ func initializer2(p *Parser, lhs *Node) *Node {
 
 			add_type(p, deref_lhs);
 			if strcmp(p.tokens.lit, "{") {
-				expr = initializer2(p, deref_lhs);
+				expr = initializer(p, deref_lhs);
 			} else {
 				expr = new_binop(ND_ASSIGN, deref_lhs, parse_expr(p));
 			}
@@ -1254,11 +1236,11 @@ func initializer2(p *Parser, lhs *Node) *Node {
 		}
 	} else if lhs.ty.kind == TY_STRUCT {
 		while idx < lhs.ty.members.len {
-			var struct_member *Member = lhs.ty.members.ptr[idx];
+			var struct_member *Member = vec_get(lhs.ty.members, idx);
 			deref_lhs = new_struct_access_node(ND_MEMBER_ACCESS, lhs, struct_member.offset, struct_member.ty);
 
 			if strcmp(p.tokens.lit, "{") {
-				expr = initializer2(p, deref_lhs);
+				expr = initializer(p, deref_lhs);
 			} else {
 				expr = new_binop(ND_ASSIGN, deref_lhs, parse_expr(p));
 			}
@@ -1297,7 +1279,7 @@ func parse_stmt(p *Parser) *Node {
 			add_type(p, node_var);
 
 			if strcmp(p.tokens.lit, "{") {
-				node = initializer2(p, node_var);
+				node = initializer(p, node_var);
 				parser_skip(p, ";");
 			} else {
 				node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
@@ -1460,10 +1442,10 @@ func parse_function_params(p *Parser, types *Vec, params *Vec) bool {
 			}
 			is_variadic = true;
 
-			vec_append(types, p.ty_i32);
+			vec_append(types, p.ty_i64);
 			vec_append(params, new_local_object(p, OBJ_VAR, "argc", p.ty_i32, params_name_tok, true));
 
-			ty = new_pointer_type(p.ty_u64);
+			ty = new_pointer_type(p.ty_i64);
 			vec_append(types, ty);
 			vec_append(params, new_local_object(p, OBJ_VAR, "argv", ty, params_name_tok, true));
 		} else {
@@ -1508,56 +1490,58 @@ func parse_func(p *Parser) i32 {
 	var types *Vec = new_vec(4);
 	var params *Vec = new_vec(4);
 	var is_variadic bool = parse_function_params(p, types, params);
-	var func_return_ty *Type = parse_ty(p);
+	var save_return_ty_tok *Token = p.tokens;
+	var return_ty *Type = parse_ty(p);
 	var found_obj *Object = find_globals(p, name_tok.lit);
 
 	if found_obj != nil {
 		if !cmp_func_params(found_obj.params, params) {
 			print_error(name_tok, "arguments doesn't match to prototype");
 		}
-		if !cmp_type(func_return_ty, found_obj.ty.return_type) {
+		if !cmp_type(return_ty, found_obj.ty.return_type) {
 			print_error(name_tok, "return type doesn't match to prototype");
 		}
 	}
 
-	var fn *Object = alloc(typesize(Object));
-	if fn == nil {
-		eprintf("alloc returned nil\n");
+	if return_ty.kind == TY_STRUCT {
+		print_error(save_return_ty_tok, "unsupported feature: function returning struct");
 	}
+
+	var is_declaration bool = false;
 
 	if strcmp(p.tokens.lit, ";") {
 		parser_skip(p, ";");
-		if found_obj == nil {
-			fn.kind = OBJ_FUNC;
-			fn.name = name_tok.lit;
-			fn.params = params;
-			fn.is_global = true;
-			fn.ty = new_func_type(types, func_return_ty, is_variadic);
-			fn.locals = p.locals;
-			fn.is_declaration = true;
-			add_function_object(p, fn);
+		is_declaration = true;
+	}
+
+	if found_obj == nil {
+		var fn *Object = alloc(typesize(Object));
+		if fn == nil {
+			eprintf("allocation failed\n");
 		}
-	} else {
-		if found_obj == nil {
-			fn.kind = OBJ_FUNC;
-			fn.name = name_tok.lit;
-			fn.params = params;
-			fn.is_global = true;
-			fn.ty = new_func_type(types, func_return_ty, is_variadic);
-			add_function_object(p, fn);
+		fn.kind = OBJ_FUNC;
+		fn.name = name_tok.lit;
+		fn.params = params;
+		fn.is_global = true;
+		fn.ty = new_func_type(types, return_ty, is_variadic);
+		add_function_object(p, fn);
+		if is_declaration {
+			fn.is_declaration = true;
+			fn.locals = p.locals;
+		} else {
 			fn.body = parse_block(p);
 			fn.locals = p.locals;
-		} else if found_obj.is_declaration {
-			found_obj.is_declaration = false;
-			found_obj.body = parse_block(p);
-			found_obj.locals = p.locals;
-		} else {
-			print_error(name_tok, "function is already defined somewhere");
 		}
+	} else if found_obj.is_declaration && !is_declaration {
+		found_obj.is_declaration = false;
+		found_obj.body = parse_block(p);
+		found_obj.locals = p.locals;
+	} else if !is_declaration {
+		print_error(name_tok, "function is already defined somewhere");
 	}
 }
 
-func parse(p *Parser) i32 {
+func parse(p *Parser) u0 {
 	while p.tokens.kind != TK_EOF {
 		if strcmp(p.tokens.lit, "func") {
 			parse_func(p);
@@ -1567,7 +1551,5 @@ func parse(p *Parser) i32 {
 			print_error(p.tokens, "non-declaration statement outside function body");
 		}
 	}
-
-	return 0;
 }
 

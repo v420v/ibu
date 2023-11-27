@@ -5,6 +5,7 @@ struct Tokenizer {
 	col i32,
 	line i32,
 	program *u8,
+	puncts [32]*u8,
 }
 
 #define TokenKind	i32
@@ -83,7 +84,7 @@ func print_error(tok *Token, msg *u8) i32 {
 func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 	var t *Tokenizer = alloc(typesize(Tokenizer));
 	if t == nil {
-		eprintf("alloc() returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 	t.line = 1;
@@ -91,26 +92,31 @@ func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 	t.program = program;
 	t.cur_line = program;
 	t.file_name = file_name;
+
+	var puncts [32]*u8 = {
+		"==", "<=", ">=", "!=", "++", "--", "||", "&&", "<<", ">>", "...",
+		"+", "-", "<", ">", ";", ":", "{", "}", "=", ",", "(", ")", "[", "]",
+		".", "*", "#", "!", "%", "&", "/"
+	};
+
+	memcpy(t.puncts, puncts, sizeof(t.puncts));
+
 	return t;
 }
 
-func is_three_c_punct(a *u8) bool {
-	if a[0] == '.' && a[1] == '.' && a[2] == '.' {
-		return true;
-	}
-	return false;
-}
+//func is_three_c_punct(program *u8) bool {
+//	return starts_with(program, "...");
+//}
 
-func is_two_c_punct(a *u8) bool {
-	var puncts *u8 = "==<=>=!=++--||&&<<>>";
-	var idx i32 = 0;
-	while idx < strlen(puncts) {
-		if a[0] == puncts[idx] && a[1] == puncts[idx+1] {
-			return true;
+func starts_with(a *u8, b *u8) bool {
+	var i i32 = 0;
+	while i < strlen(b) {
+		if a[i] != b[i] {
+			return false;
 		}
-		idx++;
+		i++;
 	}
-	return false;
+	return true;
 }
 
 func tokenizer_next(t *Tokenizer) i32 {
@@ -138,7 +144,7 @@ func tokenizer_n_next(t *Tokenizer, n i32) i32 {
 func new_token(t *Tokenizer, kind TokenKind) *Token {
 	var tok *Token = alloc(typesize(Token));
 	if tok == nil {
-		eprintf("alloc() returned nil\n");
+		eprintf("allocation failed\n");
 		exit(1);
 	}
 
@@ -151,17 +157,19 @@ func new_token(t *Tokenizer, kind TokenKind) *Token {
 	return tok;
 }
 
-func ispunct(c u8) bool {
-	var punct_list *u8 = "+-<>;:{}=,()[].*#!%&/";
-
-	while *punct_list != nil {
-		if *punct_list == c {
-			return true;
+func tokenize_punct(t *Tokenizer) *Token {
+	var idx i32 = 0;
+	while idx < 32 {
+		if starts_with(t.program, t.puncts[idx]) {
+			var tok *Token = new_token(t, TK_PUNCT);
+			tok.len = strlen(t.puncts[idx]);
+			tok.lit = strndup(t.puncts[idx], tok.len);
+			tokenizer_n_next(t, tok.len);
+			return tok;
 		}
-		punct_list++;
+		idx++;
 	}
-
-	return false;
+	return nil;
 }
 
 func tokenize_number(t *Tokenizer) *Token {
@@ -179,8 +187,7 @@ func tokenize_number(t *Tokenizer) *Token {
 }
 
 func skip_single_line_comment(t *Tokenizer) i32 {
-	if (*t.program == '/') && (*(t.program+1) == '/') {
-		tokenizer_n_next(t, 2);
+	if starts_with(t.program, "//") {
 		while (*t.program != '\n') && (*t.program != '\0') {
 			tokenizer_next(t);
 		}
@@ -206,7 +213,7 @@ func is_hex_digit(c u8) bool {
 	return ('0' <= c <= '9') || ('A' <= c <= 'F') || ('a' <= c <= 'f');
 }
 
-func from_hex(c u8) bool {
+func from_hex(c u8) u8 {
 	if '0' <= c <= '9' {
 		return c - '0';
 	}
@@ -281,8 +288,7 @@ func tokenize_char(t *Tokenizer) *Token {
 	} else {
 		c = *t.program;
 	}
-	tokenizer_next(t);
-	tokenizer_next(t); // skip end '\''
+	tokenizer_n_next(t, 2);
 
 	tok.lit = strndup(char_start, t.program - char_start);
 	tok.len = t.program - char_start;
@@ -300,6 +306,10 @@ func tokenize_string(t *Tokenizer) *Token {
 
 	var end *u8 = string_end(t, t.program);
 	var buf *u8 = alloc(end - t.program + 1);
+	if buf == nil {
+		eprintf("allocation failed\n");
+		exit(1);
+	}
 	var len i32 = 0;
 
 	while t.program < end {
@@ -353,21 +363,6 @@ func tokenize(t *Tokenizer) *Token {
 			cur = cur.next = tokenize_char(t);
 		} else if *t.program == '\"' {
 			cur = cur.next = tokenize_string(t);
-		} else if is_two_c_punct(t.program) {
-			cur = cur.next = new_token(t, TK_PUNCT);
-			cur.lit = strndup(t.program, 2);
-			cur.len = 2;
-			tokenizer_n_next(t, 2);
-		} else if is_three_c_punct(t.program) { // ...
-			cur = cur.next = new_token(t, TK_PUNCT);
-			cur.lit = strndup(t.program, 3);
-			cur.len = 3;
-			tokenizer_n_next(t, 3);
-		} else if ispunct(*t.program) {
-			cur = cur.next = new_token(t, TK_PUNCT);
-			cur.lit = strndup(t.program, 1);
-			cur.len = 1;
-			tokenizer_next(t);
 		} else if *t.program == ' ' { // Space
 			tokenizer_next(t);
 		} else if *t.program == '\n' { // New line
@@ -375,10 +370,16 @@ func tokenize(t *Tokenizer) *Token {
 		} else if *t.program == '\t' { // Tab
 			tokenizer_next(t);
 		} else {
-			var invalid *Token = new_token(t, TK_UNKOWN);
-			invalid.lit = strndup(t.program, 1);
-			invalid.len = 1;
-			print_error(invalid, "unkown character found");
+			var tok *Token = tokenize_punct(t);
+			if tok != nil {
+				cur = cur.next = tok;
+			} else {
+				// invalid
+				var invalid *Token = new_token(t, TK_UNKOWN);
+				invalid.lit = strndup(t.program, 1);
+				invalid.len = 1;
+				print_error(invalid, "unkown character found");
+			}
 		}
 	}
 

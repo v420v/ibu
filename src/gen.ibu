@@ -260,13 +260,13 @@ func gen_expr(g *Gen, node *Node) i32 {
 	if node.kind == ND_SHL {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		printf("\tmovq %rdi, %rcx\n");
-    	printf("\tshl %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
+		printf("\tshl %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
 		return 0;
 	}
 	if node.kind == ND_SHR {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		printf("\tmovq %rdi, %rcx\n");
-    	printf("\tshr %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
+		printf("\tshr %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
 		return 0;
 	}
 	if node.kind == ND_SUB {
@@ -512,17 +512,16 @@ func assign_local_var_offset(g *Gen, obj *Object) i32 {
 	return align_to(g.offset, 16);
 }
 
-func check_global_objects(g *Gen, object *Object) i32 {
+func check_global_objects(g *Gen, object *Object) u0 {
 	while object != nil {
 		if strcmp(object.name, "main") {
 			g.has_main = true;
 		}
 		object = object.next;
 	}
-	return 0;
 }
 
-func gen(g *Gen, object *Object) i32 {
+func gen(g *Gen, object *Object) u0 {
 	check_global_objects(g, object);
 
 	printf(".text\n");
@@ -562,7 +561,5 @@ func gen(g *Gen, object *Object) i32 {
 		}
 		object = object.next;
 	}
-
-	return 0;
 }
 
