@@ -247,7 +247,6 @@ func main() i32 {
 }
 ```
 
-#### Struct Pointer
 ```go
 #include "std.ibu"
 
