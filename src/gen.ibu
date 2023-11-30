@@ -4,16 +4,17 @@ struct Gen {
 	str_label_count i32,
 	cur_func_name *u8,
 	has_main bool,
-	no_deref bool,
 
 	offset i32,
 	stack_offset i32,
 }
 
 func new_gen() *Gen {
-	var g *Gen = alloc(typesize(Gen));
-	g.no_deref = false;
-
+    let g *Gen = alloc(typesize(Gen));
+	if g == nil {
+		eprintf("allocation failed\n");
+		exit(1);
+	}
 	g.label_count = 0;
 	g.str_label_count = 0;
 	return g;
@@ -34,7 +35,6 @@ func gen_addr(g *Gen, node *Node) i32 {
 		printf("\taddq $%d, %rax\n", node.offset);
 	} else if node.kind == ND_VAR {
 		if node.obj.is_global {
-			g.no_deref = true;
 			printf("\tleaq %s(%rip), %rax\n", node.obj.name);
 		} else {
 			printf("\tleaq %d(%rbp), %rax\n", node.obj.offset);
@@ -47,7 +47,7 @@ func gen_addr(g *Gen, node *Node) i32 {
 
 func gen_store(ty *Type) i32 {
 	if ty.kind == TY_STRUCT {
-		var idx i32 = 0;
+	    let idx i32 = 0;
 		while idx < ty.size {
 			printf("\tmovb %d(%rax), %r8b\n", idx);
 			printf("\tmovb %r8b, %d(%rdi)\n", idx);
@@ -76,14 +76,9 @@ func load_instr(ty *Type) *u8 {
 }
 
 func gen_load(g *Gen, ty *Type) i32 {
-	var instr *u8;
+    let instr *u8 = "";
 
-	if ty.kind == TY_STRUCT || ty.kind == TY_ARRAY {
-		return 0;
-	}
-
-	if g.no_deref {
-		g.no_deref = false;
+	if ty.kind == TY_STRUCT || ty.kind == TY_ARRAY || ty.kind == TY_FUNC {
 		return 0;
 	}
 
@@ -130,17 +125,17 @@ func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
 		return 0;
 	}
 
-	var stack i32 = 0;
+    let stack i32 = 0;
 
-	var idx i32 = args.len - 1;
+    let idx i32 = args.len - 1;
 	while 0 <= idx {
-		var arg *Node = vec_get(args, idx);
+	    let arg *Node = vec_get(args, idx);
 		gen_expr(g, arg);
 		printf("\tpush %rax\n");
 		stack = stack + 8;
 
 		if ty.is_variadic && idx-1 == (ty.params.len - 2 - 1) {
-			var argc i32 = 0;
+		    let argc i32 = 0;
 			if args.len > (ty.params.len - 2) {
 				argc = args.len - (ty.params.len - 2);
 			}
@@ -165,7 +160,7 @@ func binop_ax_by_type_size(ty *Type) *u8 {
 }
 
 func gen_expr(g *Gen, node *Node) i32 {
-	var c i32 = 0;
+    let c i32 = 0;
 	if node.kind == ND_EMPTY {
 		return 0;
 	}
@@ -179,7 +174,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		printf(".data\n");
 		printf(".L.str.%d:\n", c);
 
-		var str *u8 = node.str_val;
+	    let str *u8 = node.str_val;
 		while *str != nil {
 			printf("\t.byte %d\n", *str);
 			str++;
@@ -208,7 +203,7 @@ func gen_expr(g *Gen, node *Node) i32 {
 		return 0;
 	}
 	if node.kind == ND_FUNC_CALL {
-		var stack i32 = 0;
+	    let stack i32 = 0;
 		stack = func_call_args_to_stack(g, node.args, node.lhs.ty);
 
 		gen_expr(g, node.lhs);
@@ -402,9 +397,9 @@ func gen_expr(g *Gen, node *Node) i32 {
 func gen_stmt(g *Gen, node *Node) i32;
 
 func gen_node_block(g *Gen, stmts *Vec) i32 {
-	var idx i32 = 0;
+    let idx i32 = 0;
 	while idx < stmts.len {
-		var stmt *Node = vec_get(stmts, idx);
+	    let stmt *Node = vec_get(stmts, idx);
 		gen_stmt(g, stmt);
 		idx++;
 	}
@@ -412,7 +407,7 @@ func gen_node_block(g *Gen, stmts *Vec) i32 {
 }
 
 func gen_stmt(g *Gen, node *Node) i32 {
-	var c i32 = 0;
+    let c i32 = 0;
 	if node.kind == ND_EMPTY {
 		return 0;
 	}
@@ -527,6 +522,65 @@ func gen(g *Gen, object *Object) u0 {
 	printf(".text\n");
 
 	if g.has_main {
+		printf(".set HEAP_CAPACITY, 1610612736 # 1.5GB\n");
+
+		printf("# Allocator\n");
+		printf(".bss\n");
+		printf("heap:\n");
+		printf("	.zero	HEAP_CAPACITY\n");
+		printf("heap_size:\n");
+		printf("	.zero	8\n");
+
+		printf(".text\n");
+
+		// syscall function
+		printf("# func syscall(trap *i8, a1 *i8, a2 *i8, a3 *i8) i64;\n");
+		printf("# a3   16+24(rbp)\n");
+		printf("# a2   16+16(rbp)\n");
+		printf("# a1   16+8(rbp)\n");
+		printf("# trap 16(rbp)\n");
+		printf(".global syscall\n");
+		printf("syscall:\n");
+		printf("	push %rbp\n");
+		printf("	movq %rsp, %rbp\n");
+		printf("	movq 16(%rbp), %rax\n");
+		printf("	movq 16+8(%rbp), %rdi\n");
+		printf("	movq 16+16(%rbp), %rsi\n");
+		printf("	movq 16+24(%rbp), %rdx\n");
+		printf("	syscall\n");
+		printf("	leave\n");
+		printf("	ret\n");
+
+		// alloc function
+		printf("# func alloc(size i32) *u8;\n");
+		printf("# size   16(rbp)\n");
+		printf(".global	alloc\n");
+		printf("alloc:\n");
+		printf("	pushq	%rbp\n");
+		printf("	movq	%rsp, %rbp\n");
+		printf("	movq	16(%rbp), %rax\n");
+		printf("	movq    %rax, -24(%rbp)\n");
+		printf("	movq	heap_size(%rip), %rdx\n");
+		printf("	movq	-24(%rbp), %rax\n");
+		printf("	addq	%rdx, %rax\n");
+		printf("	cmpq	$HEAP_CAPACITY-1, %rax\n");
+		printf("	jbe	.L.alloc.2\n");
+		printf("	movl	$0, %eax\n");
+		printf("	jmp	.L.alloc_ret_null\n");
+		printf(".L.alloc.2:\n");
+		printf("	movq	heap_size(%rip), %rax\n");
+		printf("	leaq	heap(%rip), %rdx\n");
+		printf("	addq	%rdx, %rax\n");
+		printf("	movq	%rax, -8(%rbp)\n");
+		printf("	movq	heap_size(%rip), %rdx\n");
+		printf("	movq	-24(%rbp), %rax\n");
+		printf("	addq	%rdx, %rax\n");
+		printf("	movq	%rax, heap_size(%rip)\n");
+		printf("	movq	-8(%rbp), %rax\n");
+		printf(".L.alloc_ret_null:\n");
+		printf("	popq	%rbp\n");
+		printf("	ret\n");
+
 		printf(".global _start\n");
 		printf("_start:\n");
 		printf("\tpush %rbp\n");

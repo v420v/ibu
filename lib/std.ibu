@@ -8,7 +8,7 @@
 func alloc(size i32) *u8; // src/builtin.s
 
 func strlen(str *u8) i32 {
-	var start *u8 = str;
+    let start *u8 = str;
 	while *str != '\0' {
 		str++;
 	}
@@ -29,8 +29,8 @@ func fputnum(fd i32, n i32, r i32) i32 {
 }
 
 func vfprintf(fd i32, fmt *u8, args *u64) i32 {
-	var neg i32 = 0 - 1;
-	var i i32 = 0;
+    let neg i32 = 0 - 1;
+    let i i32 = 0;
 
 	while *fmt != 0 {
 		if *fmt == '%' {
@@ -38,8 +38,8 @@ func vfprintf(fd i32, fmt *u8, args *u64) i32 {
 			if *fmt == 's' { // %s
 				fputs(fd, args[i++]);
 			} else if *fmt == 'd' { // %d
-				var num i32 = args[i++];
-				if (num < 0) {
+			    let num i32 = args[i++];
+				if num < 0 {
                 	write(fd, "-", 1);
                 	num = num * neg;
                 }
@@ -75,15 +75,15 @@ func align_to(n i32, align i32) i32 {
 }
 
 func memmove(dest *u8, src *u8, n u32) i32 {
-	var p_dest *u8 = dest;
-	var p_src *u8 = src;
+    let p_dest *u8 = dest;
+    let p_src *u8 = src;
 
-	var tmp *u8 = alloc(typesize(u8) * n);
+    let tmp *u8 = alloc(typesize(u8) * n);
 
 	if tmp == nil {
 		return nil;
 	} else {
-		var i u32 = 0;
+	    let i u32 = 0;
 		while i < n {
 			*(tmp + i) = *(p_src + i);
 			i++;
@@ -114,7 +114,7 @@ func byte_to_upper(c u8) u8 {
 }
 
 func strrchr(str *u8, ch i32) *u8 {
-    var last_occurrence *u8 = nil;
+       let last_occurrence *u8 = nil;
 
     while *str != '\0' {
         if *str == ch {
@@ -127,7 +127,7 @@ func strrchr(str *u8, ch i32) *u8 {
 }
 
 func memcpy(dest *u8, source *u8, size i32) *u8 {
-	var i i32 = 0;
+    let i i32 = 0;
 	while i < size {
 		dest[i] = source[i];
 		i++;
@@ -150,9 +150,9 @@ func isdigit(c u8) bool {
 }
 
 func atoi(str *i8) i32 {
-	var i i32 = 0;
-	var n i32 = 0;
-	var is_neg bool = 0;
+    let i i32 = 0;
+    let n i32 = 0;
+    let is_neg bool = 0;
 
 	if str[i] == '-' {
 		is_neg = true;
@@ -171,12 +171,12 @@ func atoi(str *i8) i32 {
 }
 
 func strndup(str *u8, n i32) *u8 {
-	var r *u8 = alloc(n+1);
+    let r *u8 = alloc(n+1);
 	if r == nil {
 		eprintf("allocation failed\n");
 		exit(1);
 	}
-	var idx i32 = 0;
+    let idx i32 = 0;
 	while idx < n {
 		r[idx] = str[idx];
 		idx++;
@@ -186,11 +186,11 @@ func strndup(str *u8, n i32) *u8 {
 }
 
 func reverse(str *u8, length i32) i32 {
-	var start i32 = 0;
-	var end i32 = length - 1;
+    let start i32 = 0;
+    let end i32 = length - 1;
 
     while start < end {
-		var temp u8 = str[start];
+	    let temp u8 = str[start];
         str[start] = str[end];
         str[end] = temp;
         end--;
@@ -199,15 +199,15 @@ func reverse(str *u8, length i32) i32 {
 }
 
 func itoa(num i32, str *u8, base i32) i32 {
-	var i i32 = 0;
+    let i i32 = 0;
 
-    if (num == 0) {
+    if num == 0 {
         str[i++] = '0';
         str[i] = 0;
         return str;
     }
 
-	var is_neg bool = false;
+    let is_neg bool = false;
 
 	if num < 0 {
 		is_neg = true;
@@ -215,8 +215,8 @@ func itoa(num i32, str *u8, base i32) i32 {
 	}
  
     while num != 0 {
-        var rem i32 = num % base;
-		if (rem > 9) {
+           let rem i32 = num % base;
+		if rem > 9 {
 			str[i++] = (rem - 10) + 'a';
 		} else {
 			str[i++] = rem + '0';
@@ -236,15 +236,15 @@ func itoa(num i32, str *u8, base i32) i32 {
 }
 
 func vsprintf(buf *u8, fmt *u8, argv *u64) i32 {
-	var buf_start *u8 = buf;
+    let buf_start *u8 = buf;
 
-	var i i32 = 0;
+    let i i32 = 0;
 
 	while *fmt != 0 {
 		if *fmt == '%' {
 			fmt++;
 			if *fmt == 's' { // %s
-				var str_length i32 = strlen(argv[i]);
+			    let str_length i32 = strlen(argv[i]);
 				memcpy(buf, argv[i], str_length);
 				buf = buf + str_length;
 				i++;
@@ -262,7 +262,7 @@ func vsprintf(buf *u8, fmt *u8, argv *u64) i32 {
 		fmt++;
 	}
 
-	var length i32 = buf - buf_start;
+    let length i32 = buf - buf_start;
 
 	buf[length] = '\0';
 

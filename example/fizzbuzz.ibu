@@ -2,7 +2,7 @@
 #include "std.ibu"
 
 func main() i32 {
-    var c i32 = 1;
+    let c i32 = 1;
     while c <= 100 {
         if c % 15 == 0 {
             printf("FizzBuzz\n");

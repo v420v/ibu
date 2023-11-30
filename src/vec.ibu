@@ -6,7 +6,7 @@ struct Vec {
 }
 
 func new_vec(cap i32) *Vec {
-    var vec *Vec = alloc(typesize(Vec));
+    let vec *Vec = alloc(typesize(Vec));
     vec.ptr = alloc(typesize(*u8) * cap);
     if vec.ptr == nil {
 		eprintf("allocation failed\n");
@@ -18,7 +18,7 @@ func new_vec(cap i32) *Vec {
 }
 
 func vec_realloc(vec *Vec) u0 {
-    var new_ptr *u8 = alloc(typesize(*u8) * vec.cap * 2);
+    let new_ptr *u8 = alloc(typesize(*u8) * vec.cap * 2);
 	if new_ptr == nil {
 		eprintf("allocation failed\n");
 		exit(1);

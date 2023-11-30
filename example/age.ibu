@@ -2,8 +2,7 @@
 #include "std.ibu"
 
 func main() i32 {
-    var age i8;
-    age = 19;
+    let age i32 = 19;
 
     if 13 <= age < 20 {
         printf("Teen-ager\n");

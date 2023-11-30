@@ -50,18 +50,14 @@ Since the language is selfhosted you need to bootstrap the compiler first.
 To build the compiler, run the following command below or just run `make`
 
 ```sh
-$ as -o bootstrap/ibu-linux-x86_x64.o bootstrap/ibu-linux-x86_x64.s
-$ as -o src/builtin.o src/builtin.s
-$ ld -o ibuc bootstrap/ibu-linux-x86_x64.o src/builtin.o
-
-# just to check if the compiler can compile itself.
+$ make
 $ make self
 ```
 
 ## How to build, compile programs written in Ibu
 ```sh
 $ ./ibuc <filename>.ibu | as - -o <filename>.o
-$ ld -o <filename> <filename>.o src/builtin.o
+$ ld -o <filename> <filename>.o
 ```
 
 ## Ibu Documentation
@@ -81,8 +77,8 @@ func main() i32 {
 #include "std.ibu"
 
 func main() i32 {
-    var name *u8 = "Ibuki";
-    var age i8 = 19;
+    let name *u8 = "Ibuki";
+    let age i8 = 19;
 
     printf("name: %s, age: %d\n", name, age);
 
@@ -102,7 +98,7 @@ i8, i16, i32, i64, u0, u8, u16, u32, u64
 // Allows "13 <= age < 20" instead of "13 <= age && age < 20"
 
 func main() i32 {
-    var age i32 = 19;
+    let age i32 = 19;
 
     if 13 <= age < 20 {
         printf("Teen-ager\n");
@@ -137,8 +133,8 @@ func main() i32 {
 // Variable-length arguments can be accessed using the built-in variable argv, argc
 
 func add_nums(...) i32 {
-    var n i32 = 0;
-    var idx i32 = 0;
+    let n i32 = 0;
+    let idx i32 = 0;
 
     while idx < argc {
         n = n + argv[idx];
@@ -149,7 +145,7 @@ func add_nums(...) i32 {
 }
 
 func main() i32 {
-    var d i32 = add_nums(1, 2, 3);
+    let d i32 = add_nums(1, 2, 3);
     printf("%d\n", d);
 
     return 0;
@@ -166,7 +162,7 @@ func main() i32 {
         printf("IBUKI\n");
     }
 
-    var i i32 = 0;
+    let i i32 = 0;
     while i < 100 {
         printf("%d\n", i);
         i++;
@@ -181,9 +177,9 @@ func main() i32 {
 #include "std.ibu"
 
 func main() i32 {
-    var arr [4]i32 = {1, 2, 3, 4};
+    let arr [4]i32 = {1, 2, 3, 4};
 
-    var arr2 [2][3][2][4]i32 = {
+    let arr2 [2][3][2][4]i32 = {
         {
             {
                 {1, 2, 3, 4}, {1, 2, 3, 4}
@@ -208,9 +204,9 @@ func main() i32 {
         }
     };
 
-    var buffer [10]u8 = {};
+    let buffer [10]u8 = {};
 
-    var test3 [2][2][2]i32 = {
+    let test3 [2][2][2]i32 = {
         {
             {}, {}
         },
@@ -236,7 +232,7 @@ struct Person {
 }
 
 func main() i32 {
-    var p Person = {
+    let p Person = {
         "Ibuki",
         19
     };
@@ -256,7 +252,7 @@ struct Person {
 }
 
 func main() i32 {
-    var p *Person = alloc(typesize(Person));
+    let p *Person = alloc(typesize(Person));
 
     p.name = "Ibuki";
     p.age = 19;

@@ -31,7 +31,7 @@ struct Token {
 }
 
 func get_program_line_length(str *u8) i32 {
-	var start *u8 = str;
+    let start *u8 = str;
 	while (*str != '\n') && (*str != '\0') {
 		str++;
 	}
@@ -39,7 +39,7 @@ func get_program_line_length(str *u8) i32 {
 }
 
 func frepeat_str(fd i32, str *u8, n i32) i32 {
-	var i i32 = 0;
+    let i i32 = 0;
 	while i < n {
 		fputs(fd, str);
 		i++;
@@ -82,7 +82,7 @@ func print_error(tok *Token, msg *u8) i32 {
 }
 
 func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
-	var t *Tokenizer = alloc(typesize(Tokenizer));
+    let t *Tokenizer = alloc(typesize(Tokenizer));
 	if t == nil {
 		eprintf("allocation failed\n");
 		exit(1);
@@ -93,7 +93,7 @@ func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 	t.cur_line = program;
 	t.file_name = file_name;
 
-	var puncts [32]*u8 = {
+    let puncts [32]*u8 = {
 		"==", "<=", ">=", "!=", "++", "--", "||", "&&", "<<", ">>", "...",
 		"+", "-", "<", ">", ";", ":", "{", "}", "=", ",", "(", ")", "[", "]",
 		".", "*", "#", "!", "%", "&", "/"
@@ -109,7 +109,7 @@ func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 //}
 
 func starts_with(a *u8, b *u8) bool {
-	var i i32 = 0;
+    let i i32 = 0;
 	while i < strlen(b) {
 		if a[i] != b[i] {
 			return false;
@@ -133,7 +133,7 @@ func tokenizer_next(t *Tokenizer) i32 {
 }
 
 func tokenizer_n_next(t *Tokenizer, n i32) i32 {
-	var idx i32 = 0;
+    let idx i32 = 0;
 	while idx < n {
 		tokenizer_next(t);
 		idx++;
@@ -142,7 +142,7 @@ func tokenizer_n_next(t *Tokenizer, n i32) i32 {
 }
 
 func new_token(t *Tokenizer, kind TokenKind) *Token {
-	var tok *Token = alloc(typesize(Token));
+    let tok *Token = alloc(typesize(Token));
 	if tok == nil {
 		eprintf("allocation failed\n");
 		exit(1);
@@ -158,10 +158,10 @@ func new_token(t *Tokenizer, kind TokenKind) *Token {
 }
 
 func tokenize_punct(t *Tokenizer) *Token {
-	var idx i32 = 0;
+    let idx i32 = 0;
 	while idx < 32 {
 		if starts_with(t.program, t.puncts[idx]) {
-			var tok *Token = new_token(t, TK_PUNCT);
+		    let tok *Token = new_token(t, TK_PUNCT);
 			tok.len = strlen(t.puncts[idx]);
 			tok.lit = strndup(t.puncts[idx], tok.len);
 			tokenizer_n_next(t, tok.len);
@@ -173,9 +173,9 @@ func tokenize_punct(t *Tokenizer) *Token {
 }
 
 func tokenize_number(t *Tokenizer) *Token {
-	var tok *Token = new_token(t, TK_NUM);
+    let tok *Token = new_token(t, TK_NUM);
 
-	var digit_start *u8 = t.program;
+    let digit_start *u8 = t.program;
 	while isdigit(*t.program) {
 		tokenizer_next(t);
 	}
@@ -224,7 +224,7 @@ func from_hex(c u8) u8 {
 }
 
 func read_escaped_char(t *Tokenizer) i32 {
-	var c i32;
+    let c i32;
 	tokenizer_next(t);
 	if '0' <= *t.program <= '7' {
 		c = *t.program - '0';
@@ -278,11 +278,11 @@ func read_escaped_char(t *Tokenizer) i32 {
 }
 
 func tokenize_char(t *Tokenizer) *Token {
-	var tok *Token = new_token(t, TK_CHAR);
-	var char_start *u8 = t.program;
+    let tok *Token = new_token(t, TK_CHAR);
+    let char_start *u8 = t.program;
 	tokenizer_next(t); // skip start '\''
 
-	var c i32;
+    let c i32;
 	if *t.program == '\\' {
 		c = read_escaped_char(t);
 	} else {
@@ -298,19 +298,19 @@ func tokenize_char(t *Tokenizer) *Token {
 }
 
 func tokenize_string(t *Tokenizer) *Token {
-	var tok *Token = new_token(t, TK_STR);
+    let tok *Token = new_token(t, TK_STR);
 
-	var string_start *u8 = t.program;
+    let string_start *u8 = t.program;
 
 	tokenizer_next(t); // skip start `"`
 
-	var end *u8 = string_end(t, t.program);
-	var buf *u8 = alloc(end - t.program + 1);
+    let end *u8 = string_end(t, t.program);
+    let buf *u8 = alloc(end - t.program + 1);
 	if buf == nil {
 		eprintf("allocation failed\n");
 		exit(1);
 	}
-	var len i32 = 0;
+    let len i32 = 0;
 
 	while t.program < end {
 		if *t.program == '\\' {
@@ -334,9 +334,9 @@ func tokenize_string(t *Tokenizer) *Token {
 }
 
 func tokenize_ident(t *Tokenizer) *Token {
-	var tok *Token = new_token(t, TK_IDENT);
+    let tok *Token = new_token(t, TK_IDENT);
 
-	var ident_start *u8 = t.program;
+    let ident_start *u8 = t.program;
 	while isalpha(*t.program) || isdigit(*t.program) || *t.program == 95 {
 		tokenizer_next(t);
 	}
@@ -349,8 +349,8 @@ func tokenize_ident(t *Tokenizer) *Token {
 }
 
 func tokenize(t *Tokenizer) *Token {
-	var head Token = {};
-	var cur *Token = &head;
+    let head Token = {};
+    let cur *Token = &head;
 
 	while *t.program != nil {
 		skip_single_line_comment(t);
@@ -370,15 +370,14 @@ func tokenize(t *Tokenizer) *Token {
 		} else if *t.program == '\t' { // Tab
 			tokenizer_next(t);
 		} else {
-			var tok *Token = tokenize_punct(t);
+		    let tok *Token = tokenize_punct(t);
 			if tok != nil {
 				cur = cur.next = tok;
 			} else {
-				// invalid
-				var invalid *Token = new_token(t, TK_UNKOWN);
-				invalid.lit = strndup(t.program, 1);
-				invalid.len = 1;
-				print_error(invalid, "unkown character found");
+			    let invalid_tok *Token = new_token(t, TK_UNKOWN);
+				invalid_tok.lit = strndup(t.program, 1);
+				invalid_tok.len = 1;
+				print_error(invalid_tok, "unkown character found");
 			}
 		}
 	}
