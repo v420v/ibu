@@ -14,10 +14,15 @@
 #include "std.ibu"
 
 func main() i32 {
+    let age i32 = 19;
+
+    if 13 <= age < 20 {
+        printf("Teen-ager\n");
+    }
+
     printf("Hello, world!\n");
     return 0;
 }
-
 ```
 
 ## Build compiler
