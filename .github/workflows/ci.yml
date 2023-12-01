@@ -22,3 +22,4 @@ jobs:
           make self
           make self
           make self
+          time make self
