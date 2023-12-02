@@ -54,16 +54,16 @@ func get_eof_from_tokens(tokens *Token) *Token {
 }
 
 func dirname(path *u8) *u8 {
-    let length i32 = strlen(path);
+    let len i32 = strlen(path);
 
-    if length >= 2 && path[0] == '.' && path[1] == '/' {
-        memmove(path, path+2, length - 2);
-        path[length - 2] = '\0';
+    if len >= 2 && path[0] == '.' && path[1] == '/' {
+        memmove(path, path+2, len - 2);
+        path[len - 2] = '\0';
     }
 
-    while length > 0 && path[length - 1] == '/' {
-		length--;
-        path[length] = '\0';
+    while len > 0 && path[len - 1] == '/' {
+		len--;
+        path[len] = '\0';
     }
 
     let last_slash *u8 = strrchr(path, '/');

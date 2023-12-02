@@ -104,10 +104,6 @@ func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 	return t;
 }
 
-//func is_three_c_punct(program *u8) bool {
-//	return starts_with(program, "...");
-//}
-
 func starts_with(a *u8, b *u8) bool {
     let i i32 = 0;
 	while i < strlen(b) {
@@ -132,7 +128,7 @@ func tokenizer_next(t *Tokenizer) i32 {
 	return 0;
 }
 
-func tokenizer_n_next(t *Tokenizer, n i32) i32 {
+func tokenizer_next_n(t *Tokenizer, n i32) i32 {
     let idx i32 = 0;
 	while idx < n {
 		tokenizer_next(t);
@@ -164,7 +160,7 @@ func tokenize_punct(t *Tokenizer) *Token {
 		    let tok *Token = new_token(t, TK_PUNCT);
 			tok.len = strlen(t.puncts[idx]);
 			tok.lit = strndup(t.puncts[idx], tok.len);
-			tokenizer_n_next(t, tok.len);
+			tokenizer_next_n(t, tok.len);
 			return tok;
 		}
 		idx++;
@@ -288,7 +284,7 @@ func tokenize_char(t *Tokenizer) *Token {
 	} else {
 		c = *t.program;
 	}
-	tokenizer_n_next(t, 2);
+	tokenizer_next_n(t, 2);
 
 	tok.lit = strndup(char_start, t.program - char_start);
 	tok.len = t.program - char_start;

@@ -82,6 +82,12 @@ struct Type {
 	tok *Token,
 }
 
+func unexpected_token_error(expected *u8, tok *Token, msg *u8) i32 {
+	print_error_with_code(tok, msg);
+	eprintf("help: expected `%s` but got `%s`\n", expected, tok.lit);
+	exit(1);
+}
+
 func unkown_type_error(types *Vec, tok *Token, msg *u8) i32{
 	print_error_with_code(tok, msg);
 
@@ -142,12 +148,6 @@ func unkown_member_error(members *Vec, tok *Token, msg *u8) i32 {
 
 struct Object;
 struct Node;
-
-func unexpected_token_error(expected *u8, tok *Token, msg *u8) i32 {
-	print_error_with_code(tok, msg);
-	eprintf("help: expected `%s` but got `%s`\n", expected, tok.lit);
-	exit(1);
-}
 
 struct Object {
 	name *u8,

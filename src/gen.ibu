@@ -24,23 +24,25 @@ func gen_expr(g *Gen, node *Node) i32;
 
 func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32 {
 	gen_expr(g, rhs);
-	printf("\tpush %rax\n");
+	printf("\tpush %%rax\n");
 	gen_expr(g, lhs);
-	printf("\tpop %rdi\n");
+	printf("\tpop %%rdi\n");
 }
 
 func gen_addr(g *Gen, node *Node) i32 {
 	if node.kind == ND_MEMBER_ACCESS {
 		gen_addr(g, node.lhs);
-		printf("\taddq $%d, %rax\n", node.offset);
+		printf("\taddq $%d, %%rax\n", node.offset);
 	} else if node.kind == ND_VAR {
 		if node.obj.is_global {
-			printf("\tleaq %s(%rip), %rax\n", node.obj.name);
+			printf("\tleaq %s(%%rip), %%rax\n", node.obj.name);
 		} else {
-			printf("\tleaq %d(%rbp), %rax\n", node.obj.offset);
+			printf("\tleaq %d(%%rbp), %%rax\n", node.obj.offset);
 		}
 	} else if node.kind == ND_DEREF {
 		gen_expr(g, node.lhs);
+	} else {
+		// TODO: print error
 	}
 	return 0;
 }
@@ -49,20 +51,20 @@ func gen_store(ty *Type) i32 {
 	if ty.kind == TY_STRUCT {
 	    let idx i32 = 0;
 		while idx < ty.size {
-			printf("\tmovb %d(%rax), %r8b\n", idx);
-			printf("\tmovb %r8b, %d(%rdi)\n", idx);
+			printf("\tmovb %d(%%rax), %%r8b\n", idx);
+			printf("\tmovb %%r8b, %d(%%rdi)\n", idx);
 			idx++;
 		}
 		return 0;
 	}
 	if ty.size == 1 {
-		printf("\tmovb %al, (%rdi)\n");
+		printf("\tmovb %%al, (%%rdi)\n");
 	} else if ty.size == 2 {
-		printf("\tmovw %ax, (%rdi)\n");
+		printf("\tmovw %%ax, (%%rdi)\n");
 	} else if ty.size == 4 {
-		printf("\tmovl %eax, (%rdi)\n");
+		printf("\tmovl %%eax, (%%rdi)\n");
 	} else {
-		printf("\tmovq %rax, (%rdi)\n");
+		printf("\tmovq %%rax, (%%rdi)\n");
 	}
 	return 0;
 }
@@ -89,13 +91,13 @@ func gen_load(g *Gen, ty *Type) i32 {
 	}
 
 	if ty.size == 8 {
-		printf("\tmovq (%rax), %rax\n");
+		printf("\tmovq (%%rax), %%rax\n");
 	} else if ty.size == 4 {
-		printf("\tmovslq (%rax), %rax\n");
+		printf("\tmovslq (%%rax), %%rax\n");
 	} else if ty.size == 2 {
-		printf("\t%swl (%rax), %eax\n", instr); 
+		printf("\t%swl (%%rax), %%eax\n", instr); 
 	} else if ty.size == 1 {
-		printf("\t%sbl (%rax), %eax\n", instr);
+		printf("\t%sbl (%%rax), %%eax\n", instr);
 	} else {
 		eprintf("unreachable\n");
 		exit(1);
@@ -105,18 +107,18 @@ func gen_load(g *Gen, ty *Type) i32 {
 
 func gen_binop(instr_name *u8, ty *Type) i32 {
 	if ty.kind == TY_PTR || ty.kind == TY_ARRAY {
-		printf("\t%sq %rdi, %rax\n", instr_name);
+		printf("\t%sq %%rdi, %%rax\n", instr_name);
 	} else {
-		printf("\t%sl %edi, %eax\n", instr_name);
+		printf("\t%sl %%edi, %%eax\n", instr_name);
 	}
 	return 0;
 }
 
 func gen_condition_store(ty *Type) i32 {
 	if ty.kind == TY_PTR || ty.kind == TY_ARRAY || ty.size == 8 {
-		printf("\tmovzbq %al, %rax\n");
+		printf("\tmovzbq %%al, %%rax\n");
 	} else {
-		printf("\tmovzbl %al, %eax\n");
+		printf("\tmovzbl %%al, %%eax\n");
 	}
 }
 
@@ -131,7 +133,7 @@ func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
 	while 0 <= idx {
 	    let arg *Node = vec_get(args, idx);
 		gen_expr(g, arg);
-		printf("\tpush %rax\n");
+		printf("\tpush %%rax\n");
 		stack = stack + 8;
 
 		if ty.is_variadic && idx-1 == (ty.params.len - 2 - 1) {
@@ -139,8 +141,8 @@ func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
 			if args.len > (ty.params.len - 2) {
 				argc = args.len - (ty.params.len - 2);
 			}
-			printf("\tleaq (%rsp), %rax\n");
-			printf("\tpush %rax\n");
+			printf("\tleaq (%%rsp), %%rax\n");
+			printf("\tpush %%rax\n");
 			printf("\tpush $%d\n", argc);
 			stack = stack + 16;
 		}
@@ -182,18 +184,18 @@ func gen_expr(g *Gen, node *Node) i32 {
 		printf("\t.byte 0\n");
 
 		printf(".text\n");
-		printf("\tleaq .L.str.%d(%rip), %rax\n", c);
+		printf("\tleaq .L.str.%d(%%rip), %%rax\n", c);
 		return 0;
 	}
 	if node.kind == ND_NUM {
-		printf("\tmovq $%d, %rax\n", node.int_val);
+		printf("\tmovq $%d, %%rax\n", node.int_val);
 		return 0;
 	}
 	if node.kind == ND_ASSIGN {
 		gen_addr(g, node.lhs);
-		printf("\tpush %rax\n");
+		printf("\tpush %%rax\n");
 		gen_expr(g, node.rhs);
-		printf("\tpop %rdi\n");
+		printf("\tpop %%rdi\n");
 		gen_store(node.ty);
 		return 0;
 	}
@@ -207,22 +209,22 @@ func gen_expr(g *Gen, node *Node) i32 {
 		stack = func_call_args_to_stack(g, node.args, node.lhs.ty);
 
 		gen_expr(g, node.lhs);
-		printf("\tmovq %rax, %r10\n");
-		printf("\tmovq $0, %rax\n");
+		printf("\tmovq %%rax, %%r10\n");
+		printf("\tmovq $0, %%rax\n");
 
-		printf("\tcallq *%r10\n");
-		printf("\taddq $%d, %rsp\n", stack);
+		printf("\tcallq *%%r10\n");
+		printf("\taddq $%d, %%rsp\n", stack);
 
 		if node.ty.kind == TY_BOOL {
-			printf("\tmovzx %al, %eax\n");
+			printf("\tmovzx %%al, %%eax\n");
 		} else if node.ty.kind == TY_I8 {
-			printf("\tmovsbl %al, %eax\n");
+			printf("\tmovsbl %%al, %%eax\n");
 		} else if node.ty.kind == TY_U8 {
-			printf("\tmovzbl %al, %eax\n");
+			printf("\tmovzbl %%al, %%eax\n");
 		} else if node.ty.kind == TY_I16 {
-			printf("\tmovswl %ax, %eax\n");
+			printf("\tmovswl %%ax, %%eax\n");
 		} else if node.ty.kind == TY_U16 {
-			printf("\tmovzwl %ax, %eax\n");
+			printf("\tmovzwl %%ax, %%eax\n");
 		} else {}
 
 		return 0;
@@ -242,9 +244,9 @@ func gen_expr(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_NOT {
 		gen_expr(g, node.lhs);
-		printf("\tcmpq $0, %rax\n");
-		printf("\tsete %al\n");
-		printf("\tmovzbq %al, %rax\n");
+		printf("\tcmpq $0, %%rax\n");
+		printf("\tsete %%al\n");
+		printf("\tmovzbq %%al, %%rax\n");
 		return 0;
 	}
 	if node.kind == ND_ADD {
@@ -254,14 +256,14 @@ func gen_expr(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_SHL {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
-		printf("\tmovq %rdi, %rcx\n");
-		printf("\tshl %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
+		printf("\tmovq %%rdi, %%rcx\n");
+		printf("\tshl %%cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
 		return 0;
 	}
 	if node.kind == ND_SHR {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
-		printf("\tmovq %rdi, %rcx\n");
-		printf("\tshr %cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
+		printf("\tmovq %%rdi, %%rcx\n");
+		printf("\tshr %%cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
 		return 0;
 	}
 	if node.kind == ND_SUB {
@@ -279,11 +281,11 @@ func gen_expr(g *Gen, node *Node) i32 {
 
 		if node.ty.is_unsigned {
 			if node.ty.size == 8 {
-				printf("\tmov $0, %rdx\n");
-      			printf("\tdivq %rdi\n");
+				printf("\tmov $0, %%rdx\n");
+      			printf("\tdivq %%rdi\n");
 			} else {
-				printf("\tmov $0, %edx\n");
-      			printf("\tdivl %edi\n");
+				printf("\tmov $0, %%edx\n");
+      			printf("\tdivl %%edi\n");
 			}
 		} else {
 			if node.lhs.ty.size == 8 {
@@ -292,57 +294,57 @@ func gen_expr(g *Gen, node *Node) i32 {
 				printf("\tcltd\n");
 			}
 			if node.ty.size == 8 {
-				printf("\tidivq %rdi\n");
+				printf("\tidivq %%rdi\n");
 			} else {
-				printf("\tidivl %edi\n");
+				printf("\tidivl %%edi\n");
 			}
 		}
 		if node.kind == ND_MOD {
-			printf("\tmovq %rdx, %rax\n");
+			printf("\tmovq %%rdx, %%rax\n");
 		}
 		return 0;
 	}
 	if node.kind == ND_EQ {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		printf("\tsete %al\n");
+		printf("\tsete %%al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
 	if node.kind == ND_NE {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
-		printf("\tsetne %al\n");
+		printf("\tsetne %%al\n");
 		gen_condition_store(node.ty);
 		return 0;
 	}
 	if node.kind == ND_LOGAND {
 		c = g.label_count++;
 		gen_expr(g, node.lhs);
-		printf("\tcmpq $0, %rax\n");
+		printf("\tcmpq $0, %%rax\n");
 		printf("\tje .L.false.%d\n", c);
 		gen_expr(g, node.rhs);
-		printf("\tcmpq $0, %rax\n");
+		printf("\tcmpq $0, %%rax\n");
 		printf("\tje .L.false.%d\n", c);
-		printf("\tmovq $1, %rax\n");
+		printf("\tmovq $1, %%rax\n");
 		printf("\tjmp .L.end.%d\n", c);
 		printf(".L.false.%d:\n", c);
-		printf("\tmovq $0, %rax\n");
+		printf("\tmovq $0, %%rax\n");
 		printf(".L.end.%d:\n", c);
 		return 0;
 	}
 	if node.kind == ND_LOGOR {
 		c = g.label_count++;
 		gen_expr(g, node.lhs);
-		printf("\tcmpq $0, %rax\n");
+		printf("\tcmpq $0, %%rax\n");
 		printf("\tjne .L.true.%d\n", c);
 		gen_expr(g, node.rhs);
-		printf("\tcmp $0, %rax\n");
+		printf("\tcmp $0, %%rax\n");
 		printf("\tjne .L.true.%d\n", c);
-		printf("\tmov $0, %rax\n");
+		printf("\tmov $0, %%rax\n");
 		printf("\tjmp .L.end.%d\n", c);
 		printf(".L.true.%d:\n", c);
-		printf("\tmov $1, %rax\n");
+		printf("\tmov $1, %%rax\n");
 		printf(".L.end.%d:\n", c);
 		return 0;
 	}
@@ -350,9 +352,9 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		if node.lhs.ty.is_unsigned {
-       		printf("\tsetae %al\n");
+       		printf("\tsetae %%al\n");
 		} else {
-        	printf("\tsetge %al\n");
+        	printf("\tsetge %%al\n");
 		}
 		gen_condition_store(node.ty);
 		return 0;
@@ -361,9 +363,9 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		if node.lhs.ty.is_unsigned {
-       		printf("\tseta %al\n");
+       		printf("\tseta %%al\n");
 		} else {
-        	printf("\tsetg %al\n");
+        	printf("\tsetg %%al\n");
 		}
 		gen_condition_store(node.ty);
 		return 0;
@@ -372,9 +374,9 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		if node.lhs.ty.is_unsigned {
-       		printf("\tsetbe %al\n");
+       		printf("\tsetbe %%al\n");
 		} else {
-        	printf("\tsetle %al\n");
+        	printf("\tsetle %%al\n");
 		}
 		gen_condition_store(node.ty);
 		return 0;
@@ -383,9 +385,9 @@ func gen_expr(g *Gen, node *Node) i32 {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		gen_binop("cmp", node.ty);
 		if node.lhs.ty.is_unsigned {
-       		printf("\tsetb %al\n");
+       		printf("\tsetb %%al\n");
 		} else {
-        	printf("\tsetl %al\n");
+        	printf("\tsetl %%al\n");
 		}
 		gen_condition_store(node.ty);
 		return 0;
@@ -421,23 +423,23 @@ func gen_stmt(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_MEMZERO {
 		gen_expr(g, node.lhs);
-		printf("\tmovq %rax, %rdi\n");
-		printf("\tmovq $%d, %rcx\n", node.ty.size);
-		printf("\tmov $0, %al\n");
+		printf("\tmovq %%rax, %%rdi\n");
+		printf("\tmovq $%d, %%rcx\n", node.ty.size);
+		printf("\tmov $0, %%al\n");
     	printf("\trep stosb\n");
 		return 0;
 	}
 	if node.kind == ND_RETURN {
 		gen_expr(g, node.lhs);
-		printf("\tmovq %rbp, %rsp\n");
-		printf("\tpop %rbp\n");
+		printf("\tmovq %%rbp, %%rsp\n");
+		printf("\tpop %%rbp\n");
 		printf("\tretq\n");
 		return 0;
 	}
 	if node.kind == ND_IF {
 		c = g.label_count++;
 		gen_expr(g, node.cond);
-		printf("\tcmpq $1, %rax\n");
+		printf("\tcmpq $1, %%rax\n");
 		printf("\tjne .L.else.%d\n", c);
 		gen_stmt(g, node.then_block);
 		printf("\tjmp .L.end.%d\n", c);
@@ -460,7 +462,7 @@ func gen_stmt(g *Gen, node *Node) i32 {
 		c = g.label_count++;
 		printf(".L.while.start.%d:\n", c);
 		gen_expr(g, node.cond);
-		printf("\tcmpq $1, %rax\n");
+		printf("\tcmpq $1, %%rax\n");
 		printf("\tjne .L.while.end.%d\n", c);
 		gen_stmt(g, node.then_block);
 		printf("\tjmp .L.while.start.%d\n", c);
@@ -469,9 +471,9 @@ func gen_stmt(g *Gen, node *Node) i32 {
 	}
 	if node.kind == ND_ASSIGN {
 		gen_addr(g, node.lhs);
-		printf("\tpush %rax\n");
+		printf("\tpush %%rax\n");
 		gen_expr(g, node.rhs);
-		printf("\tpop %rdi\n");
+		printf("\tpop %%rdi\n");
 		gen_store(node.ty);
 		return 0;
 	}
@@ -541,12 +543,12 @@ func gen(g *Gen, object *Object) u0 {
 		printf("# trap 16(rbp)\n");
 		printf(".global syscall\n");
 		printf("syscall:\n");
-		printf("	push %rbp\n");
-		printf("	movq %rsp, %rbp\n");
-		printf("	movq 16(%rbp), %rax\n");
-		printf("	movq 16+8(%rbp), %rdi\n");
-		printf("	movq 16+16(%rbp), %rsi\n");
-		printf("	movq 16+24(%rbp), %rdx\n");
+		printf("	push %%rbp\n");
+		printf("	movq %%rsp, %%rbp\n");
+		printf("	movq 16(%%rbp), %%rax\n");
+		printf("	movq 16+8(%%rbp), %%rdi\n");
+		printf("	movq 16+16(%%rbp), %%rsi\n");
+		printf("	movq 16+24(%%rbp), %%rdx\n");
 		printf("	syscall\n");
 		printf("	leave\n");
 		printf("	ret\n");
@@ -556,41 +558,41 @@ func gen(g *Gen, object *Object) u0 {
 		printf("# size   16(rbp)\n");
 		printf(".global	alloc\n");
 		printf("alloc:\n");
-		printf("	pushq	%rbp\n");
-		printf("	movq	%rsp, %rbp\n");
-		printf("	movq	16(%rbp), %rax\n");
-		printf("	movq    %rax, -24(%rbp)\n");
-		printf("	movq	heap_size(%rip), %rdx\n");
-		printf("	movq	-24(%rbp), %rax\n");
-		printf("	addq	%rdx, %rax\n");
-		printf("	cmpq	$HEAP_CAPACITY-1, %rax\n");
+		printf("	pushq	%%rbp\n");
+		printf("	movq	%%rsp, %%rbp\n");
+		printf("	movq	16(%%rbp), %%rax\n");
+		printf("	movq    %%rax, -24(%%rbp)\n");
+		printf("	movq	heap_size(%%rip), %%rdx\n");
+		printf("	movq	-24(%%rbp), %%rax\n");
+		printf("	addq	%%rdx, %%rax\n");
+		printf("	cmpq	$HEAP_CAPACITY-1, %%rax\n");
 		printf("	jbe	.L.alloc.2\n");
-		printf("	movl	$0, %eax\n");
+		printf("	movl	$0, %%eax\n");
 		printf("	jmp	.L.alloc_ret_null\n");
 		printf(".L.alloc.2:\n");
-		printf("	movq	heap_size(%rip), %rax\n");
-		printf("	leaq	heap(%rip), %rdx\n");
-		printf("	addq	%rdx, %rax\n");
-		printf("	movq	%rax, -8(%rbp)\n");
-		printf("	movq	heap_size(%rip), %rdx\n");
-		printf("	movq	-24(%rbp), %rax\n");
-		printf("	addq	%rdx, %rax\n");
-		printf("	movq	%rax, heap_size(%rip)\n");
-		printf("	movq	-8(%rbp), %rax\n");
+		printf("	movq	heap_size(%%rip), %%rax\n");
+		printf("	leaq	heap(%%rip), %%rdx\n");
+		printf("	addq	%%rdx, %%rax\n");
+		printf("	movq	%%rax, -8(%%rbp)\n");
+		printf("	movq	heap_size(%%rip), %%rdx\n");
+		printf("	movq	-24(%%rbp), %%rax\n");
+		printf("	addq	%%rdx, %%rax\n");
+		printf("	movq	%%rax, heap_size(%%rip)\n");
+		printf("	movq	-8(%%rbp), %%rax\n");
 		printf(".L.alloc_ret_null:\n");
-		printf("	popq	%rbp\n");
+		printf("	popq	%%rbp\n");
 		printf("	ret\n");
 
 		printf(".global _start\n");
 		printf("_start:\n");
-		printf("\tpush %rbp\n");
-		printf("\tmovq %rsp, %rbp\n");
-		printf("\tleaq 16(%rbp), %rax\n");
-		printf("\tpush %rax\n");
-		printf("\tpushq 8(%rbp)\n"); 
+		printf("\tpush %%rbp\n");
+		printf("\tmovq %%rsp, %%rbp\n");
+		printf("\tleaq 16(%%rbp), %%rax\n");
+		printf("\tpush %%rax\n");
+		printf("\tpushq 8(%%rbp)\n"); 
 		printf("\tcallq main\n");
-		printf("\tmovq %rax, %rdi\n");
-		printf("\tmovq $60, %rax\n");
+		printf("\tmovq %%rax, %%rdi\n");
+		printf("\tmovq $60, %%rax\n");
 		printf("\tsyscall\n");
 	}
 
@@ -605,9 +607,9 @@ func gen(g *Gen, object *Object) u0 {
 
 			printf(".global %s\n", object.name);
 			printf("%s:\n", object.name);
-			printf("\tpush %rbp\n");
-			printf("\tmovq %rsp, %rbp\n");
-			printf("\tsubq $%d, %rsp\n", object.stack_size);
+			printf("\tpush %%rbp\n");
+			printf("\tmovq %%rsp, %%rbp\n");
+			printf("\tsubq $%d, %%rsp\n", object.stack_size);
 
 			gen_stmt(g, object.body);
 			printf("\tleave\n");
