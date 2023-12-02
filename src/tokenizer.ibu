@@ -5,7 +5,7 @@ struct Tokenizer {
 	col i32,
 	line i32,
 	program *u8,
-	puncts [32]*u8,
+	puncts [34]*u8,
 }
 
 #define TokenKind	i32
@@ -93,10 +93,10 @@ func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
 	t.cur_line = program;
 	t.file_name = file_name;
 
-    let puncts [32]*u8 = {
+    let puncts [34]*u8 = {
 		"==", "<=", ">=", "!=", "++", "--", "||", "&&", "<<", ">>", "...",
 		"+", "-", "<", ">", ";", ":", "{", "}", "=", ",", "(", ")", "[", "]",
-		".", "*", "#", "!", "%", "&", "/"
+		".", "*", "#", "!", "%", "&", "/", "|", "&"
 	};
 
 	memcpy(t.puncts, puncts, sizeof(t.puncts));
@@ -155,7 +155,7 @@ func new_token(t *Tokenizer, kind TokenKind) *Token {
 
 func tokenize_punct(t *Tokenizer) *Token {
     let idx i32 = 0;
-	while idx < 32 {
+	while idx < 34 {
 		if starts_with(t.program, t.puncts[idx]) {
 		    let tok *Token = new_token(t, TK_PUNCT);
 			tok.len = strlen(t.puncts[idx]);

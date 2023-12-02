@@ -33,6 +33,8 @@
 #define ND_SHL              30
 #define ND_SHR              31
 #define ND_MEMZERO          32
+#define ND_AND              33
+#define ND_OR               34
 
 #define TypeKind	i32
 #define TY_I64		0
@@ -525,7 +527,8 @@ func add_type(p *Parser, node *Node) i32 {
 		|| node.kind == ND_NE || node.kind == ND_LE
 		|| node.kind == ND_LT || node.kind == ND_GT
 		|| node.kind == ND_GE || node.kind == ND_LOGAND
-		|| node.kind == ND_LOGOR || node.kind == ND_NUM) {
+		|| node.kind == ND_LOGOR || node.kind == ND_NUM
+		|| node.kind == ND_AND || node.kind == ND_OR) {
 		node.ty = p.ty_i32;
 		return 0;
 	}
@@ -1133,11 +1136,29 @@ func parse_equality(p *Parser) *Node {
 	return node;
 }
 
+func parse_and(p *Parser) *Node {
+	let node *Node = parse_equality(p);
+	while strcmp(p.tokens.lit, "&") {
+		parser_next(p);
+		node = new_binop(ND_AND, node, parse_equality(p));
+	}
+	return node;
+}
+
+func parse_or(p *Parser) *Node {
+	let node *Node = parse_and(p);
+	while strcmp(p.tokens.lit, "|") {
+		parser_next(p);
+		node = new_binop(ND_OR, node, parse_and(p));
+	}
+	return node;
+}
+
 func parse_logand(p *Parser) *Node {
-    let node *Node = parse_equality(p);
+    let node *Node = parse_or(p);
 	while strcmp(p.tokens.lit, "&&") {
 		parser_next(p);
-		node = new_binop(ND_LOGAND, node, parse_equality(p));
+		node = new_binop(ND_LOGAND, node, parse_or(p));
 	}
 	return node;
 }
@@ -1366,12 +1387,17 @@ func calc_sizof_struct_members(members *Vec) i32 {
 
 	while idx < members.len {
 	    let member *Member = vec_get(members, idx);
+		if member.ty.size <= 8 && align_to(offset, 8) < align_to(offset + member.ty.size, 8) {
+			//eprintf("padding: %d\n", align_to(offset, 8) - offset);
+			offset = align_to(offset, 8);
+		}
 		member.offset = offset;
+		//eprintf("%s: %d\n", member.name, member.offset);
 		offset = offset + member.ty.size;
 		idx++;
 	}
 
-	return offset;
+	return align_to(offset, 8);
 }
 
 func parse_struct(p *Parser) i32 {
