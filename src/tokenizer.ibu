@@ -26,16 +26,19 @@ struct Token {
 	lit *u8,
 	len i32,
 	str_val *u8,
-	char_val u8,
+	int_val i32,
 	next *Token,
 }
 
-func get_program_line_length(str *u8) i32 {
-    let start *u8 = str;
-	while (*str != '\n') && (*str != '\0') {
-		str++;
-	}
-	return str - start;
+func copy_token(source *Token, dest *Token) i32 {
+    let tok *Token = *dest;
+	tok.lit = source.lit;
+	tok.kind = source.kind;
+	tok.file_name = source.file_name;
+	tok.line = source.line;
+	tok.col = source.col;
+	tok.int_val = source.int_val;
+	return 0;
 }
 
 func frepeat_str(fd i32, str *u8, n i32) i32 {
@@ -168,20 +171,6 @@ func tokenize_punct(t *Tokenizer) *Token {
 	return nil;
 }
 
-func tokenize_number(t *Tokenizer) *Token {
-    let tok *Token = new_token(t, TK_NUM);
-
-    let digit_start *u8 = t.program;
-	while isdigit(*t.program) {
-		tokenizer_next(t);
-	}
-
-	tok.lit = strndup(digit_start, t.program-digit_start);
-	tok.len = t.program-digit_start;
-
-	return tok;
-}
-
 func skip_single_line_comment(t *Tokenizer) i32 {
 	if starts_with(t.program, "//") {
 		while (*t.program != '\n') && (*t.program != '\0') {
@@ -273,8 +262,24 @@ func read_escaped_char(t *Tokenizer) i32 {
 	return *t.program;
 }
 
+func tokenize_number(t *Tokenizer) *Token {
+    let tok *Token = new_token(t, TK_NUM);
+
+    let digit_start *u8 = t.program;
+
+	while isdigit(*t.program) {
+		tokenizer_next(t);
+	}
+
+	tok.lit = strndup(digit_start, t.program-digit_start);
+	tok.len = t.program-digit_start;
+	tok.int_val = atoi(tok.lit);
+
+	return tok;
+}
+
 func tokenize_char(t *Tokenizer) *Token {
-    let tok *Token = new_token(t, TK_CHAR);
+    let tok *Token = new_token(t, TK_NUM);
     let char_start *u8 = t.program;
 	tokenizer_next(t); // skip start '\''
 
@@ -288,7 +293,7 @@ func tokenize_char(t *Tokenizer) *Token {
 
 	tok.lit = strndup(char_start, t.program - char_start);
 	tok.len = t.program - char_start;
-	tok.char_val = c;
+	tok.int_val = c;
 
 	return tok;
 }
@@ -317,7 +322,7 @@ func tokenize_string(t *Tokenizer) *Token {
 
 		tokenizer_next(t);
 	}
-	buf[len] = 0; // null terminator
+	buf[len] = '\0'; // null terminator
 
 	tokenizer_next(t); // skip end `"`
 
@@ -336,7 +341,6 @@ func tokenize_ident(t *Tokenizer) *Token {
 	while isalpha(*t.program) || isdigit(*t.program) || *t.program == 95 {
 		tokenizer_next(t);
 	}
-	ident_end:
 
 	tok.lit = strndup(ident_start, t.program-ident_start);
 	tok.len = t.program-ident_start;

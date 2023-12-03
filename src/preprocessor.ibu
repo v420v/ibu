@@ -36,16 +36,6 @@ func find_macro(name *u8, p *Preprocessor) *Macro {
 	return nil;
 }
 
-func copy_token(source *Token, dest *Token) i32 {
-    let tok *Token = *dest;
-	tok.lit = source.lit;
-	tok.kind = source.kind;
-	tok.file_name = source.file_name;
-	tok.line = source.line;
-	tok.col = source.col;
-	return 0;
-}
-
 func get_eof_from_tokens(tokens *Token) *Token {
 	while tokens.kind != TK_EOF {
 		tokens = tokens.next;
@@ -190,6 +180,10 @@ func preprocess(tok *Token, p *Preprocessor) u0 {
 				vec_append(p.included_file_full_path, file_full_path);
 
 			    let buf *u8 = alloc(PROGRAM_MAX_SIZE);
+				if buf == nil {
+					eprintf("allocation failed\n");
+					exit(1);
+				}
 				read(fd, buf, PROGRAM_MAX_SIZE);
 				close(fd);
 

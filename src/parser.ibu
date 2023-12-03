@@ -695,11 +695,7 @@ func parse_number(p *Parser) *Node {
     let node *Node;
 
 	if p.tokens.kind == TK_NUM {
-		node = new_node_num(atoi(p.tokens.lit));
-		parser_next(p);
-	} else if p.tokens.kind == TK_CHAR {
-		node = new_node(ND_NUM);
-		node.int_val = p.tokens.char_val;
+		node = new_node_num(p.tokens.int_val);
 		parser_next(p);
 	} else if p.tokens.kind == TK_STR {
 		node = new_node(ND_STR);
