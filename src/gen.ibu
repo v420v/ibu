@@ -3,7 +3,6 @@ struct Gen {
 	label_count i32,
 	str_label_count i32,
 	cur_func_name *u8,
-	has_main bool,
 
 	offset i32,
 	stack_offset i32,
@@ -548,80 +547,20 @@ func assign_local_var_offset(g *Gen, obj *Object) i32 {
 	return align_to(g.offset, 16);
 }
 
-func check_global_objects(g *Gen, object *Object) u0 {
+func has_main(object *Object) bool {
 	while object != nil {
 		if strcmp(object.name, "main") {
-			g.has_main = true;
+			return true;
 		}
 		object = object.next;
 	}
+	return false;
 }
 
 func gen(g *Gen, object *Object) u0 {
-	check_global_objects(g, object);
-
 	printf(".text\n");
 
-	if g.has_main {
-		printf(".set HEAP_CAPACITY, 1610612736 # 1.5GB\n");
-
-		printf("# Allocator\n");
-		printf(".bss\n");
-		printf("heap:\n");
-		printf("	.zero	HEAP_CAPACITY\n");
-		printf("heap_size:\n");
-		printf("	.zero	8\n");
-
-		printf(".text\n");
-
-		// syscall function
-		printf("# func syscall(trap *i8, a1 *i8, a2 *i8, a3 *i8) i64;\n");
-		printf("# a3   16+24(rbp)\n");
-		printf("# a2   16+16(rbp)\n");
-		printf("# a1   16+8(rbp)\n");
-		printf("# trap 16(rbp)\n");
-		printf(".global syscall\n");
-		printf("syscall:\n");
-		printf("	push %%rbp\n");
-		printf("	movq %%rsp, %%rbp\n");
-		printf("	movq 16(%%rbp), %%rax\n");
-		printf("	movq 16+8(%%rbp), %%rdi\n");
-		printf("	movq 16+16(%%rbp), %%rsi\n");
-		printf("	movq 16+24(%%rbp), %%rdx\n");
-		printf("	syscall\n");
-		printf("	leave\n");
-		printf("	ret\n");
-
-		// alloc function
-		printf("# func alloc(size i32) *u8;\n");
-		printf("# size   16(rbp)\n");
-		printf(".global	alloc\n");
-		printf("alloc:\n");
-		printf("	pushq	%%rbp\n");
-		printf("	movq	%%rsp, %%rbp\n");
-		printf("	movq	16(%%rbp), %%rax\n");
-		printf("	movq    %%rax, -24(%%rbp)\n");
-		printf("	movq	heap_size(%%rip), %%rdx\n");
-		printf("	movq	-24(%%rbp), %%rax\n");
-		printf("	addq	%%rdx, %%rax\n");
-		printf("	cmpq	$HEAP_CAPACITY-1, %%rax\n");
-		printf("	jbe	.L.alloc.2\n");
-		printf("	movl	$0, %%eax\n");
-		printf("	jmp	.L.alloc_ret_null\n");
-		printf(".L.alloc.2:\n");
-		printf("	movq	heap_size(%%rip), %%rax\n");
-		printf("	leaq	heap(%%rip), %%rdx\n");
-		printf("	addq	%%rdx, %%rax\n");
-		printf("	movq	%%rax, -8(%%rbp)\n");
-		printf("	movq	heap_size(%%rip), %%rdx\n");
-		printf("	movq	-24(%%rbp), %%rax\n");
-		printf("	addq	%%rdx, %%rax\n");
-		printf("	movq	%%rax, heap_size(%%rip)\n");
-		printf("	movq	-8(%%rbp), %%rax\n");
-		printf(".L.alloc_ret_null:\n");
-		printf("	popq	%%rbp\n");
-		printf("	ret\n");
-
+	if has_main(object) {
 		printf(".global _start\n");
 		printf("_start:\n");
 		printf("\tpush %%rbp\n");

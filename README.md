@@ -62,7 +62,8 @@ $ make self
 ## How to build, compile programs written in Ibu
 ```sh
 $ ./ibuc <filename>.ibu | as - -o <filename>.o
-$ ld -o <filename> <filename>.o
+$ as -o lib/asm-lib.o lib/lib.s
+$ ld -o <filename> <filename>.o lib/asm-lib.o
 ```
 
 ## Ibu Documentation
