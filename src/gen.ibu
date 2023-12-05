@@ -137,14 +137,6 @@ func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
 	return stack;
 }
 
-func binop_ax_by_type_size(ty *Type) *u8 {
-	if ty.kind == TY_ARRAY || ty.kind == TY_PTR || ty.size == 8  {
-    	"%rax";
-	} else {
-		"%eax";
-	}
-}
-
 func gen_expr(g *Gen, node *Node) i32 {
     let c i32 = 0;
 	if node.kind == ND_EMPTY {
@@ -245,13 +237,21 @@ func gen_expr(g *Gen, node *Node) i32 {
 	if node.kind == ND_SHL {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		printf("\tmovq %%rdi, %%rcx\n");
-		printf("\tshl %%cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
+		if node.ty.kind == TY_ARRAY || node.ty.kind == TY_PTR || node.ty.size == 8  {
+			printf("\tshl %%cl, %%rax\n");
+		} else {
+			printf("\tshl %%cl, %%eax\n");
+		}
 		return 0;
 	}
 	if node.kind == ND_SHR {
 		gen_lhs_rhs(g, node.lhs, node.rhs);
 		printf("\tmovq %%rdi, %%rcx\n");
-		printf("\tshr %%cl, %s\n", binop_ax_by_type_size(node.lhs.ty));
+		if node.ty.kind == TY_ARRAY || node.ty.kind == TY_PTR || node.ty.size == 8  {
+			printf("\tshr %%cl, %%rax\n");
+		} else {
+			printf("\tshr %%cl, %%eax\n");
+		}
 		return 0;
 	}
 	if node.kind == ND_SUB {

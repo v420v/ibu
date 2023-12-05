@@ -1,4 +1,4 @@
-.set HEAP_CAPACITY, 536870912 # 0.5GB
+.set HEAP_CAPACITY, 436870912 # 0.5GB
 
 # Allocator
 .bss

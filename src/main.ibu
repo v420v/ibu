@@ -5,8 +5,8 @@
 #include "vec.ibu"
 #include "tokenizer.ibu"
 #include "parser.ibu"
-#include "gen.ibu"
 #include "preprocessor.ibu"
+#include "gen.ibu"
 
 func main(argc i32, argv **u8) i32 {
 	if argc != 2 {
@@ -16,7 +16,7 @@ func main(argc i32, argv **u8) i32 {
 
     let file_name *u8 = argv[1];
 
-    let fd i32;
+    let fd i32 = 0;
 	if strcmp(file_name, "-") {
 		fd = STDIN;
 	} else {
