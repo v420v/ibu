@@ -302,7 +302,7 @@ func sprintf(buf *u8, fmt *u8, ...) i32 {
 func strndup(str *u8, n i32) *u8 {
     let r *u8 = alloc(n+1);
 	if r == nil {
-		eprintf("allocation failed\n");
+		eprintf("memory allocation failed\n");
 		exit(1);
 	}
 	memcpy(r, str, n);

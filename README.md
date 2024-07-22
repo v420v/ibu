@@ -273,7 +273,7 @@ func main() i32 {
 <a href="https://marketplace.visualstudio.com/items?itemName=ibuki.ibu">Visual Studio Code</a>
 
 ### Selfhosting
-`make self` will compile `src/main.ibu` using the ./ibuc executable
+`make self` will compile `src/ibu.ibu` using the ./ibuc executable
 ```sh
 
 $ make self
