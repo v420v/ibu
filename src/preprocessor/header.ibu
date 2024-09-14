@@ -1,0 +1,25 @@
+
+#include "../tokenizer/header.ibu"
+#include "std/header.ibu"
+
+struct Macro {
+	name *u8,
+	tok *Token,
+	next *Macro,
+}
+
+struct Preprocessor {
+	macros                  *Macro,
+	included_file_full_path *Vec,
+}
+
+func new_preprocessor() *Preprocessor;
+func new_macro(name *u8, tok *Token) *Macro;
+func find_macro(name *u8, p *Preprocessor) *Macro;
+func get_eof_from_tokens(tokens *Token) *Token;
+func dirname(path *u8) *u8;
+#define MAX_PATH_LENGTH 4096
+func get_ibu_lib_path(file_name *u8) *u8;
+func fd_get_file_full_path(fd i32) *u8;
+func preprocess(tok *Token, p *Preprocessor) u0;
+

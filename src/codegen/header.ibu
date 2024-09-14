@@ -1,0 +1,28 @@
+
+#include "../parser/header.ibu"
+
+struct Gen {
+	label_count i32,
+	str_label_count i32,
+	cur_func_name *u8,
+
+	offset i32,
+	stack_offset i32,
+}
+
+func new_gen() *Gen;
+func gen_expr(g *Gen, node *Node) i32;
+func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32;
+func gen_addr(g *Gen, node *Node) i32;
+func gen_store(ty *Type) i32;
+func gen_load(g *Gen, ty *Type) i32;
+func gen_condition_store(ty *Type) i32;
+func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32;
+func gen_stmt(g *Gen, node *Node) i32;
+func gen_node_block(g *Gen, stmts *Vec) i32;
+func gen_stmt(g *Gen, node *Node) i32;
+func assign_func_params_offset(g *Gen, obj *Object) i32;
+func assign_local_var_offset(g *Gen, obj *Object) i32;
+func has_main(object *Object) bool;
+func gen(g *Gen, object *Object) u0;
+

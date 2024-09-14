@@ -1,7 +1,7 @@
 FROM --platform=linux/x86_64 ubuntu:latest
 
-RUN apt-get update
-RUN apt-get -y install sudo && \
+RUN apt-get update && \
+    apt-get -y install sudo && \
     sudo apt-get -y install build-essential && \
     sudo apt-get -y install git && \
     sudo apt-get -y install vim && \

@@ -1,11 +1,55 @@
 
-#include "linux-syscall.ibu"
+#include "linux-syscall/header.ibu"
+#include "std/header.ibu"
 
-#define STDIN 0
-#define STDIO 1
-#define STDERR 2
+func strcmp(a *u8, b *u8) bool {
+    let idx i32 = 0;
+	while {
+		if a[idx] != b[idx] {
+			return false;
+		}
+		if a[idx] == '\0' {
+			return true;
+		}
+		idx++;
+	}
+	return false;
+}
 
-func alloc(size i32) *u8; // src/builtin.s
+func new_vec(cap i32) *Vec {
+    let vec *Vec = alloc(typesize(Vec));
+    vec.ptr = alloc(typesize(*u8) * cap);
+    if vec.ptr == nil {
+		eprintf("allocation failed\n");
+		exit(1);
+	}
+    vec.len = 0;
+	vec.cap = cap;
+	return vec;
+}
+
+func vec_realloc(vec *Vec) u0 {
+    let new_ptr *u8 = alloc(typesize(*u8) * vec.cap * 2);
+	if new_ptr == nil {
+		eprintf("allocation failed\n");
+		exit(1);
+	}
+	memcpy(new_ptr, vec.ptr, (typesize(*u8) * vec.cap));
+	vec.cap = vec.cap * 2;
+	vec.ptr = new_ptr;
+}
+
+func vec_get(vec *Vec, idx i32) *u8 {
+    return vec.ptr[idx];
+}
+
+func vec_append(vec *Vec, val *u8) u0 {
+    if vec.len >= vec.cap {
+		vec_realloc(vec);
+	}
+    vec.ptr[vec.len] = val;
+	vec.len++;
+}
 
 func strlen(str *u8) i32 {
     let start *u8 = str;

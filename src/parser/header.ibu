@@ -1,0 +1,219 @@
+
+#include "std/header.ibu"
+#include "../tokenizer/header.ibu"
+
+#define NodeKind			i32
+#define ND_ADD				0
+#define ND_SUB				1
+#define ND_MUL				2
+#define ND_DIV				3
+#define ND_MOD				4
+#define ND_NOT				5
+#define ND_NE				6
+#define ND_EQ				7
+#define ND_LE				8
+#define ND_LT				9
+#define ND_GE				10
+#define ND_GT				11
+#define ND_STR				12
+#define ND_NUM				13
+#define ND_VAR				14
+#define ND_IF				15
+#define ND_WHILE			16
+#define ND_ASSIGN			17
+#define ND_RETURN			18
+#define ND_REF				19
+#define ND_DEREF			20
+#define ND_BLOCK			21
+#define ND_EXPR_STMT		22
+#define ND_GOTO				23
+#define ND_LABEL			24
+#define ND_FUNC_CALL		25
+#define ND_LOGAND			26
+#define ND_LOGOR			27
+#define ND_MEMBER_ACCESS	28
+#define ND_EMPTY            29
+#define ND_SHL              30
+#define ND_SHR              31
+#define ND_MEMZERO          32
+#define ND_AND              33
+#define ND_OR               34
+
+#define TypeKind	i32
+#define TY_I64		0
+#define TY_I32		1
+#define TY_I16		2
+#define TY_I8		3
+#define TY_BOOL		4
+#define TY_STRUCT	5
+#define TY_FUNC		6
+#define TY_PTR		7
+#define TY_U64		8
+#define TY_U32		9
+#define TY_U16		10
+#define TY_U8		11
+#define TY_U0       12
+#define TY_ARRAY    13
+
+struct Type;
+struct Member {
+	ty *Type,
+	name *u8,
+	offset i32,
+}
+
+struct Type {
+	kind TypeKind,
+	size i32,
+	name *u8,
+
+	// struct type
+	members *Vec,
+
+	// func type
+	return_type *Type,
+	params *Vec,
+	is_variadic bool,
+
+	// pointer type
+	pointer_to *Type,
+
+	array_len i32,
+
+	is_unsigned bool,
+	is_declaration bool,
+
+	tok *Token,
+}
+
+func unexpected_token_error(expected *u8, tok *Token, msg *u8) i32;
+func unkown_type_error(types *Vec, tok *Token, msg *u8) i32;
+func unkown_member_error(members *Vec, tok *Token, msg *u8) i32;
+#define ObjectKind	i32
+#define OBJ_FUNC	0
+#define OBJ_VAR		1
+
+struct Object;
+struct Node;
+struct Object {
+	name *u8,
+	kind ObjectKind,
+	ty *Type,
+
+	// local variable
+	offset i32,
+
+	// function
+	body *Node,
+	params *Vec,
+	locals *Object,
+	stack_size i32,
+
+	is_declaration bool,
+	is_func_param bool,
+	is_global bool,
+
+	next *Object,
+}
+
+struct Node {
+	kind NodeKind,
+	lhs *Node,
+	rhs *Node,
+	body *Vec,
+	then_block *Node,
+	else_block *Node,
+	cond *Node,
+	label_name *u8,
+	int_val i32,
+	str_val *u8,
+	obj *Object,
+	ty *Type,
+	func_name *u8,
+	offset i32,
+	args *Vec,
+}
+
+struct Parser {
+	tokens *Token,
+	globals *Object,
+
+	// function local variables
+	locals *Object,
+
+	// types
+	user_defined_types *Vec,
+	ty_i8 *Type,
+	ty_i16 *Type,
+	ty_i32 *Type,
+	ty_i64 *Type,
+	ty_u0 *Type,
+	ty_u8 *Type,
+	ty_u16 *Type,
+	ty_u32 *Type,
+	ty_u64 *Type,
+	ty_bool *Type,
+}
+
+
+func get_user_defined_type(p *Parser, name *u8) *Type;
+func new_builtin_type(kind TypeKind, size i32, name *u8, is_unsigned bool) *Type;
+func new_pointer_type(base *Type) *Type;
+func new_array_type(base *Type, len i32) *Type;
+func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type;
+func new_parser(tokens *Token) *Parser;
+func parser_next(p *Parser) i32;
+func new_node(kind NodeKind) *Node;
+func parser_skip(p *Parser, str *u8) i32;
+func cmp_type(ty1 *Type, ty2 *Type) bool;
+func cmp_type_vec(vec1 *Vec, vec2 *Vec) bool;
+func cmp_func_param(p1 *Object, p2 *Object) bool;
+func cmp_func_params(p1 *Vec, p2 *Vec) bool;
+func find_locals(p *Parser, name *u8) *Object;
+func find_globals(p *Parser, name *u8) *Object;
+func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32;
+func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token, is_func_param bool) *Object;
+func add_type(p *Parser, node *Node) i32;
+func add_type_block(p *Parser, nodes *Vec) i32;
+func parse_ty(p *Parser) *Type;
+func parse_params_types(p *Parser, types *Vec) bool;
+func parse_expr(p *Parser) *Node;
+func parse_func_call_args(p *Parser) *Vec;
+func parse_unary(p *Parser) *Node;
+func parse_sizeof(p *Parser) *Node;
+func find_object(p *Parser, name *u8) *Object;
+func parse_ident(p *Parser) *Node;
+func new_node_num(n i32) *Node;
+func parse_number(p *Parser) *Node;
+func search_struct_member(members *Vec, exp_member_name *u8) *Member;
+func new_struct_access_node(kind NodeKind, lhs *Node, offset i32, ty *Type) *Node;
+func parse_deref(p *Parser) *Node;
+func new_binop(kind NodeKind, lhs *Node, rhs *Node) *Node;
+func params_length_without_argv_argc(ty *Type) i32;
+func parse_mul(p *Parser) *Node;
+func parse_add(p *Parser) *Node;
+func parse_shift(p *Parser) *Node;
+func is_comparison_node(node *Node) bool;
+func search_relational_rhs(node *Node) *Node;
+func search_relational_lhs(node *Node) *Node;
+func new_relational(kind NodeKind, lhs *Node, rhs *Node) *Node;
+func new_equality(kind NodeKind, lhs *Node, rhs *Node) *Node;
+func parse_relational(p *Parser) *Node;
+func parse_equality(p *Parser) *Node;
+func parse_and(p *Parser) *Node;
+func parse_or(p *Parser) *Node;
+func parse_logand(p *Parser) *Node;
+func parse_logor(p *Parser) *Node;
+func parse_expr_stmt(p *Parser) *Node;
+func parse_stmt(p *Parser) *Node;
+func parse_block(p *Parser) *Node;
+func node_true() *Node;
+func initializer(p *Parser, lhs *Node) *Node;
+func new_member(name *u8, ty *Type) *Member;
+func calc_sizof_struct_members(members *Vec) i32;
+func parse_struct(p *Parser) i32;
+func parse_function_params(p *Parser, types *Vec, params *Vec) bool;
+func add_function_object(p *Parser, fn *Object) i32;
+func parse_func(p *Parser) i32;
+func parse(p *Parser) u0;
+

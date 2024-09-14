@@ -1,0 +1,53 @@
+
+#define TokenKind	i32
+#define TK_NUM		0
+#define TK_CHAR     1
+#define TK_IDENT	2
+#define TK_STR		3
+#define TK_PUNCT	4
+#define TK_EOF		5
+#define TK_UNKOWN	6
+
+struct Token {
+	kind TokenKind,
+	file_name *u8,
+	program *u8,
+	line i32,
+	col i32,
+	lit *u8,
+	len i32,
+	str_val *u8,
+	int_val i32,
+	next *Token,
+}
+
+struct Tokenizer {
+	file_name *u8,
+	cur_line *u8,
+	col i32,
+	line i32,
+	program *u8,
+	puncts [34]*u8,
+}
+
+func copy_token(source *Token, dest *Token) i32;
+func frepeat_str(fd i32, str *u8, n i32) i32;
+func print_error_with_code(tok *Token, msg *u8) i32;
+func print_error(tok *Token, msg *u8) i32;
+func new_tokenizer(file_name *u8, program *u8) *Tokenizer;
+func starts_with(a *u8, b *u8) bool;
+func tokenizer_next(t *Tokenizer) i32;
+func tokenizer_next_n(t *Tokenizer, n i32) i32;
+func new_token(t *Tokenizer, kind TokenKind) *Token;
+func tokenize_punct(t *Tokenizer) *Token;
+func skip_single_line_comment(t *Tokenizer) i32;
+func string_end(t *Tokenizer, str *u8) *u8;
+func is_hex_digit(c u8) bool;
+func from_hex(c u8) u8;
+func read_escaped_char(t *Tokenizer) i32;
+func tokenize_number(t *Tokenizer) *Token;
+func tokenize_char(t *Tokenizer) *Token;
+func tokenize_string(t *Tokenizer) *Token;
+func tokenize_ident(t *Tokenizer) *Token;
+func tokenize(t *Tokenizer) *Token;
+

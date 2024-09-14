@@ -8,7 +8,8 @@
 - No `break`, `continue` stmt. Use `goto`
 - Allows `13 <= age < 20` instead of `13 <= age && age < 20`
 - Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
-- Default function args. Default args don't have to be on the end. (WIP)
+- The compiler is written in itself
+- Default args don't have to be on the end (WIP)
 
 ```go
 #include "std.ibu"
@@ -28,7 +29,7 @@ func main() i32 {
 ## Build compiler
 
 > **Note**
-> Supports Linux x86-64 only.
+> The compiler supports Linux x86-64 only.
 
 ```sh
 $ git clone git@github.com:v420v/ibu.git
@@ -50,9 +51,9 @@ $ docker run --rm -it -v "${pwd}:/root/env" ibulang
 # To leave the environment, enter `exit`.
 ```
 
-Since the language is selfhosted you need to bootstrap the compiler first.
+Since the language is self-hosted you need to bootstrap the compiler first.
 
-To build the compiler, run the following command below or just run `make`
+To build the compiler, run the following command below
 
 ```sh
 $ make
@@ -61,9 +62,11 @@ $ make self
 
 ## How to build, compile programs written in Ibu
 ```sh
-$ ./ibuc <filename>.ibu | as - -o <filename>.o
-$ as -o lib/syscall-amd64.o lib/syscall-amd64.s
-$ ld -o <filename> <filename>.o lib/syscall-amd64.o
+$ ./ibuc <filename>.ibu | as - -o <filename>.o                              # set the filename and the output object file name
+$ as -o lib/runtime.o lib/runtime.s
+$ ./ibuc lib/linux-syscall/linux-syscall.ibu | as - -o lib/linux-syscall.o  # if needed
+$ ./ibuc lib/std/std.ibu                     | as - -o lib/std.o            # if needed
+$ ld -o <filename> <filename>.o lib/runtime.o lib/linux-syscall.o lib/std.o
 ```
 
 ## Ibu Documentation
@@ -273,7 +276,7 @@ func main() i32 {
 <a href="https://marketplace.visualstudio.com/items?itemName=ibuki.ibu">Visual Studio Code</a>
 
 ### Selfhosting
-`make self` will compile `src/ibu.ibu` using the ./ibuc executable
+`make self` will compile the compiler using the existed executable
 ```sh
 
 $ make self
