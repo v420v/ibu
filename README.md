@@ -81,6 +81,12 @@ func main() i32 {
 }
 ```
 
+#### include
+The `include` keyword first looks for the specified file, if it is not there, it searches the [lib](/lib/) folder to see if the file is contained there.
+```go
+#include "std/header.ibu"
+```
+
 #### Variables
 ```go
 #include "std/header.ibu"
@@ -283,7 +289,4 @@ $ make self
 
 ```
 
-## Reference
-https://github.com/rui314/chibicc
 
-https://tinkeros.github.io/WbGit/Doc/HolyC.html
