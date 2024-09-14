@@ -1,5 +1,5 @@
 
-#include "std.ibu"
+#include "std/header.ibu"
 
 struct User {
     name *u8,

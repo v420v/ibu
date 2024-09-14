@@ -12,7 +12,7 @@
 - Default args don't have to be on the end (WIP)
 
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 func main() i32 {
     let age i32 = 19;
@@ -73,7 +73,7 @@ $ ld -o <filename> <filename>.o lib/runtime.o lib/linux-syscall.o lib/std.o
 
 #### Hello, world!
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 func main() i32 {
     printf("Hello, world!\n");
@@ -83,7 +83,7 @@ func main() i32 {
 
 #### Variables
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 func main() i32 {
     let name *u8 = "Ibuki";
@@ -102,7 +102,7 @@ i8, i16, i32, i64, u0, u8, u16, u32, u64
 
 #### If
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 // Allows "13 <= age < 20" instead of "13 <= age && age < 20"
 
@@ -137,7 +137,7 @@ func main() i32 {
 
 #### Variable length args
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 // Variable-length arguments can be accessed using the built-in variable argv, argc
 
@@ -163,7 +163,7 @@ func main() i32 {
 
 #### While
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 func main() i32 {
     // Like go's for loop, the condition is true if it is empty.
@@ -183,7 +183,7 @@ func main() i32 {
 
 #### Arrays
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 func main() i32 {
     let arr [4]i32 = {1, 2, 3, 4};
@@ -233,7 +233,7 @@ func main() i32 {
 
 #### Struct
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 struct Person {
     name *u8,
@@ -253,7 +253,7 @@ func main() i32 {
 ```
 
 ```go
-#include "std.ibu"
+#include "std/header.ibu"
 
 struct Person {
     name *u8,
