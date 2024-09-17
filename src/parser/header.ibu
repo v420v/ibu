@@ -179,6 +179,8 @@ func parse_ty(p *Parser) *Type;
 func parse_params_types(p *Parser, types *Vec) bool;
 func parse_expr(p *Parser) *Node;
 func parse_func_call_args(p *Parser) *Vec;
+func parse_ref(p *Parser) *Node;
+func parse_not(p *Parser) *Node;
 func parse_unary(p *Parser) *Node;
 func parse_sizeof(p *Parser) *Node;
 func find_object(p *Parser, name *u8) *Object;

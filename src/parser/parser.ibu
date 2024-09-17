@@ -608,26 +608,32 @@ func params_length_without_argv_argc(ty *Type) i32 {
 	}
 }
 
-func parse_unary(p *Parser) *Node {
-    let node *Node;
+func parse_ref(p *Parser) *Node {
+	parser_skip(p, "&");
+	let node *Node = new_node(ND_REF);
+	node.lhs = parse_unary(p);
+	return node;
+}
 
+func parse_not(p *Parser) *Node {
+	parser_skip(p, "!");
+	let node *Node = new_node(ND_NOT);
+	node.lhs = parse_unary(p);
+	return node;
+}
+
+func parse_unary(p *Parser) *Node {
 	if strcmp(p.tokens.lit, "*") {
 		return parse_deref(p);
 	}
 	if strcmp(p.tokens.lit, "&") {
-		parser_next(p);
-		node = new_node(ND_REF);
-		node.lhs = parse_unary(p);
-		return node;
+		return parse_ref(p);
 	}
 	if strcmp(p.tokens.lit, "!") {
-		parser_next(p);
-		node = new_node(ND_NOT);
-		node.lhs = parse_unary(p);
-		return node;
+		return parse_not(p);
 	}
 
-	node = parse_number(p);
+	let node *Node = parse_number(p);
 
 	while {
 		if strcmp(p.tokens.lit, "(") {
@@ -636,7 +642,7 @@ func parse_unary(p *Parser) *Node {
 
 			add_type(p, node);
 
-			if node.ty.kind != TY_FUNC { 
+			if node.ty.kind != TY_FUNC {
 				print_error(lpar_tok, "cannot call a none function type object\n");
 			}
 
@@ -682,8 +688,7 @@ func parse_unary(p *Parser) *Node {
 				print_error(access_tok, "`[]` cannot access to none pointer type.");
 			}
 
-		    let base_number_node *Node;
-			base_number_node = new_node(ND_NUM);
+		    let base_number_node *Node = new_node(ND_NUM);
 			base_number_node.int_val = node.ty.pointer_to.size;
 			base_number_node.ty = p.ty_i32;
 
@@ -749,10 +754,10 @@ func parse_mul(p *Parser) *Node {
 			parser_next(p);
 			node = new_binop(ND_MOD, node, parse_unary(p));
 		} else {
-			goto end;
+			goto break;
 		}
 	}
-end:
+break:
 
 	return node;
 }
@@ -768,10 +773,10 @@ func parse_add(p *Parser) *Node {
 			parser_next(p);
 			node = new_binop(ND_SUB, node, parse_mul(p));
 		} else {
-			goto end;
+			goto break;
 		}
 	}
-	end:
+break:
 
 	return node;
 }
@@ -890,10 +895,10 @@ func parse_relational(p *Parser) *Node {
 				node = new_binop(ND_GT, node, rhs);
 			}
 		} else {
-			goto end;
+			goto break;
 		}
 	}
-end:
+break:
 
 	return node;
 }
@@ -924,10 +929,10 @@ func parse_equality(p *Parser) *Node {
 				node = new_binop(ND_NE, node, rhs);
 			}
 		} else {
-			goto end;
+			goto break;
 		}
 	}
-	end:
+break:
 
 	return node;
 }
