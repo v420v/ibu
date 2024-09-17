@@ -14,8 +14,6 @@ func new_gen() *Gen {
 	return g;
 }
 
-func gen_expr(g *Gen, node *Node) i32;
-
 func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32 {
 	gen_expr(g, rhs);
 	printf("\tpush %%rax\n");
@@ -426,8 +424,6 @@ func gen_expr(g *Gen, node *Node) i32 {
 	printf("gen_expr unreachable\n");
 	exit(1);
 }
-
-func gen_stmt(g *Gen, node *Node) i32;
 
 func gen_node_block(g *Gen, stmts *Vec) i32 {
     let idx i32 = 0;
