@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest"]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout ${{ github.event.repository.name }}
+        uses: actions/checkout@v2
+
+      - name: Build ${{ github.event.repository.name }}
+        run: make init
+
+      - name: make self
+        run: |
+          make self
+          make self
+          make self
+          time make self

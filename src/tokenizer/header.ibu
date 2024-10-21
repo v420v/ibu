@@ -1,0 +1,38 @@
+
+#define TokenKind	i32
+#define TK_NUM		0
+#define TK_CHAR     1
+#define TK_IDENT	2
+#define TK_STR		3
+#define TK_PUNCT	4
+#define TK_EOF		5
+#define TK_UNKOWN	6
+
+struct Token {
+    kind TokenKind,
+    file_name *u8,
+    program *u8,
+    line i32,
+    col i32,
+    lit *u8,
+    len i32,
+    str_val *u8,
+    int_val i32,
+    next *Token,
+}
+
+struct Tokenizer {
+    file_name *u8,
+    cur_line *u8,
+    col i32,
+    line i32,
+    program *u8,
+    puncts [34]*u8,
+}
+
+func copy_token(source *Token, dest *Token) u0;
+func print_error_with_code(tok *Token, msg *u8) u0;
+func print_error(tok *Token, msg *u8) u0;
+func new_tokenizer(file_name *u8, program *u8) *Tokenizer;
+func tokenize(t *Tokenizer) *Token;
+

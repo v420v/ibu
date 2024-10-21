@@ -1,0 +1,10 @@
+services:
+  ibulang:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/root/env
+    working_dir: /root/env
+    stdin_open: true  # docker run -i
+    tty: true        # docker run -t

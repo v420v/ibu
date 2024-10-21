@@ -1,0 +1,205 @@
+
+#include "header.ibu"
+#include "std/header.ibu"
+#include "linux-syscall/header.ibu"
+
+func new_preprocessor() *Preprocessor {
+    let p *Preprocessor = alloc(typesize(Preprocessor));
+    p.macros = nil;
+    p.included_file_full_path = new_vec(4);
+    return p;
+}
+
+func new_macro(name *u8, tok *Token) *Macro {
+    let macro *Macro = alloc(typesize(Macro));
+    macro.name = name;
+    macro.tok = tok;
+    macro.next = nil;
+    return macro;
+}
+
+func find_macro(name *u8, p *Preprocessor) *Macro {
+    let m *Macro = p.macros;
+    while m != nil {
+        if strcmp(m.name, name) {
+            return m;
+        }
+        m = m.next;
+    }
+    return nil;
+}
+
+func get_eof_from_tokens(tokens *Token) *Token {
+    while tokens.kind != TK_EOF {
+        tokens = tokens.next;
+    }
+    return tokens;
+}
+
+func dirname(path *u8) *u8 {
+    let len i32 = strlen(path);
+
+    if len >= 2 && path[0] == '.' && path[1] == '/' {
+        memmove(path, path+2, len - 2);
+        path[len - 2] = '\0';
+    }
+
+    while len > 0 && path[len - 1] == '/' {
+        len--;
+        path[len] = '\0';
+    }
+
+    let last_slash *u8 = strrchr(path, '/');
+
+       if (last_slash == nil) {
+           memcpy(path, ".", 2);
+       } else {
+        if (last_slash == path) {
+            last_slash[1] = '\0';
+        } else {
+            *last_slash = '\0';
+        }
+    }
+
+    return path;
+}
+
+func get_ibu_lib_path(file_name *u8) *u8 {
+    let ibu_exe_path [MAX_PATH_LENGTH]u8 = {};
+
+    let ibu_exe_path_len i32 = readlink("/proc/self/exe", ibu_exe_path, MAX_PATH_LENGTH-1);
+
+    if ibu_exe_path_len < 0 {
+        eprintf("failed at reading /proc/self/exe to get ibu_exe path\n");
+        exit(1);
+    }
+    ibu_exe_path[ibu_exe_path_len] = '\0';
+
+    let ibu_root_path *u8 = dirname(strndup(ibu_exe_path, ibu_exe_path_len));
+
+    let ibu_lib_path *u8 = alloc(
+        strlen(ibu_root_path)
+        + strlen("/lib/")
+        + strlen(file_name)
+        + 1
+    );
+
+    if ibu_lib_path == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+
+    sprintf(ibu_lib_path, "%s/lib/%s", ibu_root_path, file_name);
+
+    return ibu_lib_path;
+}
+
+func fd_get_file_full_path(fd i32) *u8 {
+    let result *u8 = alloc(MAX_PATH_LENGTH);
+    if result == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+
+    let path *u8 = alloc(64);
+
+    sprintf(path, "/proc/self/fd/%d", fd);
+
+    let len i32 = readlink(path, result, MAX_PATH_LENGTH-1);
+
+    if len < 0 {
+        eprintf("failed at reading /proc/self/fd to get exe path\n");
+        return 1;
+    }
+    result[len] = '\0';
+
+    return result;
+}
+
+func preprocess(tok *Token, p *Preprocessor) u0 {
+    let start_folder_name *u8 = dirname(strndup(tok.file_name, strlen(tok.file_name)));
+
+    while {
+        if tok.next != nil && strcmp(tok.lit, "#") && strcmp(tok.next.lit, "define") {
+            let macro *Macro = new_macro(tok.next.next.lit, tok.next.next.next);
+            macro.next = p.macros;
+            p.macros = macro;
+            *tok = *tok.next.next.next.next;
+        } else if tok.next != nil && strcmp(tok.lit, "#") && strcmp(tok.next.lit, "include") {
+            let file_name_tok *Token = tok.next.next;
+
+            if file_name_tok.kind != TK_STR {
+                print_error(file_name_tok, "expected token string");
+            }
+
+            let new_file_name *u8 = alloc(
+                strlen(start_folder_name)
+                + strlen("/")
+                + strlen(file_name_tok.str_val)
+                + 1
+            );
+
+            if new_file_name == nil {
+                eprintf("memory allocation failed\n");
+                exit(1);
+            }
+
+            sprintf(new_file_name, "%s/%s", start_folder_name, file_name_tok.str_val);
+
+            let fd i32 = open(new_file_name, 0, 420);
+            if fd < 0 {
+                fd = open(get_ibu_lib_path(file_name_tok.str_val), 0, 420);
+                if fd < 0 {
+                    print_error(file_name_tok, "no such file or directory");
+                }
+            }
+
+            let file_full_path *u8 = fd_get_file_full_path(fd);
+
+            let already_imported bool = false;
+
+            let i i32 = 0;
+            while i < p.included_file_full_path.len {
+                let imported_name *u8 = vec_get(p.included_file_full_path, i);
+                if strcmp(file_full_path, imported_name) {
+                    already_imported = true;
+                }
+                i++;
+            }
+
+            if !already_imported {
+                vec_append(p.included_file_full_path, file_full_path);
+
+                let buf *u8 = alloc(PROGRAM_MAX_SIZE);
+                if buf == nil {
+                    eprintf("memory allocation failed\n");
+                    exit(1);
+                }
+                read(fd, buf, PROGRAM_MAX_SIZE);
+                close(fd);
+
+                let tokens *Token = tokenize(new_tokenizer(new_file_name, buf));
+                preprocess(tokens, p);
+
+                *get_eof_from_tokens(tokens) = *tok.next.next.next;
+                *tok = *tokens;
+            } else {
+                *tok = *tok.next.next.next;
+            }
+        } else {
+            goto break;
+        }
+    }
+
+break:
+
+    let m *Macro = find_macro(tok.lit, p);
+    if m != nil {
+        copy_token(m.tok, tok);
+    }
+
+    if tok.next != nil {
+        preprocess(tok.next, p);
+    }
+}
+
