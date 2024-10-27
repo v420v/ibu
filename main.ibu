@@ -1,0 +1,7 @@
+
+#include "std/header.ibu"
+
+func main() i32 {
+    "Hello, world!";
+    return 0;
+}

@@ -1,0 +1,174 @@
+
+#include "std/header.ibu"
+#include "../tokenizer/header.ibu"
+
+#define NodeKind			i32
+#define ND_ADD				0
+#define ND_SUB				1
+#define ND_MUL				2
+#define ND_DIV				3
+#define ND_MOD				4
+#define ND_NOT				5
+#define ND_NE				6
+#define ND_EQ				7
+#define ND_LE				8
+#define ND_LT				9
+#define ND_GE				10
+#define ND_GT				11
+#define ND_STR				12
+#define ND_NUM				13
+#define ND_VAR				14
+#define ND_IF				15
+#define ND_WHILE			16
+#define ND_ASSIGN			17
+#define ND_RETURN			18
+#define ND_REF				19
+#define ND_DEREF			20
+#define ND_BLOCK			21
+#define ND_EXPR_STMT		22
+#define ND_GOTO				23
+#define ND_LABEL			24
+#define ND_FUNC_CALL		25
+#define ND_LOGAND			26
+#define ND_LOGOR			27
+#define ND_MEMBER_ACCESS	28
+#define ND_EMPTY            29
+#define ND_SHL              30
+#define ND_SHR              31
+#define ND_MEMZERO          32
+#define ND_AND              33
+#define ND_OR               34
+
+#define TypeKind	i32
+#define TY_I64		0
+#define TY_I32		1
+#define TY_I16		2
+#define TY_I8		3
+#define TY_BOOL		4
+#define TY_STRUCT	5
+#define TY_FUNC		6
+#define TY_PTR		7
+#define TY_U64		8
+#define TY_U32		9
+#define TY_U16		10
+#define TY_U8		11
+#define TY_U0       12
+#define TY_ARRAY    13
+
+struct Type;
+struct Member {
+    ty *Type,
+    name *u8,
+    offset i32,
+}
+
+struct Type {
+    kind TypeKind,
+    size i32,
+    name *u8,
+
+    // struct type
+    members *Vec,
+
+    // func type
+    return_type *Type,
+    params *Vec,
+    is_variadic bool,
+
+    // pointer type
+    pointer_to *Type,
+
+    array_len i32,
+
+    is_unsigned bool,
+    is_declaration bool,
+
+    tok *Token,
+}
+
+func unexpected_token_error(expected *u8, tok *Token, msg *u8) u0;
+func unkown_type_error(types *Vec, tok *Token, msg *u8) u0;
+func unkown_member_error(members *Vec, tok *Token, msg *u8) u0;
+#define ObjectKind	i32
+#define OBJ_FUNC	0
+#define OBJ_VAR		1
+
+struct Object;
+struct Node;
+struct Object {
+    name *u8,
+    kind ObjectKind,
+    ty *Type,
+
+    // local variable
+    offset i32,
+
+    // function
+    body *Node,
+    params *Vec,
+    locals *Object,
+    stack_size i32,
+
+    is_declaration bool,
+    is_func_param bool,
+    is_global bool,
+
+    next *Object,
+}
+
+struct Node {
+    kind NodeKind,
+    lhs *Node,
+    rhs *Node,
+    body *Vec,
+    then_block *Node,
+    else_block *Node,
+    cond *Node,
+    label_name *u8,
+    int_val i32,
+    str_val *u8,
+    obj *Object,
+    ty *Type,
+    func_name *u8,
+    offset i32,
+    args *Vec,
+}
+
+struct VarScope;
+struct VarScope {
+    name *u8,
+    obj *Object,
+    outer *VarScope,
+}
+
+struct Scope;
+struct Scope {
+    var_scope *VarScope,
+    outer *Scope,
+}
+
+struct Parser {
+    tokens *Token,
+    globals *Object,
+
+    // function local variables
+    locals *Object,
+    scope *Scope,
+
+    // types
+    user_defined_types *Vec,
+    ty_i8 *Type,
+    ty_i16 *Type,
+    ty_i32 *Type,
+    ty_i64 *Type,
+    ty_u0 *Type,
+    ty_u8 *Type,
+    ty_u16 *Type,
+    ty_u32 *Type,
+    ty_u64 *Type,
+    ty_bool *Type,
+}
+
+func new_parser(tokens *Token) *Parser;
+func parse(p *Parser) u0;
+

@@ -1,0 +1,1453 @@
+
+#include "header.ibu"
+#include "std/header.ibu"
+#include "linux-syscall/header.ibu"
+
+func add_type(p *Parser, node *Node) u0;
+func parse_ty(p *Parser) *Type;
+func parse_expr(p *Parser) *Node;
+func parse_stmt(p *Parser) *Node;
+func cmp_type(ty1 *Type, ty2 *Type) bool;
+func parse_unary(p *Parser) *Node;
+
+func unexpected_token_error(expected *u8, tok *Token, msg *u8) u0 {
+    print_error_with_code(tok, msg);
+    eprintf("help: expected `%s` but got `%s`\n", expected, tok.lit);
+    exit(1);
+}
+
+func unkown_type_error(types *Vec, tok *Token, msg *u8) u0 {
+    print_error_with_code(tok, msg);
+
+    if types.len == 0 {
+        exit(1);
+    } else if types.len == 1 {
+        eprintf("help: %d possibility:", types.len);
+    } else {
+        eprintf("help: %d possibilities:", types.len);
+    }
+
+    let i i32 = 0;
+    while i < types.len {
+        let type *Type = vec_get(types, i);
+        if i+1 < types.len {
+            eprintf(" `%s`,", type.name);
+        } else {
+            eprintf(" `%s`", type.name);
+        }
+        i++;
+    }
+
+    eprintf("\n");
+
+    exit(1);
+}
+
+func unkown_member_error(members *Vec, tok *Token, msg *u8) u0 {
+    print_error_with_code(tok, msg);
+
+    if members.len == 0 {
+        exit(1);
+    } else if members.len == 1 {
+        eprintf("help: %d possibility:", members.len);
+    } else {
+        eprintf("help: %d possibilities:", members.len);
+    }
+
+    let i i32 = 0;
+    while i < members.len {
+        let member *Member = vec_get(members, i);
+        if i+1 < members.len {
+            eprintf(" `%s`,", member.name);
+        } else {
+            eprintf(" `%s`", member.name);
+        }
+        i++;
+    }
+
+    eprintf("\n");
+
+    exit(1);
+}
+
+func enter_scope(p *Parser) u0 {
+    let new_scope *Scope = alloc(typesize(Scope));
+    new_scope.outer = p.scope;
+    p.scope = new_scope;
+}
+
+func leave_scope(p *Parser) u0 {
+    p.scope = p.scope.outer;
+}
+
+func get_user_defined_type(p *Parser, name *u8) *Type {
+    let i i32 = 0;
+
+    while i < p.user_defined_types.len {
+        let type *Type = vec_get(p.user_defined_types, i);
+        if strcmp(type.name, name) {
+            return type;
+        }
+        i++;
+    }
+
+    return nil;
+}
+
+func new_builtin_type(kind TypeKind, size i32, name *u8, is_unsigned bool) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = kind;
+    ty.size = size;
+    ty.name = name;
+    ty.pointer_to = nil;
+    ty.is_unsigned = is_unsigned;
+    return ty;
+}
+
+func new_pointer_type(base *Type) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_PTR;
+    ty.size = 8;
+    ty.pointer_to = base;
+    return ty;
+}
+
+func new_array_type(base *Type, len i32) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_ARRAY;
+    ty.size = base.size * len;
+    ty.pointer_to = base;
+    ty.array_len = len;
+    return ty;
+}
+
+func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type {
+    let ty *Type;
+    ty = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_FUNC;
+    ty.size = 8;
+    ty.params = params_types;
+    ty.return_type = return_type;
+    ty.is_variadic = is_variadic;
+    return ty;
+}
+
+func new_parser(tokens *Token) *Parser {
+    let p *Parser = alloc(typesize(Parser));
+    if p == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    p.tokens = tokens;
+    p.locals = nil;
+    p.user_defined_types = new_vec(4);
+
+    p.ty_i64 = new_builtin_type(TY_I64, 8, "i64", false);
+    p.ty_i32 = new_builtin_type(TY_I32, 4, "i32", false);
+    p.ty_i16 = new_builtin_type(TY_I16, 2, "i16", false);
+    p.ty_i8 = new_builtin_type(TY_I8, 1, "i8", false);
+    p.ty_bool = new_builtin_type(TY_BOOL, 4, "bool", false);
+
+    p.ty_u64 = new_builtin_type(TY_U64, 8, "u64", true);
+    p.ty_u32 = new_builtin_type(TY_U32, 4, "u32", true);
+    p.ty_u16 = new_builtin_type(TY_U16, 2, "u16", true);
+    p.ty_u8 = new_builtin_type(TY_U8, 1, "u8", true);
+    p.ty_u0 = new_builtin_type(TY_U0, 0, "u0", true);
+
+    return p;
+}
+
+func parser_next(p *Parser) u0 {
+    if p.tokens.next == nil {
+        eprintf("internal error: this should not happen.");
+        exit(1);
+    }
+    p.tokens = p.tokens.next;
+    return;
+}
+
+func new_node(kind NodeKind) *Node {
+    let node *Node = alloc(typesize(Node));
+    if node == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    node.kind = kind;
+    return node;
+}
+
+func parser_skip(p *Parser, str *u8) u0 {
+    if strcmp(p.tokens.lit, str) {
+        parser_next(p);
+        return;
+    }
+    unexpected_token_error(str, p.tokens, "unexpected token");
+}
+
+func cmp_type_vec(vec1 *Vec, vec2 *Vec) bool {
+    if vec1.len != vec2.len {
+        return false;
+    }
+
+    let i i32 = 0;
+    while i < vec1.len {
+        if !cmp_type(vec_get(vec1, i), vec_get(vec2, i)) {
+            return false;
+        }
+        i++;
+    }
+
+    return true;
+}
+
+func cmp_type(ty1 *Type, ty2 *Type) bool {
+    if ty1 == nil || ty2 == nil {
+        eprintf("internal error: this should not happen\n");
+        exit(1);
+    }
+
+    if ty1.kind != ty2.kind {
+        return false;
+    }
+
+    if ty1.kind == TY_FUNC {
+        return cmp_type(ty1.return_type, ty2.return_type) && cmp_type_vec(ty1.params, ty2.params) && ty1.is_variadic == ty2.is_variadic;
+    }
+
+    if ty1.kind == TY_PTR {
+        return cmp_type(ty1.pointer_to, ty2.pointer_to);
+    }
+
+    return ty1.size == ty2.size && ty1.is_unsigned == ty2.is_unsigned && strcmp(ty1.name, ty2.name);
+}
+
+func cmp_func_param(p1 *Object, p2 *Object) bool {
+    return strcmp(p1.name, p2.name) && cmp_type(p1.ty, p2.ty);
+}
+
+func cmp_func_params(p1 *Vec, p2 *Vec) bool {
+    if p1.len != p2.len {
+        return false;
+    }
+
+    let i i32 = 0;
+    while i < p1.len {
+        if !cmp_func_param(vec_get(p1, i), vec_get(p2, i)) {
+            return false;
+        }
+        i++;
+    }
+
+    return true;
+}
+
+func find_locals(p *Parser, name *u8) *Object {
+    let scope *Scope = p.scope;
+    while scope != nil {
+        let var_scope *VarScope = scope.var_scope;
+        while var_scope != nil {
+            if strcmp(name, var_scope.name) {
+                return var_scope.obj;
+            }
+            var_scope = var_scope.outer;
+        }
+        scope = scope.outer;
+    }
+    return nil;
+}
+
+func find_locals_current_scope(p *Parser, name *u8) *Object {
+    let scope *Scope = p.scope;
+    if scope != nil {
+        let var_scope *VarScope = scope.var_scope;
+        while var_scope != nil {
+            if strcmp(name, var_scope.name) {
+                return var_scope.obj;
+            }
+            var_scope = var_scope.outer;
+        }
+    }
+    return nil;
+}
+
+func find_globals(p *Parser, name *u8) *Object {
+    let object *Object = p.globals;
+
+    while object != nil {
+        if strcmp(object.name, name) {
+            return object;
+        }
+        object = object.next;
+    }
+
+    return nil;
+}
+
+func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32 {
+    let obj *Object = find_locals_current_scope(p, name);
+    if obj != nil {
+        print_error_with_code(tok, "name already exist");
+        exit(1);
+    }
+    return 0;
+}
+
+func scope_push_obj(p *Parser, name *u8, obj *Object) *VarScope {
+    let var_scope *VarScope = alloc(typesize(VarScope));
+    var_scope.name = name;
+    var_scope.obj = obj;
+    var_scope.outer = p.scope.var_scope;
+    p.scope.var_scope = var_scope;
+    return var_scope;
+}
+
+func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token, is_func_param bool) *Object {
+    check_local_object_already_exist(p, name, tok);
+
+    let obj *Object = alloc(typesize(Object));
+    if obj == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+
+    obj.kind = kind;
+    obj.name = name;
+    obj.ty = ty;
+    obj.is_func_param = is_func_param;
+
+    obj.next = p.locals;
+    p.locals = obj;
+
+    scope_push_obj(p, name, obj);
+
+    return obj;
+}
+
+func add_type_block(p *Parser, nodes *Vec) u0 {
+    if nodes == nil {
+        return;
+    }
+    let i i32 = 0;
+    while i < nodes.len {
+        let node *Node = vec_get(nodes, i);
+        add_type(p, node);
+        i++;
+    }
+}
+
+func add_type(p *Parser, node *Node) u0 {
+    if node == nil || node.ty != nil {
+        return;
+    }
+
+    add_type(p, node.lhs);
+    add_type(p, node.rhs);
+    add_type(p, node.cond);
+
+    add_type_block(p, node.body);
+    add_type(p, node.then_block);
+    add_type(p, node.else_block);
+
+    add_type_block(p, node.args);
+
+    if node.kind == ND_STR {
+        node.ty = new_pointer_type(p.ty_i8);
+        return;
+    }
+
+    if node.kind == ND_FUNC_CALL {
+        node.ty = node.lhs.ty.return_type;
+        return;
+    }
+
+    if (node.kind == ND_ADD || node.kind == ND_SUB
+        || node.kind == ND_MUL || node.kind == ND_DIV
+        || node.kind == ND_MOD || node.kind == ND_ASSIGN
+        || node.kind == ND_SHL || node.kind == ND_SHR || node.kind == ND_MEMZERO) {
+        node.ty = node.lhs.ty;
+        return;
+    }
+
+    if (node.kind == ND_NOT || node.kind == ND_EQ
+        || node.kind == ND_NE || node.kind == ND_LE
+        || node.kind == ND_LT || node.kind == ND_GT
+        || node.kind == ND_GE || node.kind == ND_LOGAND
+        || node.kind == ND_LOGOR || node.kind == ND_NUM
+        || node.kind == ND_AND || node.kind == ND_OR) {
+        node.ty = p.ty_i32;
+        return;
+    }
+
+    if node.kind == ND_VAR {
+        node.ty = node.obj.ty;
+        return;
+    }
+
+    if node.kind == ND_REF {
+        if node.lhs.ty.kind == TY_ARRAY {
+            node.ty = new_pointer_type(node.lhs.ty.pointer_to);
+        } else {
+            node.ty = new_pointer_type(node.lhs.ty);
+        }
+        return;
+    }
+
+    if node.kind == ND_DEREF {
+        node.ty = node.lhs.ty.pointer_to;
+        return;
+    }
+
+    if node.kind == ND_EXPR_STMT {
+        node.ty = node.lhs.ty;
+        return;
+    }
+
+    return;
+}
+
+func parse_params_types(p *Parser, types *Vec) bool {
+    while !strcmp(p.tokens.lit, ")") {
+        if strcmp(p.tokens.lit, "...") {
+            parser_next(p);
+            return true;
+        } else {
+            let ty *Type = parse_ty(p);
+            if ty.kind == TY_ARRAY {
+                ty = new_pointer_type(ty.pointer_to);
+            }
+            vec_append(types, ty);
+        }
+        if !strcmp(p.tokens.lit, ",") {
+            goto break;
+        }
+        parser_next(p);
+    }
+
+break:
+
+    return false;
+}
+
+func parse_ty(p *Parser) *Type {
+    let name *u8 = p.tokens.lit;
+    let type_name_tok *Token = p.tokens;
+
+    parser_next(p);
+    let ty *Type;
+
+    if strcmp(name, "i64") { ty = p.ty_i64; }
+    else if strcmp(name, "i32") { ty = p.ty_i32; }
+    else if strcmp(name, "i16") { ty = p.ty_i16; } 
+    else if strcmp(name, "i8") { ty = p.ty_i8; }
+    else if strcmp(name, "u64") { ty = p.ty_u64; }
+    else if strcmp(name, "u32") { ty = p.ty_u32; }
+    else if strcmp(name, "u16") { ty = p.ty_u16; }
+    else if strcmp(name, "u8") { ty = p.ty_u8; }
+    else if strcmp(name, "u0") { ty = p.ty_u0; }
+    else if strcmp(name, "bool") { ty = p.ty_bool; }
+    else if strcmp(name, "*") { ty = new_pointer_type(parse_ty(p)); }
+    else if strcmp(name, "func") {
+        parser_skip(p, "(");
+        let types *Vec = new_vec(4);
+        let is_variadic bool = parse_params_types(p, types);
+        parser_skip(p, ")");
+        ty = new_func_type(types, parse_ty(p), is_variadic);
+    } else if strcmp(name, "[") {
+        if p.tokens.kind != TK_NUM {
+            print_error(p.tokens, "expected number");
+        }
+        let array_len i32 = atoi(p.tokens.lit);
+        parser_next(p);
+        parser_skip(p, "]");
+        ty = new_array_type(parse_ty(p), array_len);
+    } else {
+        ty = get_user_defined_type(p, name);
+        if ty == nil {
+            unkown_type_error(p.user_defined_types, type_name_tok, "unkown type found");
+        }
+    }
+
+    return ty;
+}
+
+func parse_func_call_args(p *Parser) *Vec {
+    let args *Vec = new_vec(4);
+
+    while !strcmp(p.tokens.lit, ")") {
+        vec_append(args, parse_expr(p));
+        if !strcmp(p.tokens.lit, ",") {
+            goto break;
+        }
+        parser_next(p);
+    }
+
+break:
+    return args;
+}
+
+func parse_sizeof(p *Parser) *Node {
+    parser_skip(p, "sizeof");
+    parser_skip(p, "(");
+    let node *Node = parse_unary(p);
+    parser_skip(p, ")");
+    add_type(p, node);
+    let size i32 = node.ty.size;
+
+    node.kind = ND_NUM;
+    node.int_val = size;
+    node.ty = p.ty_i32;
+
+    return node;
+}
+
+func find_object(p *Parser, name *u8) *Object {
+    let obj *Object = find_locals(p, name);
+    if obj == nil {
+        obj = find_globals(p, name);
+    }
+    return obj;
+}
+
+func parse_ident(p *Parser) *Node {
+    let var_tok *Token = p.tokens;
+    let var_node *Node = new_node(ND_VAR);
+    let obj *Object = find_object(p, p.tokens.lit);
+
+    if obj == nil {
+        print_error(var_tok, "unkown object");
+    }
+
+    var_node.obj = obj;
+
+    parser_next(p);
+
+    return var_node;
+}
+
+func new_node_num(n i32) *Node {
+    let node *Node = new_node(ND_NUM);
+    node.int_val = n;
+    return node;
+}
+
+func parse_number(p *Parser) *Node {
+    let node *Node;
+
+    if p.tokens.kind == TK_NUM {
+        node = new_node_num(p.tokens.int_val);
+        parser_next(p);
+    } else if p.tokens.kind == TK_STR {
+        node = new_node(ND_STR);
+        node.str_val = p.tokens.str_val;
+        parser_next(p);
+    } else if strcmp(p.tokens.lit, "nil") {
+        parser_next(p);
+        node = new_node(ND_NUM);
+        node.ty = p.ty_i32;
+        node.int_val = 0;
+    } else if strcmp(p.tokens.lit, "true") {
+        parser_next(p);
+        node = new_node(ND_NUM);
+        node.ty = p.ty_bool;
+        node.int_val = 1;
+    } else if strcmp(p.tokens.lit, "false") {
+        parser_next(p);
+        node = new_node(ND_NUM);
+        node.ty = p.ty_bool;
+        node.int_val = 0;
+    } else if strcmp(p.tokens.lit, "typesize") {
+        node = new_node(ND_NUM);
+        parser_next(p);
+        parser_skip(p, "(");
+        node.int_val = parse_ty(p).size;
+        node.ty = p.ty_i32;
+        parser_skip(p, ")");
+    } else if strcmp(p.tokens.lit, "sizeof") {
+        node = parse_sizeof(p);
+    } else if p.tokens.kind == TK_IDENT {
+        node = parse_ident(p);
+    } else if strcmp(p.tokens.lit, "(") {
+        parser_next(p);
+        node = parse_expr(p);
+        parser_skip(p, ")");
+    } else {
+        print_error(p.tokens, "expected number or identifier");
+        exit(1);
+    }
+    return node;
+}
+
+func search_struct_member(members *Vec, exp_member_name *u8) *Member {
+    let i i32 = 0;
+    while i < members.len {
+        let member *Member = vec_get(members, i);
+        if strcmp(member.name, exp_member_name) {
+            return member;
+        }
+        i++;
+    }
+    return nil;
+}
+
+func new_struct_access_node(kind NodeKind, lhs *Node, offset i32, ty *Type) *Node {
+    let node *Node = alloc(typesize(Node));
+
+    node.kind = kind;
+    node.lhs = lhs;
+    node.offset = offset;
+    node.ty = ty;
+
+    return node;
+}
+
+func parse_deref(p *Parser) *Node {
+    let tok *Token = p.tokens;
+    parser_next(p);
+    let node *Node = new_node(ND_DEREF);
+    node.lhs = parse_unary(p);
+
+    add_type(p, node.lhs);
+
+    if node.lhs.ty.kind != TY_PTR && node.lhs.ty.kind != TY_ARRAY {
+        print_error(tok, "invalid pointer dereference");
+    }
+
+    return node;
+}
+
+func new_binop(kind NodeKind, lhs *Node, rhs *Node) *Node {
+    let node *Node = new_node(kind);
+    node.lhs = lhs;
+    node.rhs = rhs;
+    return node;
+}
+
+func params_length_without_argv_argc(ty *Type) i32 {
+    if ty.is_variadic {
+        return ty.params.len - 2;
+    } else {
+        return ty.params.len;
+    }
+}
+
+func parse_ref(p *Parser) *Node {
+    parser_skip(p, "&");
+    let node *Node = new_node(ND_REF);
+    node.lhs = parse_unary(p);
+    return node;
+}
+
+func parse_not(p *Parser) *Node {
+    parser_skip(p, "!");
+    let node *Node = new_node(ND_NOT);
+    node.lhs = parse_unary(p);
+    return node;
+}
+
+func parse_unary(p *Parser) *Node {
+    if strcmp(p.tokens.lit, "*") {
+        return parse_deref(p);
+    }
+    if strcmp(p.tokens.lit, "&") {
+        return parse_ref(p);
+    }
+    if strcmp(p.tokens.lit, "!") {
+        return parse_not(p);
+    }
+
+    let node *Node = parse_number(p);
+
+    while {
+        if strcmp(p.tokens.lit, "(") {
+            let lpar_tok *Token = p.tokens;
+            parser_skip(p, "(");
+
+            add_type(p, node);
+
+            if node.ty.kind != TY_FUNC {
+                print_error(lpar_tok, "cannot call a none function type object\n");
+            }
+
+            let func_call_node *Node = new_node(ND_FUNC_CALL);
+            func_call_node.lhs = node;
+
+            func_call_node.args = parse_func_call_args(p);
+
+            let rpar_tok *Token = p.tokens;
+            parser_skip(p, ")");
+
+            if node.ty.is_variadic {
+                if func_call_node.args.len < params_length_without_argv_argc(node.ty) {
+                    print_error(lpar_tok, "The number of arguments does not match the function definition");
+                }
+            } else {
+                if func_call_node.args.len != node.ty.params.len {
+                    print_error(lpar_tok, "The number of arguments does not match the function definition");
+                }
+            }
+
+            node = func_call_node;
+            goto continue;
+        }
+        let access_tok *Token = p.tokens;
+        if strcmp(p.tokens.lit, "++") {
+            parser_next(p);
+            node = new_binop(ND_SUB, new_binop(ND_ASSIGN, node, new_binop(ND_ADD, node, new_node_num(1))), new_node_num(1));
+            goto continue;
+        }
+        if strcmp(p.tokens.lit, "--") {
+            parser_next(p);
+            node = new_binop(ND_ADD, new_binop(ND_ASSIGN, node, new_binop(ND_SUB, node, new_node_num(1))), new_node_num(1));
+            goto continue;
+        }
+        if strcmp(p.tokens.lit, "[") {
+            add_type(p, node);
+            parser_next(p);
+            let index_number_node *Node = parse_expr(p);
+            parser_skip(p, "]");
+
+            if node.ty.kind != TY_PTR && node.ty.kind != TY_ARRAY {
+                print_error(access_tok, "`[]` cannot access to none pointer type.");
+            }
+
+            let base_number_node *Node = new_node(ND_NUM);
+            base_number_node.int_val = node.ty.pointer_to.size;
+            base_number_node.ty = p.ty_i32;
+
+            let idx_pointer_arith *Node = new_binop(ND_MUL, index_number_node, base_number_node);
+            node = new_binop(ND_ADD, node, idx_pointer_arith);
+
+            node = new_struct_access_node(ND_DEREF, node, 0, nil);
+            goto continue;
+        }
+        if strcmp(p.tokens.lit, ".") {
+            parser_next(p);
+
+            let member_name *u8 = p.tokens.lit;
+            let member_tok *Token = p.tokens;
+            let member *Member;
+
+            parser_next(p);
+
+            add_type(p, node);
+
+            if node.ty.kind == TY_PTR {
+                if node.ty.pointer_to.kind != TY_STRUCT {
+                    print_error(access_tok, "cannot access from none struct type");
+                }
+                member = search_struct_member(node.ty.pointer_to.members, member_name);
+                if member == nil {
+                    unkown_member_error(node.ty.pointer_to.members, member_tok, "member name not found");
+                }
+                node = new_struct_access_node(ND_DEREF, node, 0, node.ty.pointer_to);
+            } else {
+                if node.ty.kind != TY_STRUCT {
+                    print_error(access_tok, "cannot access from none struct type");
+                }
+                member = search_struct_member(node.ty.members, member_name);
+                if member == nil {
+                    unkown_member_error(node.ty.members, member_tok, "member name not found");
+                }
+            }
+            let offset i32 = member.offset;
+            let member_ty *Type = member.ty;
+            node = new_struct_access_node(ND_MEMBER_ACCESS, node, offset, member_ty);
+            goto continue;
+        }
+        goto break;
+        continue:
+    }
+    break:
+
+    return node;
+}
+
+func parse_mul(p *Parser) *Node {
+    let node *Node = parse_unary(p);
+
+    while {
+        if strcmp(p.tokens.lit, "*") {
+            parser_next(p);
+            node = new_binop(ND_MUL, node, parse_unary(p));
+        } else if strcmp(p.tokens.lit, "/") {
+            parser_next(p);
+            node = new_binop(ND_DIV, node, parse_unary(p));
+        } else if strcmp(p.tokens.lit, "%") {
+            parser_next(p);
+            node = new_binop(ND_MOD, node, parse_unary(p));
+        } else {
+            goto break;
+        }
+    }
+break:
+
+    return node;
+}
+
+func parse_add(p *Parser) *Node {
+    let node *Node = parse_mul(p);
+
+    while {
+        if strcmp(p.tokens.lit, "+") {
+            parser_next(p);
+            node = new_binop(ND_ADD, node, parse_mul(p));
+        } else if strcmp(p.tokens.lit, "-") {
+            parser_next(p);
+            node = new_binop(ND_SUB, node, parse_mul(p));
+        } else {
+            goto break;
+        }
+    }
+break:
+
+    return node;
+}
+
+func parse_shift(p *Parser) *Node {
+    let node *Node = parse_add(p);
+
+    while {
+        if strcmp(p.tokens.lit, "<<") {
+            parser_next(p);
+            node = new_binop(ND_SHL, node, parse_add(p));
+        } else if strcmp(p.tokens.lit, ">>") {
+            parser_next(p);
+            node = new_binop(ND_SHR, node, parse_add(p));
+        } else {
+            goto break;
+        }
+    }
+
+break:
+    return node;
+}
+
+func is_comparison_node(node *Node) bool {
+    return
+        node.kind == ND_LE ||
+        node.kind == ND_GE ||
+        node.kind == ND_LT ||
+        node.kind == ND_GT ||
+        node.kind == ND_EQ ||
+        node.kind == ND_NE ||
+        node.kind == ND_LOGAND;
+}
+
+func search_relational_rhs(node *Node) *Node {
+    let rel_node *Node = node;
+    while is_comparison_node(rel_node) {
+        rel_node = rel_node.rhs;
+    }
+
+    return rel_node;
+}
+
+func search_relational_lhs(node *Node) *Node {
+    let rel_node *Node = node;
+    while is_comparison_node(rel_node) {
+        rel_node = rel_node.lhs;
+    }
+
+    return rel_node;
+}
+
+func new_relational(kind NodeKind, lhs *Node, rhs *Node) *Node {
+    let node *Node;
+
+    if is_comparison_node(lhs) && is_comparison_node(rhs) {
+        node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
+        node = new_binop(ND_LOGAND, node, rhs);
+        node = new_binop(ND_LOGAND, lhs, node);
+        return node;
+    }
+
+    node = new_binop(kind, search_relational_rhs(lhs.rhs), rhs);
+    node = new_binop(ND_LOGAND, lhs, node);
+    return node;
+}
+
+func new_equality(kind NodeKind, lhs *Node, rhs *Node) *Node {
+    let node *Node;
+    if is_comparison_node(lhs) && is_comparison_node(rhs) {
+        node = new_binop(kind, search_relational_rhs(lhs.rhs), search_relational_lhs(rhs.lhs));
+        node = new_binop(ND_LOGAND, lhs, node);
+        node = new_binop(ND_LOGAND, node, rhs);
+        return node;
+    }
+    node = new_binop(kind, lhs, search_relational_lhs(rhs.lhs));
+    node = new_binop(ND_LOGAND, node, rhs);
+    return node;
+}
+
+func parse_relational(p *Parser) *Node {
+    let node *Node = parse_shift(p);
+    let rhs *Node;
+
+    while {
+        if strcmp(p.tokens.lit, "<=") {
+            parser_next(p);
+            rhs = parse_shift(p);
+            if is_comparison_node(node) {
+                node = new_relational(ND_LE, node, rhs);
+            } else {
+                node = new_binop(ND_LE, node, rhs);
+            }
+        } else if strcmp(p.tokens.lit, ">=") {
+            parser_next(p);
+            rhs = parse_shift(p);
+            if is_comparison_node(node) {
+                node = new_relational(ND_GE, node, rhs);
+            } else {
+                node = new_binop(ND_GE, node, rhs);
+            }
+        } else if strcmp(p.tokens.lit, "<") {
+            parser_next(p);
+            rhs = parse_shift(p);
+            if is_comparison_node(node) {
+                node = new_relational(ND_LT, node, rhs);
+            } else {
+                node = new_binop(ND_LT, node, rhs);
+            }
+        } else if strcmp(p.tokens.lit, ">") {
+            parser_next(p);
+            rhs = parse_shift(p);
+            if is_comparison_node(node) {
+                node = new_relational(ND_GT, node, rhs);
+            } else {
+                node = new_binop(ND_GT, node, rhs);
+            }
+        } else {
+            goto break;
+        }
+    }
+break:
+
+    return node;
+}
+
+func parse_equality(p *Parser) *Node {
+    let node *Node = parse_relational(p);
+    let rhs *Node;
+
+    while {
+        if strcmp(p.tokens.lit, "==") {
+            parser_next(p);
+            rhs = parse_relational(p);
+            if is_comparison_node(rhs) {
+                node = new_equality(ND_EQ, node, rhs);
+            } else if is_comparison_node(node) {
+                node = new_relational(ND_EQ, node, rhs);
+            } else {
+                node = new_binop(ND_EQ, node, rhs);
+            }
+        } else if strcmp(p.tokens.lit, "!=") {
+            parser_next(p);
+            rhs = parse_relational(p);
+            if is_comparison_node(rhs) {
+                node = new_equality(ND_NE, node, rhs);
+            } else if is_comparison_node(node) {
+                node = new_relational(ND_NE, node, rhs);
+            } else {
+                node = new_binop(ND_NE, node, rhs);
+            }
+        } else {
+            goto break;
+        }
+    }
+break:
+
+    return node;
+}
+
+func parse_and(p *Parser) *Node {
+    let node *Node = parse_equality(p);
+    while strcmp(p.tokens.lit, "&") {
+        parser_next(p);
+        node = new_binop(ND_AND, node, parse_equality(p));
+    }
+    return node;
+}
+
+func parse_or(p *Parser) *Node {
+    let node *Node = parse_and(p);
+    while strcmp(p.tokens.lit, "|") {
+        parser_next(p);
+        node = new_binop(ND_OR, node, parse_and(p));
+    }
+    return node;
+}
+
+func parse_logand(p *Parser) *Node {
+    let node *Node = parse_or(p);
+    while strcmp(p.tokens.lit, "&&") {
+        parser_next(p);
+        node = new_binop(ND_LOGAND, node, parse_or(p));
+    }
+    return node;
+}
+
+func parse_logor(p *Parser) *Node {
+    let node *Node = parse_logand(p);
+    while strcmp(p.tokens.lit, "||") {
+        parser_next(p);
+        node = new_binop(ND_LOGOR, node, parse_logand(p));
+    }
+    return node;
+}
+
+func parse_expr(p *Parser) *Node {
+    let node *Node = parse_logor(p);
+    if strcmp(p.tokens.lit, "=") {
+        parser_next(p);
+        node = new_binop(ND_ASSIGN, node, parse_expr(p));
+    }
+    return node;
+}
+
+func parse_expr_stmt(p *Parser) *Node {
+    let node *Node = new_node(ND_EXPR_STMT);
+    node.lhs = parse_expr(p);
+    parser_skip(p, ";");
+    return node;
+}
+
+func parse_block(p *Parser) *Node {
+    let node *Node = new_node(ND_BLOCK);
+
+    let stmts *Vec = new_vec(4);
+
+    parser_skip(p, "{");
+
+    enter_scope(p);
+
+    while !strcmp(p.tokens.lit, "}") {
+        let stmt *Node = parse_stmt(p);
+        if stmt != nil {
+            add_type(p, stmt);
+            vec_append(stmts, stmt);
+        }
+    }
+
+    leave_scope(p);
+
+    parser_skip(p, "}");
+
+    node.body = stmts;
+
+    return node;
+}
+
+func node_true() *Node {
+    let node *Node = new_node(ND_NUM);
+    node.int_val = 1;
+    return node;
+}
+
+func initializer(p *Parser, lhs *Node) *Node {
+    let nodes *Vec = new_vec(10);
+
+    if lhs.ty.kind != TY_ARRAY && lhs.ty.kind != TY_STRUCT {
+        print_error(p.tokens, "unexpected initializer");
+    }
+
+    parser_skip(p, "{");
+
+    if strcmp(p.tokens.lit, "}") {
+        let expr *Node = new_node(ND_MEMZERO);
+        expr.lhs = lhs;
+        vec_append(nodes, expr);
+    } else if lhs.ty.kind == TY_ARRAY {
+        let i i32 = 0;
+        while i < lhs.ty.array_len {
+            let deref_lhs *Node = new_node(ND_DEREF);
+            deref_lhs.lhs = new_binop(ND_ADD, lhs, new_node_num(lhs.ty.pointer_to.size * i));
+            add_type(p, deref_lhs);
+
+            if strcmp(p.tokens.lit, "{") {
+                vec_append(nodes, initializer(p, deref_lhs));
+            } else {
+                vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, parse_expr(p)));
+            }
+
+            i++;
+
+            if i < lhs.ty.array_len {
+                parser_skip(p, ",");
+            }
+        }
+    } else if lhs.ty.kind == TY_STRUCT {
+        let i i32 = 0;
+        while i < lhs.ty.members.len {
+            let struct_member *Member = vec_get(lhs.ty.members, i);
+
+            let deref_lhs *Node = new_struct_access_node(ND_MEMBER_ACCESS, lhs, struct_member.offset, struct_member.ty);
+
+            if strcmp(p.tokens.lit, "{") {
+                vec_append(nodes, initializer(p, deref_lhs));
+            } else {
+                vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, parse_expr(p)));
+            }
+
+            i++;
+
+            if i < lhs.ty.members.len {
+                parser_skip(p, ",");
+            }
+        }
+    } else {}
+
+    parser_skip(p, "}");
+
+    let node *Node = new_node(ND_BLOCK);
+    node.body = nodes;
+    add_type(p, node);
+
+    return node;
+}
+
+func parse_let(p *Parser) *Node {
+    let node *Node;
+
+    parser_skip(p, "let");
+
+    let var_name_tok *Token = p.tokens;
+    parser_next(p);
+
+    let var_ty *Type = parse_ty(p);
+    let obj *Object = new_local_object(p, OBJ_VAR, var_name_tok.lit, var_ty, var_name_tok, false);
+
+    if strcmp(p.tokens.lit, "=") {
+        parser_skip(p, "=");
+
+        let node_var *Node = new_node(ND_VAR);
+        node_var.obj = obj;
+        add_type(p, node_var);
+
+        if strcmp(p.tokens.lit, "{") {
+            node = initializer(p, node_var);
+            parser_skip(p, ";");
+        } else {
+            node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
+        }
+
+        return node;
+    } else {
+        parser_skip(p, ";");
+        return nil;
+    }
+}
+
+func parse_goto(p *Parser) *Node {
+    parser_skip(p, "goto");
+
+    let label_name *u8 = p.tokens.lit;
+    parser_next(p);
+
+    parser_skip(p, ";");
+
+    let node *Node = new_node(ND_GOTO);
+    node.label_name = label_name;
+    return node;
+}
+
+func parse_if(p *Parser) *Node {
+    parser_skip(p, "if");
+
+    let node *Node = new_node(ND_IF);
+    node.cond = parse_expr(p);
+    node.then_block = parse_block(p);
+
+    if strcmp(p.tokens.lit, "else") {
+        parser_next(p);
+        node.else_block = parse_stmt(p);
+    } else {
+        node.else_block = new_node(ND_EMPTY);
+    }
+
+    return node;
+}
+
+func parse_return(p *Parser) *Node {
+    parser_skip(p, "return");
+    if strcmp(p.tokens.lit, ";") {
+        parser_skip(p, ";");
+        return new_node(ND_RETURN);
+    }
+    let node *Node = new_node(ND_RETURN);
+    node.lhs = parse_expr_stmt(p);
+    return node;
+}
+
+func parse_while(p *Parser) *Node {
+    parser_skip(p, "while");
+    let node *Node = new_node(ND_WHILE);
+
+    if !strcmp(p.tokens.lit, "{") {
+        node.cond = parse_expr(p);
+    } else {
+        node.cond = node_true();
+    }
+
+    node.then_block = parse_block(p);
+    return node;
+}
+
+func parse_label(p *Parser) *Node {
+    let node *Node = new_node(ND_LABEL);
+    node.label_name = p.tokens.lit;
+
+    parser_next(p);
+    parser_skip(p, ":");
+
+    return node;
+}
+
+func parse_stmt(p *Parser) *Node {
+    if strcmp(p.tokens.lit, "let") {
+        return parse_let(p);
+    }
+    if strcmp(p.tokens.lit, "goto") {
+        return parse_goto(p);
+    }
+    if strcmp(p.tokens.lit, "if") {
+        return parse_if(p);
+    }
+    if strcmp(p.tokens.lit, "while") {
+        return parse_while(p);
+    }
+    if strcmp(p.tokens.lit, "return") {
+        return parse_return(p);
+    }
+    if strcmp(p.tokens.lit, "{") {
+        return parse_block(p);
+    }
+    if p.tokens.kind != TK_EOF {
+        if strcmp(p.tokens.next.lit, ":") {
+            return parse_label(p);
+        }
+    }
+
+    return parse_expr_stmt(p);
+}
+
+func new_member(name *u8, ty *Type) *Member {
+    let member *Member = alloc(typesize(Member));
+    member.name = name;
+    member.ty = ty;
+    return member;
+}
+
+func calc_sizof_struct_members(members *Vec) i32 {
+    let offset i32 = 0;
+    let i i32 = 0;
+
+    while i < members.len {
+        let member *Member = vec_get(members, i);
+        if member.ty.size <= 8 && align_to(offset, 8) < align_to(offset + member.ty.size, 8) {
+            offset = align_to(offset, 8);
+        }
+        member.offset = offset;
+        offset = offset + member.ty.size;
+        i++;
+    }
+
+    return align_to(offset, 8);
+}
+
+func parse_struct(p *Parser) u0 {
+    parser_skip(p, "struct");
+    let name_tok *Token = p.tokens;
+    parser_next(p);
+
+    let members *Vec = new_vec(4);
+
+    let ty *Type = alloc(typesize(Type));
+    ty.kind = TY_STRUCT;
+    ty.name = name_tok.lit;
+    ty.size = 0;
+    ty.members = members;
+
+    let user_defined_struct *Type = get_user_defined_type(p, name_tok.lit);
+
+    if user_defined_struct == nil {
+        vec_append(p.user_defined_types, ty);
+    }
+
+    if strcmp(p.tokens.lit, ";") {
+        if user_defined_struct == nil {
+            ty.is_declaration = true;
+        }
+        parser_skip(p, ";");
+    } else {
+        parser_skip(p, "{");
+        while !strcmp(p.tokens.lit, "}") {
+            let member_name *u8 = p.tokens.lit;
+            parser_next(p);
+            vec_append(members, new_member(member_name, parse_ty(p)));
+            parser_skip(p, ",");
+        }
+        parser_skip(p, "}");
+
+        let struct_size i32 = calc_sizof_struct_members(members);
+
+        if user_defined_struct == nil {
+            ty.size = struct_size;
+            ty.members = members;
+        } else if !user_defined_struct.is_declaration {
+            print_error(name_tok, "struct is already defined");
+        } else {
+            user_defined_struct.members = members;
+            user_defined_struct.size = struct_size;
+            user_defined_struct.is_declaration = false;
+        }
+    }
+}
+
+func parse_function_params(p *Parser, types *Vec, params *Vec) bool {
+    let is_variadic bool = false;
+
+    parser_skip(p, "(");
+
+    while !strcmp(p.tokens.lit, ")") {
+        let params_name *u8 = p.tokens.lit;
+        let params_name_tok *Token = p.tokens;
+        parser_next(p);
+
+        let ty *Type;
+        let ty_tok *Token = p.tokens;
+        if strcmp(params_name, "...") {
+            if !strcmp(p.tokens.lit, ")") {
+                print_error(params_name_tok, "must be at the end of the paramaters");
+            }
+            is_variadic = true;
+
+            vec_append(types, p.ty_i64);
+            vec_append(params, new_local_object(p, OBJ_VAR, "argc", p.ty_i32, params_name_tok, true));
+
+            ty = new_pointer_type(p.ty_i64);
+            vec_append(types, ty);
+            vec_append(params, new_local_object(p, OBJ_VAR, "argv", ty, params_name_tok, true));
+        } else {
+            ty = parse_ty(p);
+            if ty.kind == TY_STRUCT {
+                print_error(ty_tok, "unsupported feature: function parameter of struct");
+            }
+            if ty.kind == TY_ARRAY {
+                ty = new_pointer_type(ty.pointer_to);
+            }
+            vec_append(types, ty);
+            vec_append(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
+
+            if !strcmp(p.tokens.lit, ")") && !strcmp(p.tokens.lit, ",") {
+                goto break;
+            } else if !strcmp(p.tokens.lit, ")") {
+                parser_skip(p, ",");
+            }
+        }
+    }
+
+break:
+
+    parser_skip(p, ")");
+
+    return is_variadic;
+}
+
+func add_function_object(p *Parser, fn *Object) u0 {
+    fn.next = p.globals;
+    p.globals = fn;
+}
+
+func parse_func(p *Parser) u0 {
+    parser_skip(p, "func");
+
+    p.locals = nil;
+    enter_scope(p);
+
+    let name_tok *Token = p.tokens;
+    parser_next(p);
+
+    let types *Vec = new_vec(4);
+    let params *Vec = new_vec(4);
+    let is_variadic bool = parse_function_params(p, types, params);
+    let save_return_ty_tok *Token = p.tokens;
+    let return_ty *Type = parse_ty(p);
+    let fn *Object = find_globals(p, name_tok.lit);
+
+    if fn != nil {
+        if !cmp_func_params(fn.params, params) {
+            print_error(name_tok, "arguments doesn't match to prototype");
+        }
+        if !cmp_type(return_ty, fn.ty.return_type) {
+            print_error(name_tok, "return type doesn't match to prototype");
+        }
+    }
+
+    if return_ty.kind == TY_STRUCT {
+        print_error(save_return_ty_tok, "unsupported feature: function returning struct");
+    }
+
+    let is_declaration bool = false;
+
+    if strcmp(p.tokens.lit, ";") {
+        parser_skip(p, ";");
+        is_declaration = true;
+    }
+
+    if fn == nil {
+        fn = alloc(typesize(Object));
+        if fn == nil {
+            eprintf("memory allocation failed\n");
+        }
+        fn.kind = OBJ_FUNC;
+        fn.name = name_tok.lit;
+        fn.params = params;
+        fn.is_global = true;
+        fn.ty = new_func_type(types, return_ty, is_variadic);
+        add_function_object(p, fn);
+        if is_declaration {
+            fn.is_declaration = true;
+            fn.locals = p.locals;
+        } else {
+            fn.body = parse_block(p);
+            fn.locals = p.locals;
+        }
+    } else if fn.is_declaration && !is_declaration {
+        fn.is_declaration = false;
+        fn.body = parse_block(p);
+        fn.locals = p.locals;
+    } else if !is_declaration {
+        print_error(name_tok, "function is already defined somewhere");
+    }
+
+    leave_scope(p);
+}
+
+func parse(p *Parser) u0 {
+    while p.tokens.kind != TK_EOF {
+        if strcmp(p.tokens.lit, "func") {
+            parse_func(p);
+        } else if strcmp(p.tokens.lit, "struct") {
+            parse_struct(p);
+        } else {
+            print_error(p.tokens, "non-declaration statement outside function body");
+        }
+    }
+}
+

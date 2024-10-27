@@ -1,0 +1,623 @@
+
+#include "header.ibu"
+#include "std/header.ibu"
+#include "linux-syscall/header.ibu"
+
+func gen_expr(g *Gen, node *Node) i32;
+func gen_stmt(g *Gen, node *Node) i32;
+
+func new_gen() *Gen {
+    let g *Gen = alloc(typesize(Gen));
+    if g == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    g.label_count = 0;
+    g.str_label_count = 0;
+    return g;
+}
+
+func gen_push(g *Gen, regi *u8) u0 {
+    printf("\tpush %s\n", regi);
+    g.stack_depth++;
+}
+
+func gen_push_num(g *Gen, num i32) u0 {
+    printf("\tpush $%d\n", num);
+    g.stack_depth++;
+}
+
+func gen_pop(g *Gen, regi *u8) u0 {
+    printf("\tpop %s\n", regi);
+    g.stack_depth--;
+}
+
+func gen_pop_size(g *Gen, size i32) u0 {
+    g.stack_depth = g.stack_depth - (size / 8);
+    printf("\taddq $%d, %%rsp\n", size);
+}
+
+func alloc_stack(g *Gen, size i32) u0 {
+    g.stack_depth = g.stack_depth + (size / 8);
+    printf("\tsubq $%d, %%rsp\n", size);
+}
+
+func gen_lhs_rhs(g *Gen, lhs *Node, rhs *Node) i32 {
+    gen_expr(g, rhs);
+    gen_push(g, "%rax");
+    gen_expr(g, lhs);
+    gen_pop(g, "%rdi");
+}
+
+func gen_addr(g *Gen, node *Node) i32 {
+    if node.kind == ND_MEMBER_ACCESS {
+        gen_addr(g, node.lhs);
+        printf("\taddq $%d, %%rax\n", node.offset);
+    } else if node.kind == ND_VAR {
+        if node.obj.is_global {
+            printf("\tleaq %s(%%rip), %%rax\n", node.obj.name);
+        } else {
+            printf("\tleaq %d(%%rbp), %%rax\n", node.obj.offset);
+        }
+    } else if node.kind == ND_DEREF {
+        gen_expr(g, node.lhs);
+    } else {
+        // TODO: print error
+    }
+    return 0;
+}
+
+func gen_store(ty *Type) i32 {
+    if ty.kind == TY_STRUCT {
+        let i i32 = 0;
+        while i < ty.size {
+            printf("\tmovb %d(%%rax), %%r8b\n", i);
+            printf("\tmovb %%r8b, %d(%%rdi)\n", i);
+            i++;
+        }
+        return 0;
+    }
+    if ty.size == 1 {
+        printf("\tmovb %%al, (%%rdi)\n");
+    } else if ty.size == 2 {
+        printf("\tmovw %%ax, (%%rdi)\n");
+    } else if ty.size == 4 {
+        printf("\tmovl %%eax, (%%rdi)\n");
+    } else {
+        printf("\tmovq %%rax, (%%rdi)\n");
+    }
+    return 0;
+}
+
+func gen_load(g *Gen, ty *Type) i32 {
+    if ty.kind == TY_STRUCT || ty.kind == TY_ARRAY || ty.kind == TY_FUNC {
+        return 0;
+    }
+
+    if ty.size == 8 {
+        printf("\tmovq (%%rax), %%rax\n");
+    } else if ty.size == 4 {
+        printf("\tmovslq (%%rax), %%rax\n");
+    } else if ty.size == 2 {
+        if ty.is_unsigned {
+            printf("\tmovzwl (%%rax), %%eax\n");
+        } else {
+            printf("\tmovswl (%%rax), %%eax\n");
+        }
+    } else if ty.size == 1 {
+        if ty.is_unsigned {
+            printf("\tmovzbl (%%rax), %%eax\n");
+        } else {
+            printf("\tmovsbl (%%rax), %%eax\n");
+        }
+    } else {
+        eprintf("unreachable\n");
+        exit(1);
+    }
+    return 0;
+}
+
+func gen_condition_store(ty *Type) i32 {
+    if ty.size == 8 || ty.kind == TY_PTR || ty.kind == TY_ARRAY {
+        printf("\tmovzbq %%al, %%rax\n");
+    } else {
+        printf("\tmovzbl %%al, %%eax\n");
+    }
+}
+
+func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
+    if args.len == 0 {
+        return 0;
+    }
+
+    let stack i32 = 0;
+
+    let i i32 = args.len - 1;
+    while 0 <= i {
+        let arg *Node = vec_get(args, i);
+        gen_expr(g, arg);
+        gen_push(g, "%rax");
+        stack = stack + 8;
+
+        if ty.is_variadic && i == (ty.params.len - 2) {
+            let argc i32 = 0;
+            if args.len > (ty.params.len - 2) {
+                argc = args.len - (ty.params.len - 2);
+            }
+            printf("\tleaq (%%rsp), %%rax\n"); // push argv
+            gen_push(g, "%rax");
+            gen_push_num(g, argc); // push argc
+            stack = stack + 16;
+        }
+
+        i--;
+    }
+
+    return stack;
+}
+
+func gen_expr(g *Gen, node *Node) i32 {
+    let c i32 = 0;
+    if node.kind == ND_EMPTY {
+        return 0;
+    }
+    if node.kind == ND_MEMBER_ACCESS {
+        gen_addr(g, node);
+        gen_load(g, node.ty);
+        return 0;
+    }
+    if node.kind == ND_STR {
+        c = g.str_label_count++;
+        printf(".data\n");
+        printf(".L.str.%d:\n", c);
+
+        let str *u8 = node.str_val;
+        while *str != nil {
+            printf("\t.byte %d\n", *str);
+            str++;
+        }
+        printf("\t.byte 0\n");
+
+        printf(".text\n");
+        printf("\tleaq .L.str.%d(%%rip), %%rax\n", c);
+        return 0;
+    }
+    if node.kind == ND_NUM {
+        printf("\tmovq $%d, %%rax\n", node.int_val);
+        return 0;
+    }
+    if node.kind == ND_ASSIGN {
+        gen_addr(g, node.lhs);
+        gen_push(g, "%rax");
+        gen_expr(g, node.rhs);
+        gen_pop(g, "%rdi");
+        gen_store(node.ty);
+        return 0;
+    }
+    if node.kind == ND_VAR {
+        gen_addr(g, node);
+        gen_load(g, node.ty);
+        return 0;
+    }
+    if node.kind == ND_FUNC_CALL {
+        let stack i32 = 0;
+        stack = func_call_args_to_stack(g, node.args, node.lhs.ty);
+
+        gen_expr(g, node.lhs);
+        printf("\tmovq %%rax, %%r10\n");
+        printf("\tmovq $0, %%rax\n");
+
+        printf("\tcallq *%%r10\n");
+        gen_pop_size(g, stack);
+
+        if node.ty.kind == TY_BOOL {
+            printf("\tmovzx %%al, %%eax\n");
+        } else if node.ty.kind == TY_I8 {
+            printf("\tmovsbl %%al, %%eax\n");
+        } else if node.ty.kind == TY_U8 {
+            printf("\tmovzbl %%al, %%eax\n");
+        } else if node.ty.kind == TY_I16 {
+            printf("\tmovswl %%ax, %%eax\n");
+        } else if node.ty.kind == TY_U16 {
+            printf("\tmovzwl %%ax, %%eax\n");
+        } else {}
+
+        return 0;
+    }
+    if node.kind == ND_EXPR_STMT {
+        gen_expr(g, node.lhs);
+        return 0;
+    }
+    if node.kind == ND_REF {
+        gen_addr(g, node.lhs);
+        return 0;
+    }
+    if node.kind == ND_DEREF {
+        gen_expr(g, node.lhs);
+        gen_load(g, node.ty);
+        return 0;
+    }
+    if node.kind == ND_NOT {
+        gen_expr(g, node.lhs);
+        printf("\tcmpq $0, %%rax\n");
+        printf("\tsete %%al\n");
+        printf("\tmovzbq %%al, %%rax\n");
+        return 0;
+    }
+    if node.kind == ND_ADD {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\taddq %%rdi, %%rax\n");
+        } else {
+            printf("\taddl %%edi, %%eax\n");
+        }
+        return 0;
+    }
+    if node.kind == ND_SHL {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        printf("\tmovq %%rdi, %%rcx\n");
+        if node.ty.kind == TY_ARRAY || node.ty.kind == TY_PTR || node.ty.size == 8  {
+            printf("\tshl %%cl, %%rax\n");
+        } else {
+            printf("\tshl %%cl, %%eax\n");
+        }
+        return 0;
+    }
+    if node.kind == ND_SHR {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        printf("\tmovq %%rdi, %%rcx\n");
+        if node.ty.kind == TY_ARRAY || node.ty.kind == TY_PTR || node.ty.size == 8  {
+            printf("\tshr %%cl, %%rax\n");
+        } else {
+            printf("\tshr %%cl, %%eax\n");
+        }
+        return 0;
+    }
+    if node.kind == ND_SUB {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\tsubq %%rdi, %%rax\n");
+        } else {
+            printf("\tsubl %%edi, %%eax\n");
+        }
+        return 0;
+    }
+    if node.kind == ND_AND {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\tandq %%rdi, %%rax\n");
+        } else {
+            printf("\tandl %%edi, %%eax\n");
+        }
+        return 0;
+    }
+    if node.kind == ND_OR {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\torq %%rdi, %%rax\n");
+        } else {
+            printf("\torl %%edi, %%eax\n");
+        }
+        return 0;
+    }
+    if node.kind == ND_MUL {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\timulq %%rdi, %%rax\n");
+        } else {
+            printf("\timull %%edi, %%eax\n");
+        }
+        return 0;
+    }
+    if node.kind == ND_DIV || node.kind == ND_MOD {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+
+        if node.ty.is_unsigned {
+            if node.ty.size == 8 {
+                printf("\tmov $0, %%rdx\n");
+                  printf("\tdivq %%rdi\n");
+            } else {
+                printf("\tmov $0, %%edx\n");
+                  printf("\tdivl %%edi\n");
+            }
+        } else {
+            if node.lhs.ty.size == 8 {
+                printf("\tcqto\n");
+            } else {
+                printf("\tcltd\n");
+            }
+            if node.ty.size == 8 {
+                printf("\tidivq %%rdi\n");
+            } else {
+                printf("\tidivl %%edi\n");
+            }
+        }
+        if node.kind == ND_MOD {
+            printf("\tmovq %%rdx, %%rax\n");
+        }
+        return 0;
+    }
+    if node.kind == ND_EQ {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\tcmpq %%rdi, %%rax\n");
+        } else {
+            printf("\tcmpl %%edi, %%eax\n");
+        }
+        printf("\tsete %%al\n");
+        gen_condition_store(node.ty);
+        return 0;
+    }
+    if node.kind == ND_NE {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\tcmpq %%rdi, %%rax\n");
+        } else {
+            printf("\tcmpl %%edi, %%eax\n");
+        }
+        printf("\tsetne %%al\n");
+        gen_condition_store(node.ty);
+        return 0;
+    }
+    if node.kind == ND_LOGAND {
+        c = g.label_count++;
+        gen_expr(g, node.lhs);
+        printf("\tcmpq $0, %%rax\n");
+        printf("\tje .L.false.%d\n", c);
+        gen_expr(g, node.rhs);
+        printf("\tcmpq $0, %%rax\n");
+        printf("\tje .L.false.%d\n", c);
+        printf("\tmovq $1, %%rax\n");
+        printf("\tjmp .L.end.%d\n", c);
+        printf(".L.false.%d:\n", c);
+        printf("\tmovq $0, %%rax\n");
+        printf(".L.end.%d:\n", c);
+        return 0;
+    }
+    if node.kind == ND_LOGOR {
+        c = g.label_count++;
+        gen_expr(g, node.lhs);
+        printf("\tcmpq $0, %%rax\n");
+        printf("\tjne .L.true.%d\n", c);
+        gen_expr(g, node.rhs);
+        printf("\tcmp $0, %%rax\n");
+        printf("\tjne .L.true.%d\n", c);
+        printf("\tmov $0, %%rax\n");
+        printf("\tjmp .L.end.%d\n", c);
+        printf(".L.true.%d:\n", c);
+        printf("\tmov $1, %%rax\n");
+        printf(".L.end.%d:\n", c);
+        return 0;
+    }
+    if node.kind == ND_GE {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\tcmpq %%rdi, %%rax\n");
+        } else {
+            printf("\tcmpl %%edi, %%eax\n");
+        }
+        if node.lhs.ty.is_unsigned {
+               printf("\tsetae %%al\n");
+        } else {
+            printf("\tsetge %%al\n");
+        }
+        gen_condition_store(node.ty);
+        return 0;
+    }
+    if node.kind == ND_GT {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\tcmpq %%rdi, %%rax\n");
+        } else {
+            printf("\tcmpl %%edi, %%eax\n");
+        }
+        if node.lhs.ty.is_unsigned {
+               printf("\tseta %%al\n");
+        } else {
+            printf("\tsetg %%al\n");
+        }
+        gen_condition_store(node.ty);
+        return 0;
+    }
+    if node.kind == ND_LE {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\tcmpq %%rdi, %%rax\n");
+        } else {
+            printf("\tcmpl %%edi, %%eax\n");
+        }
+        if node.lhs.ty.is_unsigned {
+               printf("\tsetbe %%al\n");
+        } else {
+            printf("\tsetle %%al\n");
+        }
+        gen_condition_store(node.ty);
+        return 0;
+    }
+    if node.kind == ND_LT {
+        gen_lhs_rhs(g, node.lhs, node.rhs);
+        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
+            printf("\tcmpq %%rdi, %%rax\n");
+        } else {
+            printf("\tcmpl %%edi, %%eax\n");
+        }
+        if node.lhs.ty.is_unsigned {
+               printf("\tsetb %%al\n");
+        } else {
+            printf("\tsetl %%al\n");
+        }
+        gen_condition_store(node.ty);
+        return 0;
+    }
+    printf("gen_expr unreachable\n");
+    exit(1);
+}
+
+func gen_node_block(g *Gen, stmts *Vec) i32 {
+    let i i32 = 0;
+    while i < stmts.len {
+        let stmt *Node = vec_get(stmts, i);
+        gen_stmt(g, stmt);
+        i++;
+    }
+    return 0;
+}
+
+func gen_stmt(g *Gen, node *Node) i32 {
+    let c i32 = 0;
+    if node.kind == ND_EMPTY {
+        return 0;
+    }
+    if node.kind == ND_BLOCK {
+        gen_node_block(g, node.body);
+        return 0;
+    }
+    if node.kind == ND_EXPR_STMT {
+        gen_expr(g, node.lhs);
+        return 0;
+    }
+    if node.kind == ND_MEMZERO {
+        gen_expr(g, node.lhs);
+        printf("\tmovq %%rax, %%rdi\n");
+        printf("\tmovq $%d, %%rcx\n", node.ty.size);
+        printf("\tmov $0, %%al\n");
+        printf("\trep stosb\n");
+        return 0;
+    }
+    if node.kind == ND_RETURN {
+        if node.lhs != nil {
+            gen_expr(g, node.lhs);
+        }
+        printf("\tleave\n");
+        printf("\tret\n");
+        return 0;
+    }
+    if node.kind == ND_IF {
+        c = g.label_count++;
+        gen_expr(g, node.cond);
+        printf("\tcmpq $1, %%rax\n");
+        printf("\tjne .L.else.%d\n", c);
+        gen_stmt(g, node.then_block);
+        printf("\tjmp .L.end.%d\n", c);
+        printf(".L.else.%d:\n", c);
+        if node.else_block != nil {
+            gen_stmt(g, node.else_block);
+        }
+        printf(".L.end.%d:\n", c);
+        return 0;
+    }
+    if node.kind == ND_GOTO {
+        printf("\tjmp .L.%s.%s\n", g.cur_func_name, node.label_name);
+        return 0;
+    }
+    if node.kind == ND_LABEL {
+        printf(".L.%s.%s:\n", g.cur_func_name, node.label_name);
+        return 0;
+    }
+    if node.kind == ND_WHILE {
+        c = g.label_count++;
+        printf(".L.while.start.%d:\n", c);
+        gen_expr(g, node.cond);
+        printf("\tcmpq $1, %%rax\n");
+        printf("\tjne .L.while.end.%d\n", c);
+        gen_stmt(g, node.then_block);
+        printf("\tjmp .L.while.start.%d\n", c);
+        printf(".L.while.end.%d:\n", c);
+        return 0;
+    }
+    if node.kind == ND_ASSIGN {
+        gen_addr(g, node.lhs);
+        gen_push(g, "%rax");
+        gen_expr(g, node.rhs);
+        gen_pop(g, "%rdi");
+        gen_store(node.ty);
+        return 0;
+    }
+    eprintf("gen_stmt unreachable\n");
+    exit(1);
+}
+
+func assign_func_params_offset(g *Gen, obj *Object) i32 {
+    if obj == nil {
+        return 0;
+    }
+    if obj.next != nil {
+        assign_func_params_offset(g, obj.next);
+    }
+    if obj.is_func_param {
+        obj.offset = g.stack_offset;
+        g.stack_offset = g.stack_offset + 8;
+    }
+    return 0;
+}
+
+func assign_local_var_offset(g *Gen, obj *Object) i32 {
+    if obj == nil {
+        return align_to(g.offset, 16);
+    }
+    if !obj.is_func_param {
+        g.offset = g.offset + obj.ty.size;
+        obj.offset = 0 - g.offset;
+    }
+    if obj.next != nil {
+        assign_local_var_offset(g, obj.next);
+    }
+    return align_to(g.offset, 16);
+}
+
+func has_main(object *Object) bool {
+    while object != nil {
+        if strcmp(object.name, "main") {
+            return true;
+        }
+        object = object.next;
+    }
+    return false;
+}
+
+func gen(g *Gen, object *Object) u0 {
+    printf(".text\n");
+
+    if has_main(object) {
+        printf(".global _start\n");
+        printf("_start:\n");
+        printf("\tpush %%rbp\n");
+        printf("\tmovq %%rsp, %%rbp\n");
+        printf("\tleaq 16(%%rbp), %%rax\n");
+        printf("\tpush %%rax\n");
+        printf("\tpushq 8(%%rbp)\n");
+        printf("\tcallq main\n");
+        printf("\tmovq %%rax, %%rdi\n");
+        printf("\tmovq $60, %%rax\n");
+        printf("\tsyscall\n");
+    }
+
+    while object != nil {
+        if object.kind == OBJ_FUNC && !object.is_declaration {
+            g.cur_func_name = object.name;
+
+            g.offset = 0;
+            g.stack_offset = 16;
+            assign_func_params_offset(g, object.locals);
+            object.stack_size = assign_local_var_offset(g, object.locals);
+
+            printf(".global %s\n", object.name);
+            printf("%s:\n", object.name);
+            printf("\tpush %%rbp\n");
+            printf("\tmovq %%rsp, %%rbp\n");
+            printf("\tsubq $%d, %%rsp\n", object.stack_size);
+
+            gen_stmt(g, object.body);
+
+            if g.stack_depth != 0 {
+                eprintf("internal error: unclosed push. this should not happen.\n");
+                exit(1);
+            }
+
+            printf("\tleave\n");
+            printf("\tret\n");
+        }
+        object = object.next;
+    }
+}
+

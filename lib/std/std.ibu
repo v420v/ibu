@@ -1,0 +1,351 @@
+
+#include "linux-syscall/header.ibu"
+#include "std/header.ibu"
+
+func strcmp(a *u8, b *u8) bool {
+    let i i32 = 0;
+    while {
+        if a[i] != b[i] {
+            return false;
+        }
+        if a[i] == '\0' {
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
+func new_vec(cap i32) *Vec {
+    let vec *Vec = alloc(typesize(Vec));
+    vec.ptr = alloc(typesize(*u8) * cap);
+    if vec.ptr == nil {
+        eprintf("allocation failed\n");
+        exit(1);
+    }
+    vec.len = 0;
+    vec.cap = cap;
+    return vec;
+}
+
+func vec_realloc(vec *Vec) u0 {
+    let new_ptr *u8 = alloc(typesize(*u8) * vec.cap * 2);
+    if new_ptr == nil {
+        eprintf("allocation failed\n");
+        exit(1);
+    }
+    memcpy(new_ptr, vec.ptr, (typesize(*u8) * vec.cap));
+    vec.cap = vec.cap * 2;
+    vec.ptr = new_ptr;
+}
+
+func vec_get(vec *Vec, i i32) *u8 {
+    return vec.ptr[i];
+}
+
+func vec_append(vec *Vec, val *u8) u0 {
+    if vec.len >= vec.cap {
+        vec_realloc(vec);
+    }
+    vec.ptr[vec.len] = val;
+    vec.len++;
+}
+
+func strlen(str *u8) i32 {
+    let start *u8 = str;
+    while *str != '\0' {
+        str++;
+    }
+    return str - start;
+}
+
+func fputs(fd i32, str *u8) i32 {
+    let p *u8 = str;
+    let endp *u8 = p + strlen(str);
+    let num_bytes i32 = 0;
+
+    while p < endp {
+        num_bytes = write(fd, p, endp - p);
+        if num_bytes < 0 {
+            eprintf("write syscall failed at fputs\n");
+            exit(1);
+        }
+        p = p + num_bytes;
+    }
+
+    return num_bytes;
+}
+
+func align_to(n i32, align i32) i32 {
+    return (n + align - 1) / align * align;
+}
+
+func memmove(dest *u8, src *u8, n u32) u0 {
+    let p_dest *u8 = dest;
+    let p_src *u8 = src;
+
+    let tmp *u8 = alloc(typesize(u8) * n); // TODO: free(tmp);
+
+    if tmp == nil {
+        return nil;
+    } else {
+        let i u32 = 0;
+        while i < n {
+            *(tmp + i) = *(p_src + i);
+            i++;
+        }
+
+        i = 0;
+        while i < n {
+            *(p_dest + i) = *(tmp + i);
+            i++;
+        }
+    }
+}
+
+func byte_to_lower(c u8) u8 {
+    if 'A' <= c <= 'Z' {
+        return c + 32;
+    }
+    return c;
+}
+
+func byte_to_upper(c u8) u8 {
+    if 'A' <= c <= 'Z' {
+        return c - 32;
+    }
+    return c;
+}
+
+func strrchr(str *u8, ch i32) *u8 {
+    let last_occurrence *u8 = nil;
+
+    while *str != '\0' {
+        if *str == ch {
+            last_occurrence = str;
+        }
+        str++;
+    }
+
+    return last_occurrence;
+}
+
+func memcpy(dest *u8, source *u8, size i32) *u8 {
+    let i i32 = 0;
+    while i < size {
+        dest[i] = source[i];
+        i++;
+    }
+    return dest;
+}
+
+func isalpha(c u8) bool {
+    if 'A' <= c <= 'Z' || 'a' <= c <= 'z' {
+        return true;
+    }
+    return false;
+}
+
+func isdigit(c u8) bool {
+    if '0' <= c <= '9' { // 0 .. 9
+        return true;
+    }
+    return false;
+}
+
+func atoi(str *i8) i32 {
+    let i i32 = 0;
+    let n i32 = 0;
+    let is_neg bool = 0;
+
+    if str[i] == '-' {
+        is_neg = true;
+        i++;
+    }
+
+    while str[i] != '\0' {
+        n = n * 10 + str[i++] - '0';
+    }
+
+    if is_neg {
+        n = 0 - n;
+    }
+
+    return n;
+}
+
+func reverse_str(str *u8, length i32) i32 {
+    let start i32 = 0;
+    let end i32 = length - 1;
+
+    while start < end {
+        let temp u8 = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+        end--;
+        start++;
+    }
+}
+
+func itoa(num i32, str *u8, base i32) i32 {
+    let i i32 = 0;
+
+    if num == 0 {
+        str[i++] = '0';
+        str[i] = 0;
+        return str;
+    }
+
+    let is_neg bool = false;
+
+    if num < 0 {
+        is_neg = true;
+        num = 0 - num;
+    }
+
+    while num != 0 {
+        let rem i32 = num % base;
+        if rem > 9 {
+            str[i++] = (rem - 10) + 'a';
+        } else {
+            str[i++] = rem + '0';
+        }
+        num = num / base;
+    }
+
+    if is_neg {
+        str[i++] = '-';
+    }
+
+    reverse_str(str, i);
+
+    str[i] = 0;
+
+    return i;
+}
+
+func fputunum(fd i32, n u64, r u32, u bool) i32 {
+    let l i32 = 0;
+    if n >= r {
+        l = l + fputunum(fd, n / r, r, u);
+    }
+    if u {
+        l = l + write(fd, &("0123456789ABCDEF"[n % r]), 1);
+    } else {
+        l = l + write(fd, &("0123456789abcdef"[n % r]), 1);
+    }
+    return l;
+}
+
+func fputchar(fd i32, c u8) i32 {
+    let l i32 = write(fd, &c, 1);
+    if l < 0 {
+        eprintf("write syscall failed at fputchar\n");
+        exit(1);
+    }
+    return l;
+}
+
+func vfprintf(fd i32, fmt *u8, args *i64) i32 {
+    let i i32 = 0;
+    let l i32 = 0;
+
+    while *fmt != 0 {
+        if *fmt == '%' {
+            fmt++;
+            if *fmt == 's' {
+                l = l + fputs(fd, args[i++]);
+            } else if *fmt == 'p' {
+                let p *u0 = args[i++];
+                if !p {
+                    l = l + fputs(fd, "(nil)");
+                } else {
+                    l = l + fputs(fd, "0x");
+                    l = l + fputunum(fd, p, 16, false);
+                }
+            } else if *fmt == 'b' {
+                l = l + fputunum(fd, args[i++], 2, false);
+            } else if *fmt == 'c' {
+                l = l + fputchar(fd, args[i++]);
+            } else if *fmt == 'x' {
+                l = l + fputunum(fd, args[i++], 16, false);
+            } else if *fmt == 'X' {
+                l = l + fputunum(fd, args[i++], 16, true);
+            } else if *fmt == 'u' {
+                l = l + fputunum(fd, args[i++], 10, false);
+            } else if *fmt == 'd' {
+                let d i32 = args[i++];
+                if d < 0 {
+                    l = l + fputs(fd, "-");
+                    d = 0-d;
+                }
+                l = l + fputunum(fd, d, 10, false);
+            } else {
+                l = l + write(fd, fmt, 1);
+            }
+        } else {
+            l = l + write(fd, fmt, 1);
+        }
+        fmt++;
+    }
+
+    return l;
+}
+
+func vsprintf(buf *u8, fmt *u8, argv *i64) i32 {
+    let buf_start *u8 = buf;
+
+    let i i32 = 0;
+
+    while *fmt != 0 {
+        if *fmt == '%' {
+            fmt++;
+            if *fmt == 's' { // %s
+                let str *u8 = argv[i++];
+                memcpy(buf, str, strlen(str));
+                buf = buf + strlen(str);
+            } else if *fmt == 'd' { // %d
+                buf = buf + itoa(argv[i++], buf, 10);
+            } else {
+                *buf = '%';
+                buf++;
+            }
+        } else {
+            *buf = *fmt;
+            buf++;
+        }
+        fmt++;
+    }
+
+    let len i32 = buf - buf_start;
+    buf[len] = '\0';
+
+    return len;
+}
+
+func fprintf(fd i32, fmt *u8, ...) i32 {
+    return vfprintf(fd, fmt, argv);
+}
+
+func printf(fmt *u8, ...) i32 {
+    return vfprintf(STDIO, fmt, argv);
+}
+
+func eprintf(fmt *u8, ...) i32 {
+    return vfprintf(STDERR, fmt, argv);
+}
+
+func sprintf(buf *u8, fmt *u8, ...) i32 {
+    return vsprintf(buf, fmt, argv);
+}
+
+func strndup(str *u8, n i32) *u8 {
+    let r *u8 = alloc(n+1);
+    if r == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    memcpy(r, str, n);
+    r[n] = '\0';
+    return r;
+}

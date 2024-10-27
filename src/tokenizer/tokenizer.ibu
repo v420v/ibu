@@ -1,0 +1,359 @@
+
+#include "std/header.ibu"
+#include "linux-syscall/header.ibu"
+#include "header.ibu"
+
+func copy_token(source *Token, dest *Token) u0 {
+    dest.lit = source.lit;
+    dest.kind = source.kind;
+    dest.file_name = source.file_name;
+    dest.line = source.line;
+    dest.col = source.col;
+    dest.int_val = source.int_val;
+}
+
+func frepeat_str(fd i32, str *u8, n i32) i32 {
+    let i i32 = 0;
+    while i < n {
+        fputs(fd, str);
+        i++;
+    }
+    return 0;
+}
+
+func print_error_with_code(tok *Token, msg *u8) u0 {
+    eprintf("\033[1m\033[31m--> %s:%d:%d: error:\033[0m\n", tok.file_name, tok.line, tok.col);
+
+    eprintf(" | \n");
+
+    eprintf(" | ");
+    while (*tok.program != '\n') && (*tok.program != '\0') {
+        if *tok.program == '\t' {
+            write(STDERR, " ", 1);
+        } else {
+            write(STDERR, tok.program, 1);
+        }
+        tok.program++;
+    }
+    eprintf("\n");
+
+    eprintf(" | ");
+
+    eprintf("\033[1m\033[31m");
+    frepeat_str(STDERR, " ", tok.col);
+    frepeat_str(STDERR, "^", tok.len);
+
+    eprintf(" %s\033[0m\n", msg);
+
+    eprintf(" | \n");
+
+    return 0;
+}
+
+func print_error(tok *Token, msg *u8) u0 {
+    print_error_with_code(tok, msg);
+    exit(1);
+}
+
+func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
+    let t *Tokenizer = alloc(typesize(Tokenizer));
+    if t == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    t.line = 1;
+    t.col = 0;
+    t.program = program;
+    t.cur_line = program;
+    t.file_name = file_name;
+
+    let puncts [34]*u8 = {
+        "==", "<=", ">=", "!=", "++", "--", "||", "&&", "<<", ">>", "...",
+        "+", "-", "<", ">", ";", ":", "{", "}", "=", ",", "(", ")", "[", "]",
+        ".", "*", "#", "!", "%", "&", "/", "|", "&"
+    };
+
+    memcpy(t.puncts, puncts, sizeof(t.puncts));
+
+    return t;
+}
+
+func starts_with(a *u8, b *u8) bool {
+    let i i32 = 0;
+    while i < strlen(b) {
+        if a[i] != b[i] {
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
+
+func tokenizer_next(t *Tokenizer) u0 {
+    if *t.program == '\n' {
+        t.line++;
+        t.col = 0;
+        t.program++;
+        t.cur_line = t.program;
+    } else {
+        t.col++;
+        t.program++;
+    }
+}
+
+func tokenizer_next_n(t *Tokenizer, n i32) u0 {
+    let i i32 = 0;
+    while i < n {
+        tokenizer_next(t);
+        i++;
+    }
+}
+
+func new_token(t *Tokenizer, kind TokenKind) *Token {
+    let tok *Token = alloc(typesize(Token));
+    if tok == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+
+    tok.line = t.line;
+    tok.col = t.col;
+    tok.file_name = t.file_name;
+    tok.kind = kind;
+    tok.program = t.cur_line;
+
+    return tok;
+}
+
+func tokenize_punct(t *Tokenizer) *Token {
+    let i i32 = 0;
+    while i < 34 {
+        if starts_with(t.program, t.puncts[i]) {
+            let tok *Token = new_token(t, TK_PUNCT);
+            tok.len = strlen(t.puncts[i]);
+            tok.lit = strndup(t.puncts[i], tok.len);
+            tokenizer_next_n(t, tok.len);
+            return tok;
+        }
+        i++;
+    }
+    return nil;
+}
+
+func skip_single_line_comment(t *Tokenizer) u0 {
+    if starts_with(t.program, "//") {
+        while (*t.program != '\n') && (*t.program != '\0') {
+            tokenizer_next(t);
+        }
+    }
+}
+
+func string_end(t *Tokenizer, str *u8) *u8 {
+    while *str != '\"' {
+        if *str == '\n' || *str == '\0' {
+            eprintf("\033[1m\033[31m--> %s:%d:%d: error: unclosed string literal\033[0m\n", t.file_name, t.line, t.col);
+            exit(1);
+        }
+        if *str == '\\' { // back slash
+            str++;
+        }
+        str++;
+    }
+    return str;
+}
+
+func is_hex_digit(c u8) bool {
+    return ('0' <= c <= '9') || ('A' <= c <= 'F') || ('a' <= c <= 'f');
+}
+
+func from_hex(c u8) u8 {
+    if '0' <= c <= '9' {
+        return c - '0';
+    }
+    if 'a' <= c <= 'f' {
+        return c - 'a' + 10;
+    }
+    return c - 'A' + 10;
+}
+
+func read_escaped_char(t *Tokenizer) u8 {
+    let c u8;
+    tokenizer_next(t);
+    if '0' <= *t.program <= '7' {
+        c = *t.program - '0';
+        if '0' <= *(t.program+1) <= '7' {
+            tokenizer_next(t);
+            c = (c << 3) + (*t.program - '0');
+            if '0' <= *(t.program+1) <= '7' {
+                tokenizer_next(t);
+                c = (c << 3) + (*t.program - '0');
+            }
+        }
+        return c;
+    }
+
+    if *t.program == 'x' {
+        tokenizer_next(t);
+        if !is_hex_digit(*t.program) {
+            eprintf("\033[1m\033[31m--> %s:%d:%d: error: invalid hex escape sequence\033[0m\n", t.file_name, t.line, t.col);
+            exit(1);
+        }
+
+        while is_hex_digit(*t.program) {
+            c = (c << 4) + from_hex(*t.program);
+            tokenizer_next(t);
+        }
+    }
+
+    if *t.program == 'a' {
+        return '\a';
+    }
+    if *t.program == 'b' {
+        return '\b';
+    }
+    if *t.program == 't' {
+        return '\t';
+    }
+    if *t.program == 'n' {
+        return '\n';
+    }
+    if *t.program == 'v' {
+        return '\v';
+    }
+    if *t.program == 'f' {
+        return '\f';
+    }
+    if *t.program == 'r' {
+        return '\r';
+    }
+
+    return *t.program;
+}
+
+func tokenize_number(t *Tokenizer) *Token {
+    let tok *Token = new_token(t, TK_NUM);
+
+    let digit_start *u8 = t.program;
+
+    while isdigit(*t.program) {
+        tokenizer_next(t);
+    }
+
+    tok.lit = strndup(digit_start, t.program-digit_start);
+    tok.len = t.program-digit_start;
+    tok.int_val = atoi(tok.lit);
+
+    return tok;
+}
+
+func tokenize_char(t *Tokenizer) *Token {
+    let tok *Token = new_token(t, TK_NUM);
+    let char_start *u8 = t.program;
+    tokenizer_next(t);
+
+    let c u8;
+    if *t.program == '\\' {
+        c = read_escaped_char(t);
+    } else {
+        c = *t.program;
+    }
+    tokenizer_next_n(t, 2);
+
+    tok.lit = strndup(char_start, t.program - char_start);
+    tok.len = t.program - char_start;
+    tok.int_val = c;
+
+    return tok;
+}
+
+func tokenize_string(t *Tokenizer) *Token {
+    let tok *Token = new_token(t, TK_STR);
+
+    let string_start *u8 = t.program;
+
+    tokenizer_next(t); // skip start `"`
+
+    let end *u8 = string_end(t, t.program);
+    let buf *u8 = alloc(end - t.program + 1);
+    if buf == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    let len i32 = 0;
+
+    while t.program < end {
+        if *t.program == '\\' {
+            buf[len++] = read_escaped_char(t);
+        } else {
+            buf[len++] = *t.program;
+        }
+
+        tokenizer_next(t);
+    }
+    buf[len] = '\0'; // null terminator
+
+    tokenizer_next(t); // skip end `"`
+
+    tok.lit = strndup(string_start, t.program - string_start);
+    tok.len = t.program - string_start;
+
+    tok.str_val = buf;
+
+    return tok;
+}
+
+func tokenize_ident(t *Tokenizer) *Token {
+    let tok *Token = new_token(t, TK_IDENT);
+
+    let ident_start *u8 = t.program;
+    while isalpha(*t.program) || isdigit(*t.program) || *t.program == 95 {
+        tokenizer_next(t);
+    }
+
+    tok.lit = strndup(ident_start, t.program-ident_start);
+    tok.len = t.program-ident_start;
+
+    return tok;
+}
+
+func tokenize(t *Tokenizer) *Token {
+    let head Token = {};
+    let cur *Token = &head;
+
+    while *t.program != nil {
+        skip_single_line_comment(t);
+
+        if isdigit(*t.program) {
+            cur = cur.next = tokenize_number(t);
+        } else if isalpha(*t.program) {
+            cur = cur.next = tokenize_ident(t);
+        } else if *t.program == '\'' {
+            cur = cur.next = tokenize_char(t);
+        } else if *t.program == '\"' {
+            cur = cur.next = tokenize_string(t);
+        } else if *t.program == ' ' { // Space
+            tokenizer_next(t);
+        } else if *t.program == '\n' { // New line
+            tokenizer_next(t);
+        } else if *t.program == '\t' { // Tab
+            tokenizer_next(t);
+        } else {
+            let tok *Token = tokenize_punct(t);
+            if tok != nil {
+                cur = cur.next = tok;
+            } else {
+                let invalid_tok *Token = new_token(t, TK_UNKOWN);
+                invalid_tok.lit = strndup(t.program, 1);
+                invalid_tok.len = 1;
+                print_error(invalid_tok, "unkown character found");
+            }
+        }
+    }
+
+    cur = cur.next = new_token(t, TK_EOF);
+    cur.lit = "EOF";
+    cur.len = 1;
+
+    return head.next;
+}
+

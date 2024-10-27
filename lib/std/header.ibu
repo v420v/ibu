@@ -1,0 +1,42 @@
+
+
+#define STDIN 0
+#define STDIO 1
+#define STDERR 2
+#define PROGRAM_MAX_SIZE 150000
+
+struct Vec {
+    ptr **u8,
+    len i32,
+    cap i32,
+}
+
+func strcmp(a *u8, b *u8) bool;
+func new_vec(cap i32) *Vec;
+func vec_realloc(vec *Vec) u0;
+func vec_get(vec *Vec, i i32) *u8;
+func vec_append(vec *Vec, val *u8) u0;
+func alloc(size i32) *u8;
+func strlen(str *u8) i32;
+func fputs(fd i32, str *u8) i32;
+func align_to(n i32, align i32) i32;
+func memmove(dest *u8, src *u8, n u32) u0;
+func byte_to_lower(c u8) u8;
+func byte_to_upper(c u8) u8;
+func strrchr(str *u8, ch i32) *u8;
+func memcpy(dest *u8, source *u8, size i32) *u8;
+func isalpha(c u8) bool;
+func isdigit(c u8) bool;
+func atoi(str *i8) i32;
+func reverse_str(str *u8, length i32) i32;
+func itoa(num i32, str *u8, base i32) i32;
+func fputunum(fd i32, n u64, r u32, u bool) i32;
+func fputchar(fd i32, c u8) i32;
+func vfprintf(fd i32, fmt *u8, args *i64) i32;
+func vsprintf(buf *u8, fmt *u8, argv *i64) i32;
+func fprintf(fd i32, fmt *u8, ...) i32;
+func printf(fmt *u8, ...) i32;
+func eprintf(fmt *u8, ...) i32;
+func sprintf(buf *u8, fmt *u8, ...) i32;
+func strndup(str *u8, n i32) *u8;
+
