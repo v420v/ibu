@@ -18,6 +18,7 @@ ibulang:
 
 .PHONY: init
 init:
+	@printf "\033[1m\033[34mStarting the build process...\033[0m\n\n"
 	as -o bootstrap/ibu.o bootstrap/ibu.s
 	as -o bootstrap/tokenizer.o         bootstrap/tokenizer.s
 	as -o bootstrap/parser.o            bootstrap/parser.s
@@ -27,6 +28,18 @@ init:
 	as -o bootstrap/std.o               bootstrap/std.s
 	as -o lib/runtime.o                 lib/runtime.s
 	ld -o ibuc bootstrap/ibu.o bootstrap/tokenizer.o bootstrap/parser.o bootstrap/codegen.o bootstrap/preprocessor.o bootstrap/linux-syscall.o bootstrap/std.o lib/runtime.o
+
+	@printf "\n"
+	@printf "___________________________________________________0/____________\n"
+	@printf "                                                   0\\           \n"
+	@printf "\033[1m\033[32mBuild process completed successfully!\033[0m\n"
+	@printf "\n"
+	@echo "    ______"
+	@echo "   /  _/ /_  __  __"
+	@echo "   / // __ \\/ / / /"
+	@echo " _/ // /_/ / /_/ /"
+	@echo "/___/_.___/\__,_/  v0.1.0"
+	@printf "The Ibu programming language\n"
 
 .PHONY: self
 self:
