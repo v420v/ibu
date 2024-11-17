@@ -230,18 +230,47 @@ func read_escaped_char(t *Tokenizer) u8 {
     return *t.program;
 }
 
-func tokenize_number(t *Tokenizer) *Token {
+func tokenize_hex_number(t *Tokenizer) *Token {
     let tok *Token = new_token(t, TK_NUM);
+    let hex_start *u8 = t.program;
+    let d i64 = 0;
 
+    while is_hex_digit(*t.program) {
+        d = (d << 4) + from_hex(*t.program);
+        tokenizer_next(t);
+    }
+
+    tok.lit = strndup(hex_start, t.program - hex_start);
+    tok.len = t.program - hex_start;
+    tok.int_val = d;
+
+    return tok;
+}
+
+func tokenize_decimal_number(t *Tokenizer) *Token {
+    let tok *Token = new_token(t, TK_NUM);
     let digit_start *u8 = t.program;
 
     while isdigit(*t.program) {
         tokenizer_next(t);
     }
 
-    tok.lit = strndup(digit_start, t.program-digit_start);
-    tok.len = t.program-digit_start;
+    tok.lit = strndup(digit_start, t.program - digit_start);
+    tok.len = t.program - digit_start;
     tok.int_val = atoi(tok.lit);
+
+    return tok;
+}
+
+func tokenize_number(t *Tokenizer) *Token {
+    let tok *Token = new_token(t, TK_NUM);
+
+    if *t.program == '0' && (*(t.program + 1) == 'x' || *(t.program + 1) == 'X') {
+        tokenizer_next_n(t, 2);
+        tok = tokenize_hex_number(t);
+    } else {
+        tok = tokenize_decimal_number(t);
+    }
 
     return tok;
 }
