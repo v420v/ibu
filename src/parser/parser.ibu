@@ -453,7 +453,7 @@ func parse_ty(p *Parser) *Type {
 
     if strcmp(name, "i64") { ty = p.ty_i64; }
     else if strcmp(name, "i32") { ty = p.ty_i32; }
-    else if strcmp(name, "i16") { ty = p.ty_i16; } 
+    else if strcmp(name, "i16") { ty = p.ty_i16; }
     else if strcmp(name, "i8") { ty = p.ty_i8; }
     else if strcmp(name, "u64") { ty = p.ty_u64; }
     else if strcmp(name, "u32") { ty = p.ty_u32; }
