@@ -1,0 +1,17 @@
+
+# ==== Format ====
+# ${prefix}: Brief description of the implementation in 50 characters or less
+# e.g., fix: Add name to user information as it was missing
+#
+# Commit body (if it doesn't fit in 50 characters, write here)...
+
+# ==== Prefix ====
+# add      New feature or new file addition
+# delete   File deletion
+# fix      Bug fix
+# style    Fixing whitespace, semicolons, lines, coding format, etc.
+# refactor Code improvement without changing existing behavior
+# perf     Code changes to improve performance
+# chore    Build, auxiliary tools, library-related, development environment changes
+# docs     Documentation only changes
+
