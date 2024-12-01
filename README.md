@@ -1,8 +1,9 @@
 <h1>The Ibu programming language</h1>
 
-[Changelog]() |
-[Docs](docs/docs.md) |
-[ドキュメント](docs/docs_jp.md)
+[📄 Documentation](docs/docs.md) |
+[📄 ドキュメント](docs/docs_jp.md) |
+[🗺️ Roadmap](ROADMAP.md) |
+[🔄 Changelog](CHANGELOG.md)
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
@@ -90,8 +91,3 @@ $ ./main
 | `lib/linux-syscall/linux-syscall.ibu` | Linux system call library |
 | `lib/std/std.ibu` | Standard library |
 | `lib/runtime/runtime.ibu` | Runtime library |
-
-
-[documentation](docs/docs.md)
-
-[documentation[日本語版]](docs/docs_jp.md)
