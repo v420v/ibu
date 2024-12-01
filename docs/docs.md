@@ -1,9 +1,34 @@
 # Documentation
 
 ## Introduction
-ibu is a statically typed compiled language developed solely for the enjoyment of programming.
+The goal of this language is to spread the joy of programming for the next few hundred years.
 
-## Installing the Language
+This language is simple and includes only the minimum necessary features. This allows anyone to easily port it to other languages or rewrite the implementation.
+
+- As easy to write as C
+- As dynamic as assembly language
+- No strict type checker
+- No C-like pointer arithmetic
+- No function-like macros
+- No `break`, `continue` stmt. Use `goto`
+- Allows `13 <= age < 20` instead of `13 <= age && age < 20`
+- Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
+- The compiler is written in itself
+- Default args don't have to be on the end (WIP)
+
+> [!IMPORTANT]
+> Only supports x86-64 linux for now
+>
+> Recomend using docker for other users
+
+## Build the language
+```
+$ git clone git@github.com:v420v/ibu.git
+$ cd ibu
+$ make init
+```
+
+## Build the language with docker (non x86-64 linux users)
 ```zsh
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
@@ -12,8 +37,25 @@ $ make ibulang
 $ make init
 ```
 
-## How to Use the Compiler
-Let's actually compile and run a hello world program.
+| Command | Execution |
+|-----------|------------------------|
+| `make up` | `docker compose up -d` |
+| `make ibulang` | `docker compose exec ibulang bash` |
+| `make down` | `docker compose down` |
+
+## Usage
+
+```
+$ ./ibuc <filename>.ibu
+```
+
+Currently, the compiler outputs assembly to stdout. (This will change if a language-specific assembler is created)
+
+Output the assembly to an assembler to generate an object file, and then to a linker to generate an executable file.
+
+Don't forget to pass `lib/runtime.o`, `lib/linux-syscall.o`, `lib/std.o` to the linker.
+
+### Example: Compile Hello world!
 ```zsh
 $ ./ibuc main.ibu | as - -o main.o
 $ as -o lib/runtime.o lib/runtime.s
@@ -22,32 +64,18 @@ $ ./ibuc lib/std/std.ibu                     | as - -o lib/std.o
 $ ld -o main main.o lib/runtime.o lib/linux-syscall.o lib/std.o
 $ ./main
 ```
-Brief explanation:
-- Line 1 `./ibuc main.ibu | as - -o main.o`
-    - Converts main.ibu to assembly code using the ./ibuc compiler
-    - Passes it to the assembler (as) using pipe (|)
-    - Generates an object file (main.o) with -o main.o
 
-- Line 2 `as -o lib/runtime.o lib/runtime.s`
-    - Uses the assembler (as)
-    - Compiles the assembly file runtime.s
-    - Generates an object file lib/runtime.o
-
-- Line 3 `./ibuc lib/linux-syscall/linux-syscall.ibu | as - -o lib/linux-syscall.o`
-    - Compiles the Linux system call related source file (linux-syscall.ibu)
-    - Generates an object file lib/linux-syscall.o through the assembler
-
-- Line 4 `./ibuc lib/std/std.ibu | as - -o lib/std.o`
-    - Compiles the standard library (std.ibu)
-    - Generates an object file lib/std.o through the assembler
-
-- Line 5 `ld -o main main.o lib/runtime.o lib/linux-syscall.o lib/std.o`
-    - Uses the linker (ld)
-    - Links all object files generated above
-    - Creates an executable file (main)
-
-- Line 6 `./main`
-    - Executes hello world
+## Compiler implementation
+| File | Content |
+|-----------|------------------------|
+| `src/ibu.ibu` | entry point |
+| `src/tokenizer/tokenizer.ibu` | Lexical analyzer |
+| `src/preprocessor/preprocessor.ibu` | Preprocessor |
+| `src/parser/parser.ibu` | Parser |
+| `src/codegen/codegen.ibu` | Code generator |
+| `lib/linux-syscall/linux-syscall.ibu` | Linux system call library |
+| `lib/std/std.ibu` | Standard library |
+| `lib/runtime/runtime.ibu` | Runtime library |
 
 ## Hello World
 ```
@@ -59,23 +87,23 @@ func main() i32 {
 }
 ```
 
-## Comments
+## Comment
 ```c
-// Only single-line comments exist
+// Only single line comments exist
 ```
 
-## Include files
-The include keyword first looks for the specified file from the current directory. If it fails it searches the file from the [lib](../lib) folder.
+## File inclusion
+The `include` keyword first looks for the specified file in the current directory. If it is not found, it looks for the file in the [lib](../lib) folder.
 ```
 #include "std/header.ibu"
 ```
 
-## Functions
-Function declarations are somewhat similar to Go.
+## Function
+The function description method is somewhat similar to Go.
 
-The type comes after the parameter name.
+Type comes after the argument name.
 
-Return type must always be specified. If there is no return value, you can use the `u0` type which will be covered in the [Types](#types) section.
+The return type must be specified. If there is no return value, `u0` type can be used as shown in the section [Type](#型).
 ```
 #include "std/header.ibu"
 
@@ -101,21 +129,21 @@ func main() i32 {
 
 ## Types
 ```go
-u0  // void in C with no size
-u8  // unsigned 8-bit integer
-u16 // unsigned 16-bit integer
-u32 // unsigned 32-bit integer
-u64 // unsigned 64-bit integer
+u0  // C's void but zero size
+u8  // Unsigned 8-bit integer
+u16 // Unsigned 16-bit integer
+u32 // Unsigned 32-bit integer
+u64 // Unsigned 64-bit integer
 
-i8  // 8-bit integer
-i16 // 16-bit integer
-i32 // 32-bit integer
-i64 // 64-bit integer
+i8  // Signed 8-bit integer
+i16 // Signed 16-bit integer
+i32 // Signed 32-bit integer
+i64 // Signed 64-bit integer
 
-f64 // WIP
+f64 // 64-bit floating point number (WIP)
 ```
 
-## Arrays
+## Array
 ```
 #include "std/header.ibu"
 
@@ -128,7 +156,7 @@ func main() i32 {
 }
 ```
 
-## Conditional Statements
+## Condition
 
 ### Example 1
 ```
@@ -142,14 +170,14 @@ func main() i32 {
 ```
 
 ### Example 2
-You can use `13 <= age < 20` instead of `13 <= age && age < 20`
+`13 <= age && age < 20` can be used instead of `13 <= age < 20`.
 ```
 #include "std/header.ibu"
 
 func main() i32 {
     let age i32 = 19;
     if 10 <= age < 20 {
-        printf("Teenager\n");
+        printf("10代\n");
     }
 }
 ```
@@ -161,12 +189,12 @@ func main() i32 {
 func main() i32 {
     let c u8 = 'b';
     if 'a' <= c <= 'z' {
-        printf("This is a lowercase alphabet\n");
+        printf("Lowercase letter\n");
     }
 }
 ```
 
-## Loops
+## Loop
 
 ### Example 1
 ```
@@ -196,8 +224,8 @@ label:
 }
 ```
 
-## Variable Arguments
-Variable arguments can be accessed using the built-in variables `argv` and `argc`.
+## Variable length args
+Variable length args can be accessed with built-in variables `argv` and `argc`.
 
 ```
 #include "std/header.ibu"
@@ -222,7 +250,7 @@ func main() i32 {
 }
 ```
 
-## Structures
+## Struct
 ```
 #include "std/header.ibu"
 
@@ -233,19 +261,19 @@ struct Person {
 
 func main() i32 {
     let p Person = {
-        "Taro",
+        "John",
         10
     };
 
     printf("Name is %s.\n", p.name);
-    printf("Age is %d years old.\n", p.age);
+    printf("Age is %d.\n", p.age);
 }
 ```
 
-## Heap Memory
-`alloc()` allocates memory on the heap.
+## Heap memory
+`alloc()` can be used to allocate heap memory.
 
-`typesize()` is a builtin directive that is replaced with the size of the type passed during parsing.
+`typesize()` is replaced with the size of the type passed during compilation.
 ```
 #include "std/header.ibu"
 
@@ -256,16 +284,16 @@ struct Person {
 
 func main() i32 {
     let p Person = alloc(typesize(Person));
-    p.name = "Taro";
+    p.name = "John";
     p.age = 10;
 
     printf("Name is %s.\n", p.name);
-    printf("Age is %d years old.\n", p.age);
+    printf("Age is %d.\n", p.age);
 }
 ```
 
-## Default Arguments (WIP)
-Default arguments don't need to be at the end
+## Default args (WIP)
+Default args don't have to be on the end.
 ```
 #include "std/header.ibu"
 
@@ -279,18 +307,17 @@ func main() i32 {
 }
 ```
 
-## Inline Assembly (WIP)
+## Inline assembly (WIP)
 ```
 #include "std/header.ibu"
 
 foo:
     push rbp
     mov rsp, rbp
-    // omitted...
+    // ...
     ret
 
 func main() i32 {
     foo();
 }
 ```
-

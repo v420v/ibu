@@ -2,9 +2,35 @@
 # ドキュメンテーション
 
 ## はじめに
-ibuは静的型コンパイル型言語であり、ただプログラミングを楽しむためだけに開発されました。
+この言語の目標は、今後数百年にわたってプログラミングの楽しさを広めることです。
 
-## 言語をインストール
+この言語はシンプルで、必要最小限の機能だけを取り入れています。これにより、誰でも簡単に他の言語に移植したり、実装を作り直したりすることができます。
+
+主な特徴:
+- C言語のように書きやすい
+- アセンブリ言語のような自由度の高さ
+- 型チェッカーがない
+- C言語のようなポインタ演算がない
+- 関数型マクロがない
+- `break`、`continue`文がない（代わりに`goto`を使用）
+- `13 <= age && age < 20`の代わりに`13 <= age < 20`と書ける
+- 可変長引数`func(...)`は組み込み変数`argc i64`と`argv *i64`でアクセス可能
+- このコンパイラはこのコンパイラで書かれている
+- デフォルト引数は末尾になくてもよい（WIP）
+
+> [!IMPORTANT]
+> 現在のところ、x86-64 Linux のみをサポートしています
+>
+> 他の環境には Docker の使用を推奨します
+
+## コンパイラをビルドする
+```
+$ git clone git@github.com:v420v/ibu.git
+$ cd ibu
+$ make init
+```
+
+## Docker を使ってコンパイラをビルドする (x86-64 Linux 以外の環境の方推奨)
 ```zsh
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
@@ -13,8 +39,25 @@ $ make ibulang
 $ make init
 ```
 
-## コンパイラの使用方法
-hello world プログラムを実際にコンパイルし、実行してみる。
+| コマンド | 実行内容 |
+|-----------|------------------------|
+| `make up` | `docker compose up -d` |
+| `make ibulang` | `docker compose exec ibulang bash` |
+| `make down` | `docker compose down` |
+
+## コンパイラの使い方
+
+```
+$ ./ibuc <filename>.ibu
+```
+
+現在のところ、コンパイラは標準出力にアセンブリを出力します。（これはこの言語に独自のアセンブラが作られたら変更されます）
+
+出力されたアセンブリをアセンブラに通してオブジェクトファイルを生成し、リンカーに通して実行ファイルを生成します。
+
+リンカーに渡す際に `lib/runtime.o`、`lib/linux-syscall.o`、`lib/std.o` を渡すのを忘れないでください。
+
+### 例: Hello world! をコンパイルする
 ```zsh
 $ ./ibuc main.ibu | as - -o main.o
 $ as -o lib/runtime.o lib/runtime.s
@@ -23,32 +66,18 @@ $ ./ibuc lib/std/std.ibu                     | as - -o lib/std.o
 $ ld -o main main.o lib/runtime.o lib/linux-syscall.o lib/std.o
 $ ./main
 ```
-簡単な解説
-- 1行目 `./ibuc main.ibu | as - -o main.o`
-    - ./ibucというコンパイラでmain.ibuをアセンブリコードに変換
-    - パイプ(|)を使ってアセンブラ(as)に渡し
-    - -o main.oでオブジェクトファイル(main.o)を生成
 
-- 2行目 `as -o lib/runtime.o lib/runtime.s`
-    - アセンブラ(as)を使って
-    - runtime.sというアセンブリファイルをコンパイル
-    - lib/runtime.oというオブジェクトファイルを生成
-
-- 3行目 `./ibuc lib/linux-syscall/linux-syscall.ibu | as - -o lib/linux-syscall.o`
-    - Linux用のシステムコール関連のソースファイル(linux-syscall.ibu)をコンパイル
-    - アセンブラを通してlib/linux-syscall.oというオブジェクトファイルを生成
-
-- 4行目 `./ibuc lib/std/std.ibu | as - -o lib/std.o`
-    - 標準ライブラリ(std.ibu)をコンパイル
-    - アセンブラを通してlib/std.oというオブジェクトファイルを生成
-
-- 5行目 `ld -o main main.o lib/runtime.o lib/linux-syscall.o lib/std.o`
-    - リンカ(ld)を使って
-    - 上記で生成した全てのオブジェクトファイルをリンク
-    - 実行可能ファイル(main)を生成
-
-- 6行目 `./main`
-    - hello world 実行
+## コンパイラの実装紹介
+| ファイル | 内容 |
+|-----------|------------------------|
+| `src/ibu.ibu` | コンパイラのエントリーポイント |
+| `src/tokenizer/tokenizer.ibu` | 字句解析器 |
+| `src/preprocessor/preprocessor.ibu` | プリプロセッサ |
+| `src/parser/parser.ibu` | 構文解析器 |
+| `src/codegen/codegen.ibu` | コード生成器 |
+| `lib/linux-syscall/linux-syscall.ibu` | Linux システムコールのライブラリ |
+| `lib/std/std.ibu` | 標準ライブラリ |
+| `lib/runtime/runtime.ibu` | ランタイムライブラリ |
 
 ## Hello World
 ```
@@ -66,7 +95,7 @@ func main() i32 {
 ```
 
 ## ファイルのインクルード
-includeキーワードは、まずカレントディレクトリから指定されたファイルを探します。失敗した場合は、ファイルを[lib](../lib)フォルダ内から探します。
+includeキーワードは、まずカレントディレクトリから指定されたファイルを探します。ファイルが見つからない場合は、ファイルを[lib](../lib)フォルダ内から探します。
 ```
 #include "std/header.ibu"
 ```

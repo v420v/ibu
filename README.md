@@ -6,6 +6,12 @@
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
+The goal of this language is to spread the joy of programming for the next few hundred years.
+
+The language should be simple and should feature only the minimum necessary functionality so that anyone can easly port it to another language or remake rebuild its implementation.
+
+- As easy to write as C
+- As dynamic as assembly language
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
@@ -15,21 +21,19 @@
 - The compiler is written in itself
 - Default args don't have to be on the end (WIP)
 
-```go
-#include "std/header.ibu"
+> [!IMPORTANT]
+> Only supports x86-64 linux for now
+>
+> Recomend using docker for other users
 
-func main() i32 {
-    let age i32 = 19;
-
-    if 13 <= age < 20 {
-        printf("Teen-ager\n");
-    }
-
-    return 0;
-}
+## Build the language
+```
+$ git clone git@github.com:v420v/ibu.git
+$ cd ibu
+$ make init
 ```
 
-## Installing the Language
+## Build the language with docker (non x86-64 linux users)
 ```zsh
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
@@ -38,8 +42,25 @@ $ make ibulang
 $ make init
 ```
 
-## How to Use the Compiler
-A simple example compile and run hello world
+| Command | Execution |
+|-----------|------------------------|
+| `make up` | `docker compose up -d` |
+| `make ibulang` | `docker compose exec ibulang bash` |
+| `make down` | `docker compose down` |
+
+## Usage
+
+```
+$ ./ibuc <filename>.ibu
+```
+
+Currently, the compiler outputs assembly to stdout. (This will change if a language-specific assembler is created)
+
+Output the assembly to an assembler to generate an object file, and then to a linker to generate an executable file.
+
+Don't forget to pass `lib/runtime.o`, `lib/linux-syscall.o`, `lib/std.o` to the linker.
+
+### Example: Compile Hello world!
 ```zsh
 $ ./ibuc main.ibu | as - -o main.o
 $ as -o lib/runtime.o lib/runtime.s
@@ -48,6 +69,19 @@ $ ./ibuc lib/std/std.ibu                     | as - -o lib/std.o
 $ ld -o main main.o lib/runtime.o lib/linux-syscall.o lib/std.o
 $ ./main
 ```
+
+## Compiler implementation
+| File | Content |
+|-----------|------------------------|
+| `src/ibu.ibu` | entry point |
+| `src/tokenizer/tokenizer.ibu` | Lexical analyzer |
+| `src/preprocessor/preprocessor.ibu` | Preprocessor |
+| `src/parser/parser.ibu` | Parser |
+| `src/codegen/codegen.ibu` | Code generator |
+| `lib/linux-syscall/linux-syscall.ibu` | Linux system call library |
+| `lib/std/std.ibu` | Standard library |
+| `lib/runtime/runtime.ibu` | Runtime library |
+
 
 [documentation](docs/docs.md)
 
