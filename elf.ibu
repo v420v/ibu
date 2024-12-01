@@ -1,0 +1,295 @@
+
+#include "std/header.ibu"
+#include "linux-syscall/header.ibu"
+
+#define STB_LOCAL     0
+#define STB_GLOBAL    1
+#define STT_NOTYPE    0
+#define STT_SECTION   3
+#define SHT_NULL      0
+#define SHT_PROGBITS  1
+#define SHT_SYMTAB    2
+#define SHT_STRTAB    3
+#define SHF_ALLOC     2
+#define SHF_EXECINSTR 4
+
+struct Elf64_Ehdr {
+    e_ident       [16]u8,
+    e_type        u16,
+    e_machine     u16,
+    e_version     u32,
+    e_entry       u64,
+    e_phoff       u64,
+    e_shoff       u64,
+    e_flags       u32,
+    e_ehsize      u16,
+    e_phentsize   u16,
+    e_phnum       u16,
+    e_shentsize   u16,
+    e_shnum       u16,
+    e_shstrndx    u16,
+}
+
+struct Elf64_Sym {
+    st_name u32,
+    st_info u8,
+    st_other u8,
+    st_shndx u16,
+    st_value u64,
+    st_size u64,
+}
+
+struct Elf64_Shdr {
+    sh_name u32,
+    sh_type u32,
+    sh_flags u64,
+    sh_addr u64,
+    sh_offset u64,
+    sh_size u64,
+    sh_link u32,
+    sh_info u32,
+    sh_addralign u64,
+    sh_entsize u64,
+}
+
+struct Elf64_Rela {
+    r_offset u64,
+    r_info u64,
+    r_addend i64,
+}
+
+struct Elf64_Phdr {
+    p_type u64,
+    p_flags u64,
+    p_offset u64,
+    p_vaddr u64,
+    p_paddr u64,
+    p_filesz u64,
+    p_memsz u64,
+    p_align u64,
+}
+
+func main() i32 {
+    let code [32]u8 = {
+        0xb8, 0x3c, 0x0, 0x0, 0x0,   // mov $60, %eax
+        0xb8, 0x3c, 0x0, 0x0, 0x0,   // mov $60, %eax
+        0xbf, 0x1, 0x0, 0x0, 0x0,    // mov $1, %edi
+        0x83, 0xc7, 0x1,             // add $1, %edi
+        0x83, 0xc7, 0x1,             // add $1, %edi
+        0xf, 0x5,                    // syscall
+        // padding
+        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+        0x0, 0x0
+    };
+
+    let rodata [16]u8 = {};
+
+    let strtab [16]u8 = {
+        0x0,
+        // _start\0
+        0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x0,
+        // foo\0
+        0x66, 0x6f, 0x6f, 0x0,
+        // padding
+        0x0, 0x0, 0x0, 0x0
+    };
+
+    let null_nameofs u32 = 0;
+    let start_nameofs u32 = null_nameofs + strlen("") + 1;
+    let foo_nameofs u32 = start_nameofs + strlen("_start") + 1;
+
+    let symtab [4]Elf64_Sym = {
+        {
+            null_nameofs,
+            ((STB_LOCAL << 4) + (STT_NOTYPE & 0xf)),
+            0,
+            0,
+            0,
+            0
+        },
+        // Section .rodata
+        {
+            null_nameofs,
+            ((STB_LOCAL << 4) + (STT_SECTION & 0xf)),
+            0,
+            2,
+            0,
+            0
+        },
+        // _start
+        {
+            start_nameofs,
+            ((STB_GLOBAL << 4) + (STT_NOTYPE & 0xf)),
+            0,
+            1,
+            0,
+            0
+        },
+        // foo
+        {
+            foo_nameofs,
+            ((STB_GLOBAL << 4) + (STT_NOTYPE & 0xf)),
+            0,
+            1,
+            0x14,
+            0
+        }
+    };
+
+    let shstrtab [64]u8 = {
+        0x0,
+        // .text\0
+        0x2e, 0x74, 0x65, 0x78, 0x74, 0x0,
+        // .rodata\0
+        0x2e, 0x72, 0x6f, 0x64, 0x61, 0x74, 0x61, 0x0,
+        // .strtab\0
+        0x2e, 0x73, 0x74, 0x72, 0x74, 0x61, 0x62, 0x0,
+        // .symtab\0
+        0x2e, 0x73, 0x79, 0x6d, 0x74, 0x61, 0x62, 0x0,
+        // .shstrtab\0
+        0x2e, 0x73, 0x68, 0x73, 0x74, 0x72, 0x74, 0x61, 0x62, 0x0,
+        // padding
+        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
+    };
+
+    let text_nameofs u32 = null_nameofs + strlen("") + 1;
+    let rodata_nameofs u32 = text_nameofs + strlen(".text") + 1;
+    let strtab_nameofs u32 = rodata_nameofs + strlen(".rodata") + 1;
+    let symtab_nameofs u32 = strtab_nameofs + strlen(".strtab") + 1;
+    let shstrtab_nameofs u32 = symtab_nameofs + strlen(".symtab") + 1;
+    let code_ofs u64 = typesize(Elf64_Ehdr);
+    let code_size u64 = sizeof(code);
+    let rodata_ofs u64 = code_ofs + code_size;
+    let rodata_size u64 = sizeof(rodata);
+    let strtab_ofs u64 = rodata_ofs + rodata_size;
+    let strtab_size u64 = sizeof(strtab);
+    let symtab_ofs u64 = strtab_ofs + strtab_size;
+    let symtab_size u64 = sizeof(symtab);
+    let shstrtab_ofs u64 = symtab_ofs + symtab_size;
+    let shstrtab_size u64 = sizeof(shstrtab);
+    let sectionheader_ofs u64 = shstrtab_ofs + shstrtab_size;
+
+    let section_headers [6]Elf64_Shdr = {
+        // NULL
+        {
+            null_nameofs,
+            SHT_NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        },
+        // .text
+        {
+            text_nameofs,
+            SHT_PROGBITS,
+            SHF_ALLOC | SHF_EXECINSTR,
+            0,
+            code_ofs,
+            code_size,
+            0,
+            0,
+            1,
+            0
+        },
+        // .rodata
+        {
+            rodata_nameofs,
+            SHT_PROGBITS,
+            SHF_ALLOC,
+            0,
+            rodata_ofs,
+            rodata_size,
+            0,
+            0,
+            1,
+            0
+        },
+        // .strtab
+        {
+            strtab_nameofs,
+            SHT_STRTAB,
+            0,
+            0,
+            strtab_ofs,
+            strtab_size,
+            0,
+            0,
+            1,
+            0
+        },
+        // .symtab
+        {
+            symtab_nameofs,
+            SHT_SYMTAB,
+            0,
+            0,
+            symtab_ofs,
+            symtab_size,
+            3, // section number of .strtab
+            2, // Number of local symbols
+            8,
+            typesize(Elf64_Sym)
+        },
+        // .shstrtab
+        {
+            shstrtab_nameofs,
+            SHT_STRTAB,
+            0,
+            0,
+            shstrtab_ofs,
+            shstrtab_size,
+            0,
+            0,
+            1,
+            0
+        }
+    };
+
+    let ehdr Elf64_Ehdr = {
+        {
+            0x7f, 0x45, 0x4c, 0x46, // Magic number ' ELF' in ascii format
+            0x02, // 2 = 64-bit
+            0x01, // 1 = little endian
+            0x01,
+            0x0,
+            0x0,
+            0x0,
+            0x0,
+            0x0,
+            0x0,
+            0x0,
+            0x0,
+            0x0
+        },
+        1, // 1 = realocatable
+        0x3e, // x86-64
+        1, // ELF version
+        0, // Entry point
+        0, // Program header offset
+        sectionheader_ofs, // Section header offset
+        0x0, // Flags
+        typesize(Elf64_Ehdr), // Elf header size
+        typesize(Elf64_Phdr), // Program header size
+        0, // Number of program headers
+        typesize(Elf64_Shdr), // Section header size
+        sizeof(section_headers) / typesize(Elf64_Shdr), // Number of section headers
+        sizeof(section_headers) / typesize(Elf64_Shdr) - 1 // Section name string table index
+    };
+
+    write(1, &ehdr, typesize(Elf64_Ehdr));
+    write(1, code, sizeof(code));
+    write(1, rodata, sizeof(rodata));
+    write(1, strtab, sizeof(strtab));
+    write(1, symtab, sizeof(symtab));
+    write(1, shstrtab, sizeof(shstrtab));
+    write(1, section_headers, sizeof(section_headers));
+
+    return 0;
+}

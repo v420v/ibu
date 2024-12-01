@@ -21,6 +21,15 @@ The language should be simple and should feature only the minimum necessary func
 - The compiler is written in itself
 - Default args don't have to be on the end (WIP)
 
+```
+#include "std/header.ibu"
+
+func main() i32 {
+    printf("Hello, world!\n");
+    return 0;
+}
+```
+
 > [!IMPORTANT]
 > Only supports x86-64 linux for now
 >
