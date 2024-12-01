@@ -2,6 +2,6 @@
 #include "std/header.ibu"
 
 func main() i32 {
-    "Hello, world!";
+    printf("Hello, world!\n");
     return 0;
 }
