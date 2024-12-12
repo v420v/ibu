@@ -7,12 +7,8 @@
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
-The goal of this language is to spread the joy of programming for the next few hundred years.
+## Key Features of Ibu
 
-The language should be simple and should feature only the minimum necessary functionality so that anyone can easly port it to another language or remake rebuild its implementation.
-
-- As easy to write as C
-- As dynamic as assembly language
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
@@ -91,3 +87,4 @@ $ ./main
 | `lib/linux-syscall/linux-syscall.ibu` | Linux system call library |
 | `lib/std/std.ibu` | Standard library |
 | `lib/runtime/runtime.ibu` | Runtime library |
+
