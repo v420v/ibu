@@ -1,12 +1,6 @@
 # Documentation
 
-## Introduction
-The goal of this language is to spread the joy of programming for the next few hundred years.
-
-This language is simple and includes only the minimum necessary features. This allows anyone to easily port it to other languages or rewrite the implementation.
-
-- As easy to write as C
-- As dynamic as assembly language
+## Key features of Ibu
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
