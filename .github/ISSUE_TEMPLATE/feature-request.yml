@@ -26,15 +26,3 @@ body:
       description: Any alternative solutions or features you considered, a more detailed explanation, stack traces, related issues, links for context, etc.
     validations:
       required: false
-
-  - type: checkboxes
-    id: ack
-    attributes:
-      label: Acknowledgements
-      options:
-        - label: I may be able to implement this feature request
-          required: false
-
-        - label: This feature might incur a breaking change
-          required: false
-
