@@ -12,8 +12,8 @@ up:
 down:
 	docker compose down
 
-.PHONY: ibulang
-ibulang:
+.PHONY: ibu
+ibu:
 	docker compose exec ibulang bash
 
 .PHONY: init
