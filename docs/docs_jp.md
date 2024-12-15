@@ -28,14 +28,14 @@ $ make init
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
 $ make up
-$ make ibulang
+$ make ibu
 $ make init
 ```
 
 | コマンド | 実行内容 |
 |-----------|------------------------|
 | `make up` | `docker compose up -d` |
-| `make ibulang` | `docker compose exec ibulang bash` |
+| `make ibu` | `docker compose exec ibulang bash` |
 | `make down` | `docker compose down` |
 
 ## コンパイラの使い方
@@ -215,6 +215,17 @@ label:
         printf("%d\n", i);
         i++;
         goto label;
+    }
+}
+```
+
+### 例３
+```
+#include "std/header.ibu"
+
+func main() i32 {
+    for let i i32 = 0; i < 10; i++ {
+        printf("%d\n", i);
     }
 }
 ```

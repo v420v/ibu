@@ -44,14 +44,14 @@ $ make init
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
 $ make up
-$ make ibulang
+$ make ibu
 $ make init
 ```
 
 | Command | Execution |
 |-----------|------------------------|
 | `make up` | `docker compose up -d` |
-| `make ibulang` | `docker compose exec ibulang bash` |
+| `make ibu` | `docker compose exec ibulang bash` |
 | `make down` | `docker compose down` |
 
 ## Usage
