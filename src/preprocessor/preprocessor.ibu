@@ -19,12 +19,10 @@ func new_macro(name *u8, tok *Token) *Macro {
 }
 
 func find_macro(name *u8, p *Preprocessor) *Macro {
-    let m *Macro = p.macros;
-    while m != nil {
+    for let m *Macro = p.macros; m != nil; m = m.next {
         if strcmp(m.name, name) {
             return m;
         }
-        m = m.next;
     }
     return nil;
 }

@@ -314,7 +314,7 @@
 #define SYS_KCMP 312
 #define SYS_FINIT_MODULE 313
 
-func syscall(trap u64, a1 u64, a2 u64, a3 u64) i64; // src/builtin.s
+func syscall(trap u64, a1 u64, a2 u64, a3 u64) i64; // lib/runtime.s
 
 func open(file_name *u8, flags i32, mode i32) i64 {
     return syscall(SYS_OPEN, file_name, flags, mode);

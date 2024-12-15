@@ -3,15 +3,10 @@
 #include "std/header.ibu"
 
 func strcmp(a *u8, b *u8) bool {
-    let i i32 = 0;
-    while {
-        if a[i] != b[i] {
-            return false;
-        }
+    for let i i32 = 0; a[i] == b[i]; i++ {
         if a[i] == '\0' {
             return true;
         }
-        i++;
     }
     return false;
 }
@@ -131,10 +126,8 @@ func strrchr(str *u8, ch i32) *u8 {
 }
 
 func memcpy(dest *u8, source *u8, size i32) *u8 {
-    let i i32 = 0;
-    while i < size {
+    for let i i32 = 0; i < size; i++ {
         dest[i] = source[i];
-        i++;
     }
     return dest;
 }

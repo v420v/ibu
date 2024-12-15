@@ -132,8 +132,7 @@ func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
 
     let stack i32 = 0;
 
-    let i i32 = args.len - 1;
-    while 0 <= i {
+    for let i i32 = args.len - 1; 0 <= i; i-- {
         let arg *Node = vec_get(args, i);
         gen_expr(g, arg);
         gen_push(g, "%rax");
@@ -149,8 +148,6 @@ func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
             gen_push_num(g, argc); // push argc
             stack = stack + 16;
         }
-
-        i--;
     }
 
     return stack;
@@ -454,11 +451,9 @@ func gen_expr(g *Gen, node *Node) i32 {
 }
 
 func gen_node_block(g *Gen, stmts *Vec) i32 {
-    let i i32 = 0;
-    while i < stmts.len {
+    for let i i32 = 0; i < stmts.len; i++ {
         let stmt *Node = vec_get(stmts, i);
         gen_stmt(g, stmt);
-        i++;
     }
     return 0;
 }

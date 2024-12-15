@@ -27,15 +27,13 @@ func unkown_type_error(types *Vec, tok *Token, msg *u8) u0 {
         eprintf("help: %d possibilities:", types.len);
     }
 
-    let i i32 = 0;
-    while i < types.len {
+    for let i i32 = 0; i < types.len; i++ {
         let type *Type = vec_get(types, i);
         if i+1 < types.len {
             eprintf(" `%s`,", type.name);
         } else {
             eprintf(" `%s`", type.name);
         }
-        i++;
     }
 
     eprintf("\n");
@@ -54,15 +52,13 @@ func unkown_member_error(members *Vec, tok *Token, msg *u8) u0 {
         eprintf("help: %d possibilities:", members.len);
     }
 
-    let i i32 = 0;
-    while i < members.len {
+    for let i i32 = 0; i < members.len; i++ {
         let member *Member = vec_get(members, i);
         if i+1 < members.len {
             eprintf(" `%s`,", member.name);
         } else {
             eprintf(" `%s`", member.name);
         }
-        i++;
     }
 
     eprintf("\n");
@@ -81,16 +77,12 @@ func leave_scope(p *Parser) u0 {
 }
 
 func get_user_defined_type(p *Parser, name *u8) *Type {
-    let i i32 = 0;
-
-    while i < p.user_defined_types.len {
+    for let i i32 = 0; i < p.user_defined_types.len; i++ {
         let type *Type = vec_get(p.user_defined_types, i);
         if strcmp(type.name, name) {
             return type;
         }
-        i++;
     }
-
     return nil;
 }
 
@@ -205,12 +197,10 @@ func cmp_type_vec(vec1 *Vec, vec2 *Vec) bool {
         return false;
     }
 
-    let i i32 = 0;
-    while i < vec1.len {
+    for let i i32 = 0; i < vec1.len; i++ {
         if !cmp_type(vec_get(vec1, i), vec_get(vec2, i)) {
             return false;
         }
-        i++;
     }
 
     return true;
@@ -246,20 +236,17 @@ func cmp_func_params(p1 *Vec, p2 *Vec) bool {
         return false;
     }
 
-    let i i32 = 0;
-    while i < p1.len {
+    for let i i32 = 0; i < p1.len; i++ {
         if !cmp_func_param(vec_get(p1, i), vec_get(p2, i)) {
             return false;
         }
-        i++;
     }
 
     return true;
 }
 
 func find_locals(p *Parser, name *u8) *Object {
-    let scope *Scope = p.scope;
-    while scope != nil {
+    for let scope *Scope = p.scope; scope != nil; scope = scope.outer {
         let var_scope *VarScope = scope.var_scope;
         while var_scope != nil {
             if strcmp(name, var_scope.name) {
@@ -267,33 +254,26 @@ func find_locals(p *Parser, name *u8) *Object {
             }
             var_scope = var_scope.outer;
         }
-        scope = scope.outer;
     }
     return nil;
 }
 
 func find_locals_current_scope(p *Parser, name *u8) *Object {
-    let scope *Scope = p.scope;
-    if scope != nil {
-        let var_scope *VarScope = scope.var_scope;
-        while var_scope != nil {
-            if strcmp(name, var_scope.name) {
-                return var_scope.obj;
-            }
-            var_scope = var_scope.outer;
+    // REVIEW: if p.scope == nil { return nil; }
+
+    for let var_scope *VarScope = p.scope.var_scope; var_scope != nil; var_scope = var_scope.outer {
+        if strcmp(name, var_scope.name) {
+            return var_scope.obj;
         }
     }
     return nil;
 }
 
 func find_globals(p *Parser, name *u8) *Object {
-    let object *Object = p.globals;
-
-    while object != nil {
+    for let object *Object = p.globals; object != nil; object = object.next {
         if strcmp(object.name, name) {
             return object;
         }
-        object = object.next;
     }
 
     return nil;
@@ -343,11 +323,9 @@ func add_type_block(p *Parser, nodes *Vec) u0 {
     if nodes == nil {
         return;
     }
-    let i i32 = 0;
-    while i < nodes.len {
+    for let i i32 = 0; i < nodes.len; i++ {
         let node *Node = vec_get(nodes, i);
         add_type(p, node);
-        i++;
     }
 }
 
@@ -596,13 +574,11 @@ func parse_number(p *Parser) *Node {
 }
 
 func search_struct_member(members *Vec, exp_member_name *u8) *Member {
-    let i i32 = 0;
-    while i < members.len {
+    for let i i32 = 0; i < members.len; i++ {
         let member *Member = vec_get(members, i);
         if strcmp(member.name, exp_member_name) {
             return member;
         }
-        i++;
     }
     return nil;
 }
@@ -1298,16 +1274,14 @@ func new_member(name *u8, ty *Type) *Member {
 
 func calc_sizof_struct_members(members *Vec) i32 {
     let offset i32 = 0;
-    let i i32 = 0;
 
-    while i < members.len {
+    for let i i32 = 0; i < members.len; i++ {
         let member *Member = vec_get(members, i);
         if member.ty.size <= 8 && align_to(offset, 8) < align_to(offset + member.ty.size, 8) {
             offset = align_to(offset, 8);
         }
         member.offset = offset;
         offset = offset + member.ty.size;
-        i++;
     }
 
     return align_to(offset, 8);
@@ -1493,4 +1467,3 @@ func parse(p *Parser) u0 {
         }
     }
 }
-

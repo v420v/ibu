@@ -3100,9 +3100,6 @@ strcmp:
 	movl %eax, (%rdi)
 .L.while.start.51:
 	movq $1, %rax
-	cmpq $1, %rax
-	jne .L.while.end.51
-	movq $1, %rax
 	push %rax
 	leaq -4(%rbp), %rax
 	movslq (%rax), %rax
@@ -3129,16 +3126,10 @@ strcmp:
 	movzbl (%rax), %eax
 	pop %rdi
 	cmpl %edi, %eax
-	setne %al
+	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.52
-	movq $0, %rax
-	leave
-	ret
-	jmp .L.end.52
-.L.else.52:
-.L.end.52:
+	jne .L.while.end.51
 	movq $0, %rax
 	push %rax
 	movq $1, %rax
@@ -3158,13 +3149,13 @@ strcmp:
 	sete %al
 	movzbl %al, %eax
 	cmpq $1, %rax
-	jne .L.else.53
+	jne .L.else.52
 	movq $1, %rax
 	leave
 	ret
-	jmp .L.end.53
-.L.else.53:
-.L.end.53:
+	jmp .L.end.52
+.L.else.52:
+.L.end.52:
 	movq $1, %rax
 	push %rax
 	leaq -4(%rbp), %rax
