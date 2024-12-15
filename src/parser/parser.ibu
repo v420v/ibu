@@ -358,7 +358,9 @@ func add_type(p *Parser, node *Node) u0 {
 
     add_type(p, node.lhs);
     add_type(p, node.rhs);
+    add_type(p, node.init);
     add_type(p, node.cond);
+    add_type(p, node.inc);
 
     add_type_block(p, node.body);
     add_type(p, node.then_block);
@@ -1194,9 +1196,47 @@ func parse_return(p *Parser) *Node {
     return node;
 }
 
+func parse_for(p *Parser) *Node {
+    parser_skip(p, "for");
+    let node *Node = new_node(ND_FOR);
+
+    if !strcmp(p.tokens.lit, "{") {
+        enter_scope(p);
+        if strcmp(p.tokens.lit, ";") {
+            node.init = nil;
+            parser_skip(p, ";");
+        } else if strcmp(p.tokens.lit, "let") {
+            node.init = parse_let(p);
+        } else {
+            node.init = parse_expr_stmt(p);
+        }
+
+        if strcmp(p.tokens.lit, ";") {
+            node.cond = nil;
+        } else {
+            node.cond = parse_expr(p);
+        }
+        parser_skip(p, ";");
+
+        if strcmp(p.tokens.lit, "{") {
+            node.inc = nil;
+        } else {
+            node.inc = parse_expr(p);
+        }
+    } else {
+        node.cond = node_true();
+    }
+
+    node.then_block = parse_block(p);
+
+    leave_scope(p);
+
+    return node;
+}
+
 func parse_while(p *Parser) *Node {
     parser_skip(p, "while");
-    let node *Node = new_node(ND_WHILE);
+    let node *Node = new_node(ND_FOR);
 
     if !strcmp(p.tokens.lit, "{") {
         node.cond = parse_expr(p);
@@ -1227,6 +1267,9 @@ func parse_stmt(p *Parser) *Node {
     }
     if strcmp(p.tokens.lit, "if") {
         return parse_if(p);
+    }
+    if strcmp(p.tokens.lit, "for") {
+        return parse_for(p);
     }
     if strcmp(p.tokens.lit, "while") {
         return parse_while(p);

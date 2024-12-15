@@ -20,9 +20,8 @@ readlink:
 	movq $0, %rax
 	callq *%r10
 	addq $32, %rsp
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global exit
@@ -44,9 +43,8 @@ exit:
 	movq $0, %rax
 	callq *%r10
 	addq $32, %rsp
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global write
@@ -70,9 +68,8 @@ write:
 	movq $0, %rax
 	callq *%r10
 	addq $32, %rsp
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global close
@@ -94,9 +91,8 @@ close:
 	movq $0, %rax
 	callq *%r10
 	addq $32, %rsp
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global read
@@ -120,9 +116,8 @@ read:
 	movq $0, %rax
 	callq *%r10
 	addq $32, %rsp
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global open
@@ -146,8 +141,7 @@ open:
 	movq $0, %rax
 	callq *%r10
 	addq $32, %rsp
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret

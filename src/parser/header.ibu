@@ -19,7 +19,7 @@
 #define ND_NUM				13
 #define ND_VAR				14
 #define ND_IF				15
-#define ND_WHILE			16
+#define ND_FOR				16
 #define ND_ASSIGN			17
 #define ND_RETURN			18
 #define ND_REF				19
@@ -123,7 +123,9 @@ struct Node {
     body *Vec,
     then_block *Node,
     else_block *Node,
+    init *Node,
     cond *Node,
+    inc *Node,
     label_name *u8,
     int_val i32,
     str_val *u8,

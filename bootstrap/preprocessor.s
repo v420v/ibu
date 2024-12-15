@@ -209,9 +209,8 @@ fd_get_file_full_path:
 	callq *%r10
 	addq $8, %rsp
 	movq $1, %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	jmp .L.end.1
 .L.else.1:
 .L.end.1:
@@ -232,9 +231,8 @@ fd_get_file_full_path:
 	movb %al, (%rdi)
 	leaq -20(%rbp), %rax
 	movq (%rax), %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global get_ibu_lib_path
@@ -544,9 +542,8 @@ get_ibu_lib_path:
 	addq $48, %rsp
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global dirname
@@ -825,9 +822,8 @@ dirname:
 .L.end.9:
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global get_eof_from_tokens
@@ -860,9 +856,8 @@ get_eof_from_tokens:
 .L.while.end.11:
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global find_macro
@@ -907,9 +902,8 @@ find_macro:
 	jne .L.else.13
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	jmp .L.end.13
 .L.else.13:
 .L.end.13:
@@ -924,9 +918,8 @@ find_macro:
 	jmp .L.while.start.12
 .L.while.end.12:
 	movq $0, %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global new_macro
@@ -970,9 +963,8 @@ new_macro:
 	movq %rax, (%rdi)
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
 .global preprocess
@@ -2491,8 +2483,7 @@ new_preprocessor:
 	movq %rax, (%rdi)
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret

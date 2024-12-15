@@ -514,13 +514,19 @@ func gen_stmt(g *Gen, node *Node) i32 {
         printf(".L.%s.%s:\n", g.cur_func_name, node.label_name);
         return 0;
     }
-    if node.kind == ND_WHILE {
+    if node.kind == ND_FOR {
         c = g.label_count++;
+        if node.init != nil {
+            gen_stmt(g, node.init);
+        }
         printf(".L.while.start.%d:\n", c);
         gen_expr(g, node.cond);
         printf("\tcmpq $1, %%rax\n");
         printf("\tjne .L.while.end.%d\n", c);
         gen_stmt(g, node.then_block);
+        if node.inc != nil {
+            gen_expr(g, node.inc);
+        }
         printf("\tjmp .L.while.start.%d\n", c);
         printf(".L.while.end.%d:\n", c);
         return 0;

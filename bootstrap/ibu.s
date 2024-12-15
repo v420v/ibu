@@ -386,8 +386,7 @@ main:
 	callq *%r10
 	addq $16, %rsp
 	movq $0, %rax
-	movq %rbp, %rsp
-	pop %rbp
-	retq
+	leave
+	ret
 	leave
 	ret
