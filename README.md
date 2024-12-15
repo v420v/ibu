@@ -1,9 +1,7 @@
 <h1>The Ibu programming language</h1>
 
 [📄 Documentation](docs/docs.md) |
-[📄 ドキュメント](docs/docs_jp.md) |
-[🗺️ Roadmap](ROADMAP.md) |
-[🔄 Changelog](CHANGELOG.md)
+[📄 ドキュメント](docs/docs_jp.md)
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
