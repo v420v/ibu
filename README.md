@@ -10,6 +10,7 @@
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
+- No Variable shadowing
 - No `break`, `continue` stmt. Use `goto`
 - Allows `13 <= age < 20` instead of `13 <= age && age < 20`
 - Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
