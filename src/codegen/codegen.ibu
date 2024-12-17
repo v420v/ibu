@@ -100,15 +100,15 @@ func gen_load(g *Gen, ty *Type) i32 {
         printf("\tmovslq (%%rax), %%rax\n");
     } else if ty.size == 2 {
         if ty.is_unsigned {
-            printf("\tmovzwl (%%rax), %%eax\n");
+            printf("\tmovzwq (%%rax), %%rax\n");
         } else {
-            printf("\tmovswl (%%rax), %%eax\n");
+            printf("\tmovswq (%%rax), %%rax\n");
         }
     } else if ty.size == 1 {
         if ty.is_unsigned {
-            printf("\tmovzbl (%%rax), %%eax\n");
+            printf("\tmovzbq (%%rax), %%rax\n");
         } else {
-            printf("\tmovsbl (%%rax), %%eax\n");
+            printf("\tmovsbq (%%rax), %%rax\n");
         }
     } else {
         eprintf("unreachable\n");
@@ -118,11 +118,7 @@ func gen_load(g *Gen, ty *Type) i32 {
 }
 
 func gen_condition_store(ty *Type) i32 {
-    if ty.size == 8 || ty.kind == TY_PTR || ty.kind == TY_ARRAY {
-        printf("\tmovzbq %%al, %%rax\n");
-    } else {
-        printf("\tmovzbl %%al, %%eax\n");
-    }
+    printf("\tmovzbq %%al, %%rax\n");
 }
 
 func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
@@ -197,8 +193,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         return 0;
     }
     if node.kind == ND_FUNC_CALL {
-        let stack i32 = 0;
-        stack = func_call_args_to_stack(g, node.args, node.lhs.ty);
+        let stack i32 = func_call_args_to_stack(g, node.args, node.lhs.ty);
 
         gen_expr(g, node.lhs);
         printf("\tmovq %%rax, %%r10\n");
@@ -208,15 +203,15 @@ func gen_expr(g *Gen, node *Node) i32 {
         gen_pop_size(g, stack);
 
         if node.ty.kind == TY_BOOL {
-            printf("\tmovzx %%al, %%eax\n");
+            printf("\tmovzx %%al, %%rax\n");
         } else if node.ty.kind == TY_I8 {
-            printf("\tmovsbl %%al, %%eax\n");
+            printf("\tmovsbq %%al, %%rax\n");
         } else if node.ty.kind == TY_U8 {
-            printf("\tmovzbl %%al, %%eax\n");
+            printf("\tmovzbq %%al, %%rax\n");
         } else if node.ty.kind == TY_I16 {
-            printf("\tmovswl %%ax, %%eax\n");
+            printf("\tmovswq %%ax, %%rax\n");
         } else if node.ty.kind == TY_U16 {
-            printf("\tmovzwl %%ax, %%eax\n");
+            printf("\tmovzwq %%ax, %%rax\n");
         } else {}
 
         return 0;
@@ -243,91 +238,50 @@ func gen_expr(g *Gen, node *Node) i32 {
     }
     if node.kind == ND_ADD {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\taddq %%rdi, %%rax\n");
-        } else {
-            printf("\taddl %%edi, %%eax\n");
-        }
+        printf("\taddq %%rdi, %%rax\n");
         return 0;
     }
     if node.kind == ND_SHL {
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tmovq %%rdi, %%rcx\n");
-        if node.ty.kind == TY_ARRAY || node.ty.kind == TY_PTR || node.ty.size == 8  {
-            printf("\tshl %%cl, %%rax\n");
-        } else {
-            printf("\tshl %%cl, %%eax\n");
-        }
+        printf("\tshl %%cl, %%rax\n");
         return 0;
     }
     if node.kind == ND_SHR {
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tmovq %%rdi, %%rcx\n");
-        if node.ty.kind == TY_ARRAY || node.ty.kind == TY_PTR || node.ty.size == 8  {
-            printf("\tshr %%cl, %%rax\n");
-        } else {
-            printf("\tshr %%cl, %%eax\n");
-        }
+        printf("\tshr %%cl, %%rax\n");
         return 0;
     }
     if node.kind == ND_SUB {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\tsubq %%rdi, %%rax\n");
-        } else {
-            printf("\tsubl %%edi, %%eax\n");
-        }
+        printf("\tsubq %%rdi, %%rax\n");
         return 0;
     }
     if node.kind == ND_AND {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\tandq %%rdi, %%rax\n");
-        } else {
-            printf("\tandl %%edi, %%eax\n");
-        }
+        printf("\tandq %%rdi, %%rax\n");
         return 0;
     }
     if node.kind == ND_OR {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\torq %%rdi, %%rax\n");
-        } else {
-            printf("\torl %%edi, %%eax\n");
-        }
+        printf("\torq %%rdi, %%rax\n");
         return 0;
     }
     if node.kind == ND_MUL {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\timulq %%rdi, %%rax\n");
-        } else {
-            printf("\timull %%edi, %%eax\n");
-        }
+        printf("\timulq %%rdi, %%rax\n");
         return 0;
     }
     if node.kind == ND_DIV || node.kind == ND_MOD {
         gen_lhs_rhs(g, node.lhs, node.rhs);
 
         if node.ty.is_unsigned {
-            if node.ty.size == 8 {
-                printf("\tmov $0, %%rdx\n");
-                  printf("\tdivq %%rdi\n");
-            } else {
-                printf("\tmov $0, %%edx\n");
-                  printf("\tdivl %%edi\n");
-            }
+            printf("\tmov $0, %%rdx\n");
+            printf("\tdivq %%rdi\n");
         } else {
-            if node.lhs.ty.size == 8 {
-                printf("\tcqto\n");
-            } else {
-                printf("\tcltd\n");
-            }
-            if node.ty.size == 8 {
-                printf("\tidivq %%rdi\n");
-            } else {
-                printf("\tidivl %%edi\n");
-            }
+            printf("\tcqto\n");
+            printf("\tidivq %%rdi\n");
         }
         if node.kind == ND_MOD {
             printf("\tmovq %%rdx, %%rax\n");
@@ -336,22 +290,14 @@ func gen_expr(g *Gen, node *Node) i32 {
     }
     if node.kind == ND_EQ {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\tcmpq %%rdi, %%rax\n");
-        } else {
-            printf("\tcmpl %%edi, %%eax\n");
-        }
+        printf("\tcmpq %%rdi, %%rax\n");
         printf("\tsete %%al\n");
         gen_condition_store(node.ty);
         return 0;
     }
     if node.kind == ND_NE {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\tcmpq %%rdi, %%rax\n");
-        } else {
-            printf("\tcmpl %%edi, %%eax\n");
-        }
+        printf("\tcmpq %%rdi, %%rax\n");
         printf("\tsetne %%al\n");
         gen_condition_store(node.ty);
         return 0;
@@ -388,13 +334,9 @@ func gen_expr(g *Gen, node *Node) i32 {
     }
     if node.kind == ND_GE {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\tcmpq %%rdi, %%rax\n");
-        } else {
-            printf("\tcmpl %%edi, %%eax\n");
-        }
+        printf("\tcmpq %%rdi, %%rax\n");
         if node.lhs.ty.is_unsigned {
-               printf("\tsetae %%al\n");
+            printf("\tsetae %%al\n");
         } else {
             printf("\tsetge %%al\n");
         }
@@ -403,13 +345,9 @@ func gen_expr(g *Gen, node *Node) i32 {
     }
     if node.kind == ND_GT {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\tcmpq %%rdi, %%rax\n");
-        } else {
-            printf("\tcmpl %%edi, %%eax\n");
-        }
+        printf("\tcmpq %%rdi, %%rax\n");
         if node.lhs.ty.is_unsigned {
-               printf("\tseta %%al\n");
+            printf("\tseta %%al\n");
         } else {
             printf("\tsetg %%al\n");
         }
@@ -418,13 +356,9 @@ func gen_expr(g *Gen, node *Node) i32 {
     }
     if node.kind == ND_LE {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\tcmpq %%rdi, %%rax\n");
-        } else {
-            printf("\tcmpl %%edi, %%eax\n");
-        }
+        printf("\tcmpq %%rdi, %%rax\n");
         if node.lhs.ty.is_unsigned {
-               printf("\tsetbe %%al\n");
+            printf("\tsetbe %%al\n");
         } else {
             printf("\tsetle %%al\n");
         }
@@ -433,13 +367,9 @@ func gen_expr(g *Gen, node *Node) i32 {
     }
     if node.kind == ND_LT {
         gen_lhs_rhs(g, node.lhs, node.rhs);
-        if node.ty.kind == TY_PTR || node.ty.kind == TY_ARRAY {
-            printf("\tcmpq %%rdi, %%rax\n");
-        } else {
-            printf("\tcmpl %%edi, %%eax\n");
-        }
+        printf("\tcmpq %%rdi, %%rax\n");
         if node.lhs.ty.is_unsigned {
-               printf("\tsetb %%al\n");
+            printf("\tsetb %%al\n");
         } else {
             printf("\tsetl %%al\n");
         }
