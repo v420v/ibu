@@ -13,6 +13,7 @@
 - No `break`, `continue` stmt. Use `goto`
 - Allows `13 <= age < 20` instead of `13 <= age && age < 20`
 - Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
+- All values are extended to 64-bit when accessed
 - The compiler is written in itself
 - Default args don't have to be on the end (WIP)
 
