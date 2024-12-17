@@ -280,10 +280,10 @@ func find_globals(p *Parser, name *u8) *Object {
 }
 
 func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32 {
-    let obj *Object = find_locals_current_scope(p, name);
+    let obj *Object = find_locals(p, name);
     if obj != nil {
         print_error_with_code(tok, "name already exist");
-        exit(1);
+        exit(1); 
     }
     return 0;
 }

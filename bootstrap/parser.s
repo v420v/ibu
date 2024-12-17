@@ -7864,7 +7864,7 @@ check_local_object_already_exist:
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq find_locals_current_scope(%rip), %rax
+	leaq find_locals(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
