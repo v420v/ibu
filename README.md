@@ -5,12 +5,14 @@
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
+Ibu is a modern, experimental programming language designed with simplicity, clarity, and extensibility in mind. It eliminates unnecessary complexities often found in other languages while introducing unique features that make coding more expressive and efficient. Ibu offers a fresh take on programming.
+
 ## Key Features of Ibu
 
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
-- No Variable shadowing
+- No variable shadowing
 - No `break`, `continue` stmt. Use `goto`
 - Allows `13 <= age < 20` instead of `13 <= age && age < 20`
 - Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
@@ -60,11 +62,7 @@ $ make init
 $ ./ibuc <filename>.ibu
 ```
 
-Currently, the compiler outputs assembly to stdout. (This will change if a language-specific assembler is created)
-
-Output the assembly to an assembler to generate an object file, and then to a linker to generate an executable file.
-
-Don't forget to pass `lib/runtime.o`, `lib/linux-syscall.o`, `lib/std.o` to the linker.
+Currently, the compiler outputs assembly to stdout.
 
 ### Example: Compile Hello world!
 ```zsh
