@@ -1,4 +1,6 @@
 
+// Example Hello world program written in Ibu
+
 #include "std/header.ibu"
 
 func main() i32 {
