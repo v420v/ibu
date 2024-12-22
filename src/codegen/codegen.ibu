@@ -12,8 +12,8 @@ func new_gen() *Gen {
         eprintf("memory allocation failed\n");
         exit(1);
     }
-    g.label_count = 0;
-    g.str_label_count = 0;
+    g.label_count = 1;
+    g.str_label_count = 1;
     return g;
 }
 
@@ -388,6 +388,46 @@ func gen_node_block(g *Gen, stmts *Vec) i32 {
     return 0;
 }
 
+func sort_switch_cases(switch_node *Node) u0 {
+    for let i i32 = 0; i < switch_node.cases.len - 1; i++ {
+        for let j i32 = 0; j < switch_node.cases.len - i - 1; j++ {
+            let case1 *Node = vec_get(switch_node.cases, j);
+            let case2 *Node = vec_get(switch_node.cases, j + 1);
+            if case1.cond.int_val > case2.cond.int_val {
+                switch_node.cases.ptr[j] = case2;
+                switch_node.cases.ptr[j + 1] = case1;
+            }
+        }
+    }
+}
+
+func gen_jmp_table(g *Gen, node *Node, unique_label_count i32) i32 {
+    let min_case *Node = vec_get(node.cases, 0);
+    let min i32 = min_case.cond.int_val;
+
+    printf(".data\n");
+    printf("jump_table:\n");
+    for let i i32 = 0; i < node.cases.len; i++ {
+        let case_node *Node = vec_get(node.cases, i);
+        let case_label_name *u8 = alloc(40); // this should be enough
+        sprintf(case_label_name, ".L.case.%d.%d", unique_label_count, case_node.cond.int_val);
+        case_node.label_name = case_label_name;
+        if i != 0 {
+            let prev_case_node *Node = vec_get(node.cases, i-1);
+            let gap i32 = case_node.cond.int_val - prev_case_node.cond.int_val - 1;
+            printf("\t.rept %d\n", gap);
+            printf("\t.quad 0\n");
+            printf("\t.endr\n");
+            printf("\t.quad %s\n", case_node.label_name);
+        } else {
+            printf("\t.quad %s\n", case_node.label_name);
+        }
+    }
+    printf(".text\n");
+
+    return min;
+}
+
 func gen_stmt(g *Gen, node *Node) i32 {
     let c i32 = 0;
     if node.kind == ND_EMPTY {
@@ -399,6 +439,22 @@ func gen_stmt(g *Gen, node *Node) i32 {
     }
     if node.kind == ND_EXPR_STMT {
         gen_expr(g, node.lhs);
+        return 0;
+    }
+    if node.kind == ND_SWITCH {
+        sort_switch_cases(node);
+        let unique_label_count i32 = g.label_count++;
+        let min i32 = gen_jmp_table(g, node, unique_label_count);
+        gen_expr(g, node.cond);
+        printf("\tsubq $%d, %%rax\n", min);
+        printf("\tmovq jump_table(, %%rax, 8), %%rax\n");
+        printf("\tjmp *%%rax\n");
+
+        gen_stmt(g, node.then_block);
+        return 0;
+    }
+    if node.kind == ND_CASE {
+        printf("%s:\n", node.label_name);
         return 0;
     }
     if node.kind == ND_MEMZERO {

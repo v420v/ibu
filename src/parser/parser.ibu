@@ -1234,7 +1234,60 @@ func parse_label(p *Parser) *Node {
     return node;
 }
 
+func parse_switch(p *Parser) *Node {
+    if p.current_switch != nil {
+        print_error(p.tokens, "nested switch statements are not supported yet");
+    }
+
+    let switch_tok *Token = p.tokens;
+
+    parser_skip(p, "switch");
+    let node *Node = new_node(ND_SWITCH);
+
+    p.current_switch = node;
+
+    node.cond = parse_expr(p);
+
+    node.cases = new_vec(4);
+
+    node.then_block = parse_block(p);
+
+    if node.cases.len == 0 {
+        print_error(switch_tok, "switch statement must have at least one case");
+    }
+
+    p.current_switch = nil;
+
+    return node;
+}
+
+func parse_case(p *Parser) *Node {
+    if p.current_switch == nil {
+        print_error(p.tokens, "case outside of switch");
+    }
+
+    parser_skip(p, "case");
+    let node *Node = new_node(ND_CASE);
+    let save_cond_tok *Token = p.tokens;
+    node.cond = parse_expr(p);
+    if node.cond.kind != ND_NUM {
+        print_error(save_cond_tok, "case value must be a integer constant");
+    }
+
+    parser_skip(p, ":");
+
+    vec_append(p.current_switch.cases, node);
+
+    return node;
+}
+
 func parse_stmt(p *Parser) *Node {
+    if strcmp(p.tokens.lit, "switch") {
+        return parse_switch(p);
+    }
+    if strcmp(p.tokens.lit, "case") {
+        return parse_case(p);
+    }
     if strcmp(p.tokens.lit, "let") {
         return parse_let(p);
     }

@@ -38,6 +38,8 @@
 #define ND_MEMZERO          32
 #define ND_AND              33
 #define ND_OR               34
+#define ND_SWITCH           35
+#define ND_CASE             36
 
 #define TypeKind	i32
 #define TY_I64		0
@@ -123,6 +125,7 @@ struct Node {
     body *Vec,
     then_block *Node,
     else_block *Node,
+    cases *Vec,
     init *Node,
     cond *Node,
     inc *Node,
@@ -156,6 +159,9 @@ struct Parser {
     // function local variables
     locals *Object,
     scope *Scope,
+
+    // switch statement
+    current_switch *Node,
 
     // types
     user_defined_types *Vec,
