@@ -23,3 +23,5 @@ jobs:
           make self
           make self
           time make self
+  update_bootstrap:
+    uses: ./.github/workflows/update_bootstrap.yml

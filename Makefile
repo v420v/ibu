@@ -54,7 +54,7 @@ self:
 	ld -o ibuc src/tokenizer.o src/parser.o src/codegen.o src/preprocessor.o src/ibu.o lib/std.o lib/runtime.o lib/linux-syscall.o
 
 .PHONY: update_bootstrap
-update_bootstrap:
+update_bootstrap: init
 	./ibuc src/ibu.ibu                         > bootstrap/ibu.s
 	./ibuc src/tokenizer/tokenizer.ibu         > bootstrap/tokenizer.s
 	./ibuc src/parser/parser.ibu               > bootstrap/parser.s
