@@ -5,10 +5,7 @@
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
-Ibu is a modern, experimental programming language designed with simplicity, clarity, and extensibility in mind. It eliminates unnecessary complexities often found in other languages while introducing unique features that make coding more expressive and efficient. Ibu offers a fresh take on programming.
-
 ## Key Features of Ibu
-
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
@@ -31,8 +28,6 @@ func main() i32 {
 
 > [!IMPORTANT]
 > Only supports x86-64 linux for now
->
-> Recomend using docker for other users
 
 ## Build the language
 ```
@@ -41,7 +36,7 @@ $ cd ibu
 $ make init
 ```
 
-## Build the language with docker (non x86-64 linux users)
+## Build the language with docker
 ```zsh
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
@@ -77,7 +72,7 @@ $ ./main
 ## Compiler implementation
 | File | Content |
 |-----------|------------------------|
-| `src/ibu.ibu` | entry point |
+| `src/ibu.ibu` | Entry point |
 | `src/tokenizer/tokenizer.ibu` | Lexical analyzer |
 | `src/preprocessor/preprocessor.ibu` | Preprocessor |
 | `src/parser/parser.ibu` | Parser |
