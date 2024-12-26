@@ -1,0 +1,35 @@
+name: Update Bootstrap Files
+
+on:
+  workflow_call:
+
+jobs:
+  update-files:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest"]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Regenerate bootstrap files
+        run: make update_bootstrap
+        
+      - name: Commit and push changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Pushing changes."
+            git add .
+            git commit -m "Auto-update bootstrap files"
+            git push
+          else
+            echo "No changes detected."
+            exit 0
+          fi
