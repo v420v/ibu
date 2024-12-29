@@ -315,8 +315,17 @@ gen_jmp_table:
 	movq $0, %rax
 	callq *%r10
 	addq $8, %rsp
+	leaq 32(%rbp), %rax
+	movslq (%rax), %rax
+	push %rax
+	leaq (%rsp), %rax
+	push %rax
+	push $1
 .data
 .L.str.3:
+	.byte 46
+	.byte 76
+	.byte 46
 	.byte 106
 	.byte 117
 	.byte 109
@@ -327,6 +336,9 @@ gen_jmp_table:
 	.byte 98
 	.byte 108
 	.byte 101
+	.byte 46
+	.byte 37
+	.byte 100
 	.byte 58
 	.byte 10
 	.byte 0
@@ -337,7 +349,7 @@ gen_jmp_table:
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
-	addq $8, %rsp
+	addq $32, %rsp
 	leaq -32(%rbp), %rax
 	push %rax
 	movq $0, %rax
@@ -2687,6 +2699,12 @@ gen_stmt:
 	movq $0, %rax
 	callq *%r10
 	addq $32, %rsp
+	leaq -8(%rbp), %rax
+	movslq (%rax), %rax
+	push %rax
+	leaq (%rsp), %rax
+	push %rax
+	push $1
 .data
 .L.str.39:
 	.byte 9
@@ -2695,6 +2713,9 @@ gen_stmt:
 	.byte 118
 	.byte 113
 	.byte 32
+	.byte 46
+	.byte 76
+	.byte 46
 	.byte 106
 	.byte 117
 	.byte 109
@@ -2705,6 +2726,9 @@ gen_stmt:
 	.byte 98
 	.byte 108
 	.byte 101
+	.byte 46
+	.byte 37
+	.byte 100
 	.byte 40
 	.byte 44
 	.byte 32
@@ -2733,7 +2757,7 @@ gen_stmt:
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
-	addq $8, %rsp
+	addq $32, %rsp
 .data
 .L.str.40:
 	.byte 9
