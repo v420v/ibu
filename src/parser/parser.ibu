@@ -126,8 +126,7 @@ func new_array_type(base *Type, len i32) *Type {
 }
 
 func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type {
-    let ty *Type;
-    ty = alloc(typesize(Type));
+    let ty *Type = alloc(typesize(Type));
     if ty == nil {
         eprintf("memory allocation failed\n");
         exit(1);
@@ -1439,9 +1438,9 @@ break:
     return is_variadic;
 }
 
-func add_function_object(p *Parser, fn *Object) u0 {
-    fn.next = p.globals;
-    p.globals = fn;
+func add_global_object(p *Parser, obj *Object) u0 {
+    obj.next = p.globals;
+    p.globals = obj;
 }
 
 func parse_func(p *Parser) u0 {
@@ -1490,7 +1489,7 @@ func parse_func(p *Parser) u0 {
         fn.params = params;
         fn.is_global = true;
         fn.ty = new_func_type(types, return_ty, is_variadic);
-        add_function_object(p, fn);
+        add_global_object(p, fn);
         if is_declaration {
             fn.is_declaration = true;
             fn.locals = p.locals;
@@ -1509,10 +1508,29 @@ func parse_func(p *Parser) u0 {
     leave_scope(p);
 }
 
+func parse_global_let(p *Parser) u0 {
+    parser_skip(p, "let");
+    let name *u8 = p.tokens.lit;
+    parser_next(p);
+    let ty *Type = parse_ty(p);
+    let obj *Object = alloc(typesize(Object));
+    if obj == nil {
+        eprintf("memory allocation failed\n");
+    }
+    obj.kind = OBJ_VAR;
+    obj.name = name;
+    obj.ty = ty;
+    obj.is_global = true;
+    parser_skip(p, ";");
+    add_global_object(p, obj);
+}
+
 func parse(p *Parser) u0 {
     while p.tokens.kind != TK_EOF {
         if strcmp(p.tokens.lit, "func") {
             parse_func(p);
+        } else if strcmp(p.tokens.lit, "let") {
+            parse_global_let(p);
         } else if strcmp(p.tokens.lit, "struct") {
             parse_struct(p);
         } else {

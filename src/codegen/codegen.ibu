@@ -603,6 +603,12 @@ func gen(g *Gen, object *Object) u0 {
 
             printf("\tleave\n");
             printf("\tret\n");
+        } else if object.kind == OBJ_VAR {
+            printf(".data\n");
+            printf(".global %s\n", object.name);
+            printf("%s:\n", object.name);
+            printf("\t.zero %d\n", object.ty.size);
+            printf(".text\n");
         }
         object = object.next;
     }
