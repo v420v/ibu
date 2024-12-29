@@ -21,13 +21,13 @@ jobs:
 
       - name: Regenerate bootstrap files
         run: make update_bootstrap
-        
+
       - name: Commit and push changes
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "Pushing changes."
             git add .
-            git commit -m "Auto-update bootstrap files"
+            git commit -m "auto: update bootstrap files"
             git push
           else
             echo "No changes detected."
