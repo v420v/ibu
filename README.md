@@ -1,9 +1,10 @@
 <h1>The Ibu programming language</h1>
 
-[📄 Documentation](docs/docs.md) |
-[📄 ドキュメント](docs/docs_jp.md)
+[📄 Documentation](docs/docs.md)
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
+
+Ibu is not intended to be the next big thing to compete with C, C++, Rust, or other modern languages. Instead, it aims to be a programming language that brings joy to programming.
 
 ## Key Features of Ibu
 - No strict type checker

@@ -1,12 +1,16 @@
 # Documentation
 
+Ibu is not intended to be the next big thing to compete with C, C++, Rust, or other modern languages. Instead, it aims to be a programming language that brings joy to programming.
+
 ## Key features of Ibu
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
+- No variable shadowing
 - No `break`, `continue` stmt. Use `goto`
 - Allows `13 <= age < 20` instead of `13 <= age && age < 20`
 - Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
+- All values are extended to 64-bit when accessed
 - The compiler is written in itself
 - Default args don't have to be on the end (WIP)
 
@@ -43,11 +47,7 @@ $ make init
 $ ./ibuc <filename>.ibu
 ```
 
-Currently, the compiler outputs assembly to stdout. (This will change if a language-specific assembler is created)
-
-Output the assembly to an assembler to generate an object file, and then to a linker to generate an executable file.
-
-Don't forget to pass `lib/runtime.o`, `lib/linux-syscall.o`, `lib/std.o` to the linker.
+Currently, the compiler outputs assembly to stdout.
 
 ### Example: Compile Hello world!
 ```zsh
@@ -62,7 +62,7 @@ $ ./main
 ## Compiler implementation
 | File | Content |
 |-----------|------------------------|
-| `src/ibu.ibu` | entry point |
+| `src/ibu.ibu` | Entry point |
 | `src/tokenizer/tokenizer.ibu` | Lexical analyzer |
 | `src/preprocessor/preprocessor.ibu` | Preprocessor |
 | `src/parser/parser.ibu` | Parser |
@@ -152,7 +152,7 @@ func main() i32 {
 
 ## Condition
 
-### Example 1
+### Condition Example 1
 ```
 #include "std/header.ibu"
 
@@ -163,7 +163,7 @@ func main() i32 {
 }
 ```
 
-### Example 2
+### Condition Example 2
 `13 <= age && age < 20` can be used instead of `13 <= age < 20`.
 ```
 #include "std/header.ibu"
@@ -176,7 +176,7 @@ func main() i32 {
 }
 ```
 
-### Example 3
+### Condition Example 3
 ```
 #include "std/header.ibu"
 
@@ -190,7 +190,7 @@ func main() i32 {
 
 ## Loop
 
-### Example 1
+### Loop Example 1
 ```
 #include "std/header.ibu"
 
@@ -203,7 +203,7 @@ func main() i32 {
 }
 ```
 
-### Example 2
+### Loop Example 2
 ```
 #include "std/header.ibu"
 
@@ -218,13 +218,33 @@ label:
 }
 ```
 
-### Example 3
+### Loop Example 3
 ```
 #include "std/header.ibu"
 
 func main() i32 {
     for let i i32 = 0; i < 10; i++ {
         printf("%d\n", i);
+    }
+}
+```
+
+## Switch
+Switch statements always create a jump table to jump to the case.
+```
+#include "std/header.ibu"
+
+func main() i32 {
+    let n i32 = 10;
+    switch n {
+        case 5:
+            printf("5\n");
+        case 10:
+            printf("10\n");
+        case 20:
+            printf("20\n");
+        case 30:
+            printf("30\n");
     }
 }
 ```
