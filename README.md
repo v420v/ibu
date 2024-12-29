@@ -81,3 +81,8 @@ $ ./main
 | `lib/std/std.ibu` | Standard library |
 | `lib/runtime/runtime.ibu` | Runtime library |
 
+### Contribution
+contribution is welcome!
+
+### License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
