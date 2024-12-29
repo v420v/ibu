@@ -406,7 +406,7 @@ func gen_jmp_table(g *Gen, node *Node, unique_label_count i32) i32 {
     let min i32 = min_case.cond.int_val;
 
     printf(".data\n");
-    printf("jump_table:\n");
+    printf(".L.jump_table.%d:\n", unique_label_count);
     for let i i32 = 0; i < node.cases.len; i++ {
         let case_node *Node = vec_get(node.cases, i);
         let case_label_name *u8 = alloc(40); // this should be enough
@@ -447,7 +447,7 @@ func gen_stmt(g *Gen, node *Node) i32 {
         let min i32 = gen_jmp_table(g, node, unique_label_count);
         gen_expr(g, node.cond);
         printf("\tsubq $%d, %%rax\n", min);
-        printf("\tmovq jump_table(, %%rax, 8), %%rax\n");
+        printf("\tmovq .L.jump_table.%d(, %%rax, 8), %%rax\n", unique_label_count);
         printf("\tjmp *%%rax\n");
 
         gen_stmt(g, node.then_block);
