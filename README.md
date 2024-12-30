@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/cc8d8547-5796-4b6c-a78b-874386e0cb92" width="250px" align="center">
+    <img src="https://github.com/user-attachments/assets/578bcafb-eb8a-46e0-9ebe-2f2768f32e36" width="250px" align="center">
     <h1>The Ibu programming language</h1>
 </div>
 
