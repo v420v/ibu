@@ -1,4 +1,7 @@
-<h1>The Ibu programming language</h1>
+<div align="center">
+    <img src="https://github.com/user-attachments/assets/cc8d8547-5796-4b6c-a78b-874386e0cb92" width="250px" align="center">
+    <h1>The Ibu programming language</h1>
+</div>
 
 [📄 Documentation](docs/docs.md)
 
