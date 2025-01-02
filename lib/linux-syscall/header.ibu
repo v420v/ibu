@@ -321,4 +321,4 @@ func close(fd i32) i64;
 func write(fn i32, buf *u8, size i32) i64;
 func exit(code i32) i64;
 func readlink(path *u8, buf *u8, buf_size i64) i64;
-
+func brk(addr *u8) i64;
