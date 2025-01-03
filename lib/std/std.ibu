@@ -2,6 +2,94 @@
 #include "linux-syscall/header.ibu"
 #include "std/header.ibu"
 
+#define CHUNK_SIZE 16384 // 16KB
+
+let heap_head *u8;
+
+func memset(ptr *u8, val u8, n i32) u0 {
+    for let i i32 = 0; i < n; i++ {
+        ptr[i] = val;
+    }
+}
+
+func sbrk(increment i32) *u8 {
+    let old_break *u8 = brk(0);
+    if old_break < 1 {
+        return nil;
+    }
+
+    let new_break *u8 = old_break + increment;
+
+    let result *u8 = brk(new_break);
+    if result < 1 {
+        return nil;
+    }
+
+    return old_break;
+}
+
+func find_free_block(size i32) *BlockHeader {
+    let current *BlockHeader = heap_head;
+    while current != nil {
+        if current.is_free && current.size >= size + typesize(BlockHeader) {
+            return current;
+        }
+        current = current.next;
+    }
+    return nil;
+}
+
+func request_space(size i32) *BlockHeader {
+    let request_size i32 = size + typesize(BlockHeader);
+
+    let new_heap_head *BlockHeader = sbrk(request_size);
+    if new_heap_head < 1 {
+        return nil;
+    }
+
+    memset(new_heap_head, 0, request_size);
+
+    new_heap_head.size = request_size;
+    new_heap_head.is_free = false;
+    new_heap_head.next = nil;
+
+    return new_heap_head;
+}
+
+func alloc(size i32) *u8 {
+    if size <= 0 {
+        return nil;
+    }
+
+    let aligned_size i32 = size;
+    let block *BlockHeader = find_free_block(aligned_size);
+    if block == nil {
+        block = request_space(aligned_size);
+        if block == nil {
+            return nil;
+        }
+
+        if heap_head == nil {
+            heap_head = block;
+        } else {
+            block.next = heap_head;
+            heap_head = block;
+        }
+    } else {
+        block.is_free = false;
+    }
+
+    return block + typesize(BlockHeader);
+}
+
+func free(ptr *u8) u0 {
+    if ptr == nil {
+        return;
+    }
+    let block *BlockHeader = ptr - typesize(BlockHeader);
+    block.is_free = true;
+}
+
 func strcmp(a *u8, b *u8) bool {
     for let i i32 = 0; a[i] == b[i]; i++ {
         if a[i] == '\0' {
