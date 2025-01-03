@@ -1,7 +1,7 @@
 
+#include "header.ibu"
 #include "std/header.ibu"
 #include "linux-syscall/header.ibu"
-#include "header.ibu"
 
 func copy_token(source *Token, dest *Token) u0 {
     dest.lit = source.lit;
