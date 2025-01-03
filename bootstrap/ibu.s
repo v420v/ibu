@@ -210,7 +210,7 @@ main:
 .L.end.2:
 	leaq -48(%rbp), %rax
 	push %rax
-	movq $150000, %rax
+	movq $170000, %rax
 	push %rax
 	leaq alloc(%rip), %rax
 	movq %rax, %r10
@@ -275,7 +275,7 @@ main:
 	jmp .L.end.4
 .L.else.4:
 .L.end.4:
-	movq $150000, %rax
+	movq $170000, %rax
 	push %rax
 	leaq -48(%rbp), %rax
 	movq (%rax), %rax
