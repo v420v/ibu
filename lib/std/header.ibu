@@ -3,7 +3,7 @@
 #define STDIN 0
 #define STDIO 1
 #define STDERR 2
-#define PROGRAM_MAX_SIZE 150000
+#define PROGRAM_MAX_SIZE 170000
 
 struct Vec {
     ptr **u8,
@@ -11,12 +11,20 @@ struct Vec {
     cap i32,
 }
 
+struct BlockHeader {
+    size i32,
+    is_free bool,
+    next *BlockHeader,
+}
+
+func sbrk(increment i32) *u8;
+func alloc(size i32) *u8;
+func free(ptr *u8) u0;
 func strcmp(a *u8, b *u8) bool;
 func new_vec(cap i32) *Vec;
 func vec_realloc(vec *Vec) u0;
 func vec_get(vec *Vec, i i32) *u8;
 func vec_append(vec *Vec, val *u8) u0;
-func alloc(size i32) *u8;
 func strlen(str *u8) i32;
 func fputs(fd i32, str *u8) i32;
 func align_to(n i32, align i32) i32;
@@ -39,4 +47,3 @@ func printf(fmt *u8, ...) i32;
 func eprintf(fmt *u8, ...) i32;
 func sprintf(buf *u8, fmt *u8, ...) i32;
 func strndup(str *u8, n i32) *u8;
-
