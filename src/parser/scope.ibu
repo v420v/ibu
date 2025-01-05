@@ -1,0 +1,112 @@
+
+#include "header.ibu"
+#include "std/header.ibu"
+#include "linux-syscall/header.ibu"
+
+func cmp_func_param(p1 *Object, p2 *Object) bool {
+    return strcmp(p1.name, p2.name) && cmp_type(p1.ty, p2.ty);
+}
+
+func cmp_func_params(p1 *Vec, p2 *Vec) bool {
+    if p1.len != p2.len {
+        return false;
+    }
+
+    for let i i32 = 0; i < p1.len; i++ {
+        if !cmp_func_param(vec_get(p1, i), vec_get(p2, i)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+func find_globals(p *Parser, name *u8) *Object {
+    for let object *Object = p.globals; object != nil; object = object.next {
+        if strcmp(object.name, name) {
+            return object;
+        }
+    }
+
+    return nil;
+}
+
+func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32 {
+    let obj *Object = find_locals(p, name);
+    if obj != nil {
+        print_error_with_code(tok, "name already exist");
+        exit(1);
+    }
+    return 0;
+}
+
+func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token, is_func_param bool) *Object {
+    check_local_object_already_exist(p, name, tok);
+
+    let obj *Object = alloc(typesize(Object));
+    if obj == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+
+    obj.kind = kind;
+    obj.name = name;
+    obj.ty = ty;
+    obj.is_func_param = is_func_param;
+
+    obj.next = p.locals;
+    p.locals = obj;
+
+    scope_push_obj(p, name, obj);
+
+    return obj;
+}
+
+func enter_scope(p *Parser) u0 {
+    let new_scope *Scope = alloc(typesize(Scope));
+    new_scope.outer = p.scope;
+    p.scope = new_scope;
+}
+
+func leave_scope(p *Parser) u0 {
+    p.scope = p.scope.outer;
+}
+
+func find_locals(p *Parser, name *u8) *Object {
+    for let scope *Scope = p.scope; scope != nil; scope = scope.outer {
+        let var_scope *VarScope = scope.var_scope;
+        while var_scope != nil {
+            if strcmp(name, var_scope.name) {
+                return var_scope.obj;
+            }
+            var_scope = var_scope.outer;
+        }
+    }
+    return nil;
+}
+
+func find_locals_current_scope(p *Parser, name *u8) *Object {
+    for let var_scope *VarScope = p.scope.var_scope; var_scope != nil; var_scope = var_scope.outer {
+        if strcmp(name, var_scope.name) {
+            return var_scope.obj;
+        }
+    }
+    return nil;
+}
+
+func scope_push_obj(p *Parser, name *u8, obj *Object) *VarScope {
+    let var_scope *VarScope = alloc(typesize(VarScope));
+    var_scope.name = name;
+    var_scope.obj = obj;
+    var_scope.outer = p.scope.var_scope;
+    p.scope.var_scope = var_scope;
+    return var_scope;
+}
+
+func find_object(p *Parser, name *u8) *Object {
+    let obj *Object = find_locals(p, name);
+    if obj == nil {
+        obj = find_globals(p, name);
+    }
+    return obj;
+}

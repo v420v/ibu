@@ -1,0 +1,274 @@
+
+#include "header.ibu"
+#include "std/header.ibu"
+#include "linux-syscall/header.ibu"
+
+func unkown_type_error(types *Vec, tok *Token, msg *u8) u0 {
+    print_error_with_code(tok, msg);
+
+    if types.len == 0 {
+        exit(1);
+    } else if types.len == 1 {
+        eprintf("help: %d possibility:", types.len);
+    } else {
+        eprintf("help: %d possibilities:", types.len);
+    }
+
+    for let i i32 = 0; i < types.len; i++ {
+        let type *Type = vec_get(types, i);
+        if i+1 < types.len {
+            eprintf(" `%s`,", type.name);
+        } else {
+            eprintf(" `%s`", type.name);
+        }
+    }
+
+    eprintf("\n");
+
+    exit(1);
+}
+
+func get_user_defined_type(p *Parser, name *u8) *Type {
+    for let i i32 = 0; i < p.user_defined_types.len; i++ {
+        let type *Type = vec_get(p.user_defined_types, i);
+        if strcmp(type.name, name) {
+            return type;
+        }
+    }
+    return nil;
+}
+
+func new_builtin_type(kind TypeKind, size i32, name *u8, is_unsigned bool) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = kind;
+    ty.size = size;
+    ty.name = name;
+    ty.pointer_to = nil;
+    ty.is_unsigned = is_unsigned;
+    return ty;
+}
+
+func new_pointer_type(base *Type) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_PTR;
+    ty.size = 8;
+    ty.pointer_to = base;
+    return ty;
+}
+
+func new_array_type(base *Type, len i32) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_ARRAY;
+    ty.size = base.size * len;
+    ty.pointer_to = base;
+    ty.array_len = len;
+    return ty;
+}
+
+func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_FUNC;
+    ty.size = 8;
+    ty.params = params_types;
+    ty.return_type = return_type;
+    ty.is_variadic = is_variadic;
+    return ty;
+}
+
+func cmp_type_vec(vec1 *Vec, vec2 *Vec) bool {
+    if vec1.len != vec2.len {
+        return false;
+    }
+
+    for let i i32 = 0; i < vec1.len; i++ {
+        if !cmp_type(vec_get(vec1, i), vec_get(vec2, i)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+func cmp_type(ty1 *Type, ty2 *Type) bool {
+    if ty1 == nil || ty2 == nil {
+        eprintf("internal error: this should not happen\n");
+        exit(1);
+    }
+
+    if ty1.kind != ty2.kind {
+        return false;
+    }
+
+    if ty1.kind == TY_FUNC {
+        return cmp_type(ty1.return_type, ty2.return_type) && cmp_type_vec(ty1.params, ty2.params) && ty1.is_variadic == ty2.is_variadic;
+    }
+
+    if ty1.kind == TY_PTR {
+        return cmp_type(ty1.pointer_to, ty2.pointer_to);
+    }
+
+    return ty1.size == ty2.size && ty1.is_unsigned == ty2.is_unsigned && strcmp(ty1.name, ty2.name);
+}
+
+func parse_params_types(p *Parser, types *Vec) bool {
+    while !strcmp(p.tokens.lit, ")") {
+        if strcmp(p.tokens.lit, "...") {
+            parser_next(p);
+            return true;
+        } else {
+            let ty *Type = parse_ty(p);
+            if ty.kind == TY_ARRAY {
+                ty = new_pointer_type(ty.pointer_to);
+            }
+            vec_append(types, ty);
+        }
+        if !strcmp(p.tokens.lit, ",") {
+            goto break;
+        }
+        parser_next(p);
+    }
+
+break:
+
+    return false;
+}
+
+func parse_ty(p *Parser) *Type {
+    let name *u8 = p.tokens.lit;
+    let type_name_tok *Token = p.tokens;
+
+    parser_next(p);
+    let ty *Type;
+
+    if strcmp(name, "i64") { ty = p.ty_i64; }
+    else if strcmp(name, "i32") { ty = p.ty_i32; }
+    else if strcmp(name, "i16") { ty = p.ty_i16; }
+    else if strcmp(name, "i8") { ty = p.ty_i8; }
+    else if strcmp(name, "u64") { ty = p.ty_u64; }
+    else if strcmp(name, "u32") { ty = p.ty_u32; }
+    else if strcmp(name, "u16") { ty = p.ty_u16; }
+    else if strcmp(name, "u8") { ty = p.ty_u8; }
+    else if strcmp(name, "u0") { ty = p.ty_u0; }
+    else if strcmp(name, "bool") { ty = p.ty_bool; }
+    else if strcmp(name, "*") { ty = new_pointer_type(parse_ty(p)); }
+    else if strcmp(name, "func") {
+        parser_skip(p, "(");
+        let types *Vec = new_vec(4);
+        let is_variadic bool = parse_params_types(p, types);
+        parser_skip(p, ")");
+        ty = new_func_type(types, parse_ty(p), is_variadic);
+    } else if strcmp(name, "[") {
+        if p.tokens.kind != TK_NUM {
+            print_error(p.tokens, "expected number");
+        }
+        let array_len i32 = atoi(p.tokens.lit);
+        parser_next(p);
+        parser_skip(p, "]");
+        ty = new_array_type(parse_ty(p), array_len);
+    } else {
+        ty = get_user_defined_type(p, name);
+        if ty == nil {
+            unkown_type_error(p.user_defined_types, type_name_tok, "unkown type found");
+        }
+    }
+
+    return ty;
+}
+
+func add_type_block(p *Parser, nodes *Vec) u0 {
+    if nodes == nil {
+        return;
+    }
+    for let i i32 = 0; i < nodes.len; i++ {
+        let node *Node = vec_get(nodes, i);
+        add_type(p, node);
+    }
+}
+
+func add_type(p *Parser, node *Node) u0 {
+    if node == nil || node.ty != nil {
+        return;
+    }
+
+    add_type(p, node.lhs);
+    add_type(p, node.rhs);
+    add_type(p, node.init);
+    add_type(p, node.cond);
+    add_type(p, node.inc);
+
+    add_type_block(p, node.body);
+    add_type(p, node.then_block);
+    add_type(p, node.else_block);
+
+    add_type_block(p, node.args);
+
+    if node.kind == ND_STR {
+        node.ty = new_pointer_type(p.ty_i8);
+        return;
+    }
+
+    if node.kind == ND_FUNC_CALL {
+        node.ty = node.lhs.ty.return_type;
+        return;
+    }
+
+    if (node.kind == ND_ADD || node.kind == ND_SUB
+        || node.kind == ND_MUL || node.kind == ND_DIV
+        || node.kind == ND_MOD || node.kind == ND_ASSIGN
+        || node.kind == ND_SHL || node.kind == ND_SHR || node.kind == ND_MEMZERO) {
+        node.ty = node.lhs.ty;
+        return;
+    }
+
+    if (node.kind == ND_NOT || node.kind == ND_EQ
+        || node.kind == ND_NE || node.kind == ND_LE
+        || node.kind == ND_LT || node.kind == ND_GT
+        || node.kind == ND_GE || node.kind == ND_LOGAND
+        || node.kind == ND_LOGOR || node.kind == ND_NUM
+        || node.kind == ND_AND || node.kind == ND_OR) {
+        node.ty = p.ty_i32;
+        return;
+    }
+
+    if node.kind == ND_VAR {
+        node.ty = node.obj.ty;
+        return;
+    }
+
+    if node.kind == ND_REF {
+        if node.lhs.ty.kind == TY_ARRAY {
+            node.ty = new_pointer_type(node.lhs.ty.pointer_to);
+        } else {
+            node.ty = new_pointer_type(node.lhs.ty);
+        }
+        return;
+    }
+
+    if node.kind == ND_DEREF {
+        node.ty = node.lhs.ty.pointer_to;
+        return;
+    }
+
+    if node.kind == ND_EXPR_STMT {
+        node.ty = node.lhs.ty;
+        return;
+    }
+
+    return;
+}
