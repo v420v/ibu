@@ -7,7 +7,7 @@
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
-Ibu is not intended to be the next big thing to compete with C, C++, Rust, or other modern languages. Instead, it aims to be a programming language that brings joy to programming.
+Ibu is a programming language that brings joy to programming.
 
 ## Key Features of Ibu
 - No strict type checker
@@ -15,6 +15,9 @@ Ibu is not intended to be the next big thing to compete with C, C++, Rust, or ot
 - No function-like macros
 - No variable shadowing
 - No `break`, `continue` stmt. Use `goto`
+- No libc dependency
+- No hidden control flow
+- No hidden memory allocations
 - Allows `13 <= age < 20` instead of `13 <= age && age < 20`
 - Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
 - All values are extended to 64-bit when accessed
@@ -31,10 +34,10 @@ func main() i32 {
 ```
 
 > [!IMPORTANT]
-> Only supports x86-64 linux for now
+> Supports x86-64 Linux only
 
 ## Build the language
-```
+```zsh
 $ git clone git@github.com:v420v/ibu.git
 $ cd ibu
 $ make init
