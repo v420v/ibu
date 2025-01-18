@@ -37,7 +37,7 @@ func isalpha(c u8) bool;
 func isdigit(c u8) bool;
 func atoi(str *i8) i32;
 func reverse_str(str *u8, length i32) i32;
-func itoa(num i32, str *u8, base i32) i32;
+func itoa(num i32, buf *u8, base i32) i32;
 func fputunum(fd i32, n u64, r u32, u bool) i32;
 func fputchar(fd i32, c u8) i32;
 func vfprintf(fd i32, fmt *u8, args *i64) i32;

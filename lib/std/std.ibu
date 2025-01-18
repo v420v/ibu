@@ -268,13 +268,13 @@ func reverse_str(str *u8, length i32) i32 {
     }
 }
 
-func itoa(num i32, str *u8, base i32) i32 {
+func itoa(num i32, buf *u8, base i32) i32 {
     let i i32 = 0;
 
     if num == 0 {
-        str[i++] = '0';
-        str[i] = 0;
-        return str;
+        buf[i++] = '0';
+        buf[i] = '\0';
+        return i;
     }
 
     let is_neg bool = false;
@@ -287,20 +287,20 @@ func itoa(num i32, str *u8, base i32) i32 {
     while num != 0 {
         let rem i32 = num % base;
         if rem > 9 {
-            str[i++] = (rem - 10) + 'a';
+            buf[i++] = (rem - 10) + 'a';
         } else {
-            str[i++] = rem + '0';
+            buf[i++] = rem + '0';
         }
         num = num / base;
     }
 
     if is_neg {
-        str[i++] = '-';
+        buf[i++] = '-';
     }
 
-    reverse_str(str, i);
+    reverse_str(buf, i);
 
-    str[i] = 0;
+    buf[i] = '\0';
 
     return i;
 }
