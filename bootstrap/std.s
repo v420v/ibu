@@ -1754,8 +1754,8 @@ itoa:
 	movq $0, %rax
 	pop %rdi
 	movb %al, (%rdi)
-	leaq 24(%rbp), %rax
-	movq (%rax), %rax
+	leaq -12(%rbp), %rax
+	movslq (%rax), %rax
 	leave
 	ret
 	jmp .L.end.26
