@@ -1,13 +1,9 @@
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/578bcafb-eb8a-46e0-9ebe-2f2768f32e36" width="250px" align="center">
+    <img src="https://emoji2svg.deno.dev/api/🕊️" alt="eyecatch" height="100">
     <h1>The Ibu programming language</h1>
 </div>
 
-[📄 Documentation](docs/docs.md)
-
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
-
-Ibu is a programming language that brings joy to programming.
 
 ## Key Features of Ibu
 - No strict type checker
@@ -75,6 +71,8 @@ $ ./ibuc lib/std/std.ibu                     | as - -o lib/std.o
 $ ld -o main main.o lib/runtime.o lib/linux-syscall.o lib/std.o
 $ ./main
 ```
+
+[📜 The Ibu Programming Language Documentation](docs/docs.md)
 
 ## Compiler implementation
 | File | Content |
