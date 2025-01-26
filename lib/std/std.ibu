@@ -173,23 +173,21 @@ func memmove(dest *u8, src *u8, n u32) u0 {
     let p_dest *u8 = dest;
     let p_src *u8 = src;
 
-    let tmp *u8 = alloc(typesize(u8) * n); // TODO: free(tmp);
+    let tmp *u8 = alloc(typesize(u8) * n);
 
     if tmp == nil {
         return nil;
     } else {
-        let i u32 = 0;
-        while i < n {
+        for let i u32 = 0; i < n; i++ {
             *(tmp + i) = *(p_src + i);
-            i++;
         }
 
-        i = 0;
-        while i < n {
+        for let i u32 = 0; i < n; i++ {
             *(p_dest + i) = *(tmp + i);
-            i++;
         }
     }
+
+    free(tmp);
 }
 
 func byte_to_lower(c u8) u8 {
