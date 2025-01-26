@@ -168,11 +168,13 @@ func parse_ty(p *Parser) *Type {
     else if strcmp(name, "bool") { ty = p.ty_bool; }
     else if strcmp(name, "*") { ty = new_pointer_type(parse_ty(p)); }
     else if strcmp(name, "func") {
+        // NOTE: A variable or function paramater typed as a function will be treated as a function pointer `*func()`
         parser_skip(p, "(");
         let types *Vec = new_vec(4);
         let is_variadic bool = parse_params_types(p, types);
         parser_skip(p, ")");
         ty = new_func_type(types, parse_ty(p), is_variadic);
+        ty = new_pointer_type(ty);
     } else if strcmp(name, "[") {
         if p.tokens.kind != TK_NUM {
             print_error(p.tokens, "expected number");
@@ -224,7 +226,11 @@ func add_type(p *Parser, node *Node) u0 {
     }
 
     if node.kind == ND_FUNC_CALL {
-        node.ty = node.lhs.ty.return_type;
+        if node.lhs.ty.kind == TY_PTR {
+            node.ty = node.lhs.ty.pointer_to.return_type;
+        } else {
+            node.ty = node.lhs.ty.return_type;
+        }
         return;
     }
 

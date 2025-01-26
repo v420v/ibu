@@ -257,6 +257,23 @@ func parse_not(p *Parser) *Node {
     return node;
 }
 
+func get_function_pointer_type(node *Node) *Type {
+    let node_ty *Type = node.ty;
+    if node_ty == nil {
+        return nil;
+    }
+    if node_ty.kind == TY_FUNC {
+        return node_ty;
+    }
+    if node_ty.kind == TY_PTR {
+        let pointer_to *Type = node_ty.pointer_to;
+        if pointer_to.kind == TY_FUNC {
+            return pointer_to;
+        }
+    }
+    return nil;
+}
+
 func parse_unary(p *Parser) *Node {
     if strcmp(p.tokens.lit, "*") {
         return parse_deref(p);
@@ -277,7 +294,8 @@ func parse_unary(p *Parser) *Node {
 
             add_type(p, node);
 
-            if node.ty.kind != TY_FUNC {
+            let node_function_type *Type = get_function_pointer_type(node);
+            if node_function_type == nil {
                 print_error(lpar_tok, "cannot call a none function type object\n");
             }
 
@@ -289,12 +307,12 @@ func parse_unary(p *Parser) *Node {
             let rpar_tok *Token = p.tokens;
             parser_skip(p, ")");
 
-            if node.ty.is_variadic {
-                if func_call_node.args.len < params_length_without_argv_argc(node.ty) {
+            if node_function_type.is_variadic {
+                if func_call_node.args.len < params_length_without_argv_argc(node_function_type) {
                     print_error(lpar_tok, "The number of arguments does not match the function definition");
                 }
             } else {
-                if func_call_node.args.len != node.ty.params.len {
+                if func_call_node.args.len != node_function_type.params.len {
                     print_error(lpar_tok, "The number of arguments does not match the function definition");
                 }
             }

@@ -193,7 +193,11 @@ func gen_expr(g *Gen, node *Node) i32 {
         return 0;
     }
     if node.kind == ND_FUNC_CALL {
-        let stack i32 = func_call_args_to_stack(g, node.args, node.lhs.ty);
+        let node_function_type *Type = node.lhs.ty;
+        if node_function_type.kind == TY_PTR {
+            node_function_type = node.lhs.ty.pointer_to;
+        }
+        let stack i32 = func_call_args_to_stack(g, node.args, node_function_type);
 
         gen_expr(g, node.lhs);
         printf("\tmovq %%rax, %%r10\n");
