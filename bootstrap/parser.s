@@ -8439,6 +8439,7 @@ unkown_member_error:
 	.byte 37
 	.byte 115
 	.byte 96
+	.byte 10
 	.byte 0
 .text
 	leaq .L.str.114(%rip), %rax
@@ -8465,18 +8466,6 @@ unkown_member_error:
 	subq %rdi, %rax
 	jmp .L.while.start.126
 .L.while.end.126:
-.data
-.L.str.115:
-	.byte 10
-	.byte 0
-.text
-	leaq .L.str.115(%rip), %rax
-	push %rax
-	leaq eprintf(%rip), %rax
-	movq %rax, %r10
-	movq $0, %rax
-	callq *%r10
-	addq $8, %rsp
 	movq $1, %rax
 	push %rax
 	leaq exit(%rip), %rax
@@ -8514,7 +8503,7 @@ unexpected_token_error:
 	push %rax
 	push $2
 .data
-.L.str.116:
+.L.str.115:
 	.byte 104
 	.byte 101
 	.byte 108
@@ -8550,7 +8539,7 @@ unexpected_token_error:
 	.byte 10
 	.byte 0
 .text
-	leaq .L.str.116(%rip), %rax
+	leaq .L.str.115(%rip), %rax
 	push %rax
 	leaq eprintf(%rip), %rax
 	movq %rax, %r10

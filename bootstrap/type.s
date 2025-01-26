@@ -2825,6 +2825,7 @@ unkown_type_error:
 	.byte 37
 	.byte 115
 	.byte 96
+	.byte 10
 	.byte 0
 .text
 	leaq .L.str.29(%rip), %rax
@@ -2851,18 +2852,6 @@ unkown_type_error:
 	subq %rdi, %rax
 	jmp .L.while.start.72
 .L.while.end.72:
-.data
-.L.str.30:
-	.byte 10
-	.byte 0
-.text
-	leaq .L.str.30(%rip), %rax
-	push %rax
-	leaq eprintf(%rip), %rax
-	movq %rax, %r10
-	movq $0, %rax
-	callq *%r10
-	addq $8, %rsp
 	movq $1, %rax
 	push %rax
 	leaq exit(%rip), %rax
@@ -2899,7 +2888,7 @@ new_builtin_type:
 	cmpq $1, %rax
 	jne .L.else.74
 .data
-.L.str.31:
+.L.str.30:
 	.byte 109
 	.byte 101
 	.byte 109
@@ -2927,7 +2916,7 @@ new_builtin_type:
 	.byte 10
 	.byte 0
 .text
-	leaq .L.str.31(%rip), %rax
+	leaq .L.str.30(%rip), %rax
 	push %rax
 	leaq eprintf(%rip), %rax
 	movq %rax, %r10
