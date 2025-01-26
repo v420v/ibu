@@ -90,7 +90,7 @@ find_free_block:
 	subq $16, %rsp
 	leaq -8(%rbp), %rax
 	push %rax
-	leaq heap_head(%rip), %rax
+	leaq free_list(%rip), %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
@@ -214,8 +214,8 @@ memset:
 	leave
 	ret
 .data
-.global heap_head
-heap_head:
+.global free_list
+free_list:
 	.zero 8
 .text
 .global strndup
@@ -3433,13 +3433,27 @@ free:
 	movq $1, %rax
 	pop %rdi
 	movl %eax, (%rdi)
+	leaq -8(%rbp), %rax
+	movq (%rax), %rax
+	addq $8, %rax
+	push %rax
+	leaq free_list(%rip), %rax
+	movq (%rax), %rax
+	pop %rdi
+	movq %rax, (%rdi)
+	leaq free_list(%rip), %rax
+	push %rax
+	leaq -8(%rbp), %rax
+	movq (%rax), %rax
+	pop %rdi
+	movq %rax, (%rdi)
 	leave
 	ret
 .global alloc
 alloc:
 	push %rbp
 	movq %rsp, %rbp
-	subq $16, %rsp
+	subq $32, %rsp
 	movq $0, %rax
 	push %rax
 	leaq 16(%rbp), %rax
@@ -3456,15 +3470,15 @@ alloc:
 	jmp .L.end.60
 .L.else.60:
 .L.end.60:
-	leaq -12(%rbp), %rax
+	leaq -20(%rbp), %rax
 	push %rax
 	leaq 16(%rbp), %rax
 	movslq (%rax), %rax
 	pop %rdi
 	movl %eax, (%rdi)
-	leaq -8(%rbp), %rax
+	leaq -16(%rbp), %rax
 	push %rax
-	leaq -12(%rbp), %rax
+	leaq -20(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
 	leaq find_free_block(%rip), %rax
@@ -3476,7 +3490,7 @@ alloc:
 	movq %rax, (%rdi)
 	movq $0, %rax
 	push %rax
-	leaq -8(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	cmpq %rdi, %rax
@@ -3484,9 +3498,9 @@ alloc:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.else.61
-	leaq -8(%rbp), %rax
+	leaq -16(%rbp), %rax
 	push %rax
-	leaq -12(%rbp), %rax
+	leaq -20(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
 	leaq request_space(%rip), %rax
@@ -3498,7 +3512,7 @@ alloc:
 	movq %rax, (%rdi)
 	movq $0, %rax
 	push %rax
-	leaq -8(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	cmpq %rdi, %rax
@@ -3512,9 +3526,12 @@ alloc:
 	jmp .L.end.62
 .L.else.62:
 .L.end.62:
-	movq $0, %rax
+	jmp .L.end.61
+.L.else.61:
+	leaq free_list(%rip), %rax
+	movq (%rax), %rax
 	push %rax
-	leaq heap_head(%rip), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	cmpq %rdi, %rax
@@ -3522,42 +3539,75 @@ alloc:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.else.63
-	leaq heap_head(%rip), %rax
+	leaq free_list(%rip), %rax
 	push %rax
-	leaq -8(%rbp), %rax
+	leaq -16(%rbp), %rax
+	movq (%rax), %rax
+	addq $8, %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
 	jmp .L.end.63
 .L.else.63:
 	leaq -8(%rbp), %rax
-	movq (%rax), %rax
-	addq $8, %rax
 	push %rax
-	leaq heap_head(%rip), %rax
+	leaq free_list(%rip), %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq heap_head(%rip), %rax
+.L.while.start.64:
+	leaq -16(%rbp), %rax
+	movq (%rax), %rax
 	push %rax
 	leaq -8(%rbp), %rax
+	movq (%rax), %rax
+	addq $8, %rax
+	movq (%rax), %rax
+	pop %rdi
+	cmpq %rdi, %rax
+	setne %al
+	movzbq %al, %rax
+	cmpq $1, %rax
+	jne .L.while.end.64
+	leaq -8(%rbp), %rax
+	push %rax
+	leaq -8(%rbp), %rax
+	movq (%rax), %rax
+	addq $8, %rax
+	movq (%rax), %rax
+	pop %rdi
+	movq %rax, (%rdi)
+	jmp .L.while.start.64
+.L.while.end.64:
+	leaq -8(%rbp), %rax
+	movq (%rax), %rax
+	addq $8, %rax
+	push %rax
+	leaq -16(%rbp), %rax
+	movq (%rax), %rax
+	addq $8, %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
 .L.end.63:
-	jmp .L.end.61
-.L.else.61:
-	leaq -8(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	addq $4, %rax
 	push %rax
 	movq $0, %rax
 	pop %rdi
 	movl %eax, (%rdi)
+	leaq -16(%rbp), %rax
+	movq (%rax), %rax
+	addq $8, %rax
+	push %rax
+	movq $0, %rax
+	pop %rdi
+	movq %rax, (%rdi)
 .L.end.61:
 	movq $16, %rax
 	push %rax
-	leaq -8(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
@@ -3590,13 +3640,13 @@ sbrk:
 	setl %al
 	movzbq %al, %rax
 	cmpq $1, %rax
-	jne .L.else.64
+	jne .L.else.65
 	movq $0, %rax
 	leave
 	ret
-	jmp .L.end.64
-.L.else.64:
-.L.end.64:
+	jmp .L.end.65
+.L.else.65:
+.L.end.65:
 	leaq -16(%rbp), %rax
 	push %rax
 	leaq 16(%rbp), %rax
@@ -3629,13 +3679,13 @@ sbrk:
 	setl %al
 	movzbq %al, %rax
 	cmpq $1, %rax
-	jne .L.else.65
+	jne .L.else.66
 	movq $0, %rax
 	leave
 	ret
-	jmp .L.end.65
-.L.else.65:
-.L.end.65:
+	jmp .L.end.66
+.L.else.66:
+.L.end.66:
 	leaq -24(%rbp), %rax
 	movq (%rax), %rax
 	leave
