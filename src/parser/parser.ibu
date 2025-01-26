@@ -32,11 +32,9 @@ func unkown_member_error(members *Vec, tok *Token, msg *u8) u0 {
         if i+1 < members.len {
             eprintf(" `%s`,", member.name);
         } else {
-            eprintf(" `%s`", member.name);
+            eprintf(" `%s`\n", member.name);
         }
     }
-
-    eprintf("\n");
 
     exit(1);
 }

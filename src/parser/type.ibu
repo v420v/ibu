@@ -19,11 +19,9 @@ func unkown_type_error(types *Vec, tok *Token, msg *u8) u0 {
         if i+1 < types.len {
             eprintf(" `%s`,", type.name);
         } else {
-            eprintf(" `%s`", type.name);
+            eprintf(" `%s`\n", type.name);
         }
     }
-
-    eprintf("\n");
 
     exit(1);
 }
