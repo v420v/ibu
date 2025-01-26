@@ -4,7 +4,7 @@
 
 #define CHUNK_SIZE 16384 // 16KB
 
-let heap_head *u8;
+let free_list *u8;
 
 func memset(ptr *u8, val u8, n i32) u0 {
     for let i i32 = 0; i < n; i++ {
@@ -29,7 +29,7 @@ func sbrk(increment i32) *u8 {
 }
 
 func find_free_block(size i32) *BlockHeader {
-    let current *BlockHeader = heap_head;
+    let current *BlockHeader = free_list;
     while current != nil {
         if current.is_free && current.size >= size + typesize(BlockHeader) {
             return current;
@@ -68,15 +68,18 @@ func alloc(size i32) *u8 {
         if block == nil {
             return nil;
         }
-
-        if heap_head == nil {
-            heap_head = block;
-        } else {
-            block.next = heap_head;
-            heap_head = block;
-        }
     } else {
+        if block == free_list {
+            free_list = block.next;
+        } else {
+            let prev *BlockHeader = free_list;
+            while prev.next != block {
+                prev = prev.next;
+            }
+            prev.next = block.next;
+        }
         block.is_free = false;
+        block.next = nil;
     }
 
     return block + typesize(BlockHeader);
@@ -88,6 +91,9 @@ func free(ptr *u8) u0 {
     }
     let block *BlockHeader = ptr - typesize(BlockHeader);
     block.is_free = true;
+
+    block.next = free_list;
+    free_list = block;
 }
 
 func strcmp(a *u8, b *u8) bool {
