@@ -20,6 +20,10 @@ func heap_init() u0 {
     }
 }
 
+func fstat(fd i32, buf *Stat) i64 {
+    return syscall(SYS_FSTAT, fd, buf, 0);
+}
+
 func memset(ptr *u8, val u8, n i32) u0 {
     for let i i32 = 0; i < n; i++ {
         ptr[i] = val;
