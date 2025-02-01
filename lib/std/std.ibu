@@ -61,7 +61,7 @@ func alloc(size i32) *u8 {
         return nil;
     }
 
-    let aligned_size i32 = size;
+    let aligned_size i32 = align_to(size, 8);
     let block *BlockHeader = find_free_block(aligned_size);
     if block == nil {
         block = request_space(aligned_size);
