@@ -25,13 +25,21 @@ func main(argc i32, argv **u8) i32 {
         }
     }
 
-    let program *u8 = alloc(PROGRAM_MAX_SIZE);
+    let stat Stat = {};
+    let fstat_result i64 = fstat(fd, &stat);
+    if fstat_result < 0 {
+        eprintf("error: fstat failed\n");
+        exit(1);
+    }
+
+    let program *u8 = alloc(stat.st_size+1);
     if program == nil {
         eprintf("memory allocation failed\n");
         exit(1);
     }
-    read(fd, program, PROGRAM_MAX_SIZE);
+    read(fd, program, stat.st_size);
     close(fd);
+    program[stat.st_size] = '\0';
 
     let t *Tokenizer = new_tokenizer(file_name, program);
     let tokens *Token = tokenize(t);

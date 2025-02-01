@@ -168,12 +168,20 @@ func preprocess(tok *Token, p *Preprocessor) u0 {
             if !already_imported {
                 vec_append(p.included_file_full_path, file_full_path);
 
-                let buf *u8 = alloc(PROGRAM_MAX_SIZE);
+                let stat Stat = {};
+                let fstat_result i64 = fstat(fd, &stat);
+                if fstat_result < 0 {
+                    eprintf("error: fstat failed\n");
+                    exit(1);
+                }
+
+                let buf *u8 = alloc(stat.st_size+1); // FIXME: dont know why +1 but it works
                 if buf == nil {
                     eprintf("memory allocation failed\n");
                     exit(1);
                 }
-                read(fd, buf, PROGRAM_MAX_SIZE);
+                read(fd, buf, stat.st_size);
+                buf[stat.st_size] = '\0';
                 close(fd);
 
                 let tokens *Token = tokenize(new_tokenizer(new_file_name, buf));
@@ -182,6 +190,7 @@ func preprocess(tok *Token, p *Preprocessor) u0 {
                 *get_eof_from_tokens(tokens) = *tok.next.next.next;
                 *tok = *tokens;
             } else {
+                close(fd);
                 *tok = *tok.next.next.next;
             }
         } else {
