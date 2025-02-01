@@ -2608,19 +2608,19 @@ memmove:
 	push %rbp
 	movq %rsp, %rbp
 	subq $32, %rsp
-	leaq -28(%rbp), %rax
+	leaq -32(%rbp), %rax
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq -20(%rbp), %rax
+	leaq -24(%rbp), %rax
 	push %rax
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq -12(%rbp), %rax
+	leaq -16(%rbp), %rax
 	push %rax
 	leaq 32(%rbp), %rax
 	movslq (%rax), %rax
@@ -2638,7 +2638,7 @@ memmove:
 	movq %rax, (%rdi)
 	movq $0, %rax
 	push %rax
-	leaq -12(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	cmpq %rdi, %rax
@@ -2651,7 +2651,7 @@ memmove:
 	ret
 	jmp .L.end.48
 .L.else.48:
-	leaq -4(%rbp), %rax
+	leaq -8(%rbp), %rax
 	push %rax
 	movq $0, %rax
 	pop %rdi
@@ -2660,7 +2660,7 @@ memmove:
 	leaq 32(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
-	leaq -4(%rbp), %rax
+	leaq -8(%rbp), %rax
 	movslq (%rax), %rax
 	pop %rdi
 	cmpq %rdi, %rax
@@ -2668,18 +2668,18 @@ memmove:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.while.end.49
-	leaq -4(%rbp), %rax
+	leaq -8(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
-	leaq -12(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
 	push %rax
-	leaq -4(%rbp), %rax
+	leaq -8(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
-	leaq -20(%rbp), %rax
+	leaq -24(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
@@ -2688,11 +2688,11 @@ memmove:
 	movb %al, (%rdi)
 	movq $1, %rax
 	push %rax
-	leaq -4(%rbp), %rax
+	leaq -8(%rbp), %rax
 	push %rax
 	movq $1, %rax
 	push %rax
-	leaq -4(%rbp), %rax
+	leaq -8(%rbp), %rax
 	movslq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
@@ -2722,7 +2722,7 @@ memmove:
 	leaq -4(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
-	leaq -28(%rbp), %rax
+	leaq -32(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
@@ -2730,7 +2730,7 @@ memmove:
 	leaq -4(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
-	leaq -12(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	addq %rdi, %rax
@@ -2754,6 +2754,14 @@ memmove:
 	jmp .L.while.start.50
 .L.while.end.50:
 .L.end.48:
+	leaq -16(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq free(%rip), %rax
+	movq %rax, %r10
+	movq $0, %rax
+	callq *%r10
+	addq $8, %rsp
 	leave
 	ret
 .global align_to
