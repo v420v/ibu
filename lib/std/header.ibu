@@ -11,15 +11,7 @@ struct Vec {
     cap i32,
 }
 
-struct BlockHeader {
-    size i32,
-    is_free bool,
-    next *BlockHeader,
-}
-
-func sbrk(increment i32) *u8;
 func alloc(size i32) *u8;
-func free(ptr *u8) u0;
 func strcmp(a *u8, b *u8) bool;
 func new_vec(cap i32) *Vec;
 func vec_realloc(vec *Vec) u0;
