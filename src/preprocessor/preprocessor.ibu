@@ -175,7 +175,7 @@ func preprocess(tok *Token, p *Preprocessor) u0 {
                     exit(1);
                 }
 
-                let buf *u8 = alloc(stat.st_size+1); // FIXME: dont know why +1 but it works
+                let buf *u8 = alloc(stat.st_size+1);
                 if buf == nil {
                     eprintf("memory allocation failed\n");
                     exit(1);
