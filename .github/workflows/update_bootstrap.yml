@@ -1,7 +1,8 @@
 name: Update Bootstrap Files
 
 on:
-  workflow_call:
+  push:
+    branches: [main]
 
 jobs:
   update-files:
