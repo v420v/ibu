@@ -1,5 +1,5 @@
 
-#include "std/header.ibu"
+#include "common/header.ibu"
 #include "linux-syscall/header.ibu"
 #include "tokenizer/header.ibu"
 #include "parser/header.ibu"

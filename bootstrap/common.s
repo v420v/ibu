@@ -1,60 +1,4 @@
 .text
-.global memset
-memset:
-	push %rbp
-	movq %rsp, %rbp
-	subq $16, %rsp
-	leaq -4(%rbp), %rax
-	push %rax
-	movq $0, %rax
-	pop %rdi
-	movl %eax, (%rdi)
-.L.while.start.1:
-	leaq 32(%rbp), %rax
-	movslq (%rax), %rax
-	push %rax
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
-	pop %rdi
-	cmpq %rdi, %rax
-	setl %al
-	movzbq %al, %rax
-	cmpq $1, %rax
-	jne .L.while.end.1
-	movq $1, %rax
-	push %rax
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
-	pop %rdi
-	imulq %rdi, %rax
-	push %rax
-	leaq 16(%rbp), %rax
-	movq (%rax), %rax
-	pop %rdi
-	addq %rdi, %rax
-	push %rax
-	leaq 24(%rbp), %rax
-	movzbq (%rax), %rax
-	pop %rdi
-	movb %al, (%rdi)
-	movq $1, %rax
-	push %rax
-	leaq -4(%rbp), %rax
-	push %rax
-	movq $1, %rax
-	push %rax
-	leaq -4(%rbp), %rax
-	movslq (%rax), %rax
-	pop %rdi
-	addq %rdi, %rax
-	pop %rdi
-	movl %eax, (%rdi)
-	pop %rdi
-	subq %rdi, %rax
-	jmp .L.while.start.1
-.L.while.end.1:
-	leave
-	ret
 .global heap_init
 heap_init:
 	push %rbp
@@ -106,15 +50,15 @@ heap_init:
 	sete %al
 	movzbq %al, %rax
 	cmpq $1, %rax
-	jne .L.else.2
+	jne .L.else.1
 	leaq heap_current(%rip), %rax
 	push %rax
 	leaq heap_head(%rip), %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-	jmp .L.end.2
-.L.else.2:
+	jmp .L.end.1
+.L.else.1:
 	leaq heap_current(%rip), %rax
 	push %rax
 	movq $8, %rax
@@ -136,7 +80,63 @@ heap_init:
 	addq %rdi, %rax
 	pop %rdi
 	movq %rax, (%rdi)
-.L.end.2:
+.L.end.1:
+	leave
+	ret
+.global memset
+memset:
+	push %rbp
+	movq %rsp, %rbp
+	subq $16, %rsp
+	leaq -4(%rbp), %rax
+	push %rax
+	movq $0, %rax
+	pop %rdi
+	movl %eax, (%rdi)
+.L.while.start.2:
+	leaq 32(%rbp), %rax
+	movslq (%rax), %rax
+	push %rax
+	leaq -4(%rbp), %rax
+	movslq (%rax), %rax
+	pop %rdi
+	cmpq %rdi, %rax
+	setl %al
+	movzbq %al, %rax
+	cmpq $1, %rax
+	jne .L.while.end.2
+	movq $1, %rax
+	push %rax
+	leaq -4(%rbp), %rax
+	movslq (%rax), %rax
+	pop %rdi
+	imulq %rdi, %rax
+	push %rax
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
+	push %rax
+	leaq 24(%rbp), %rax
+	movzbq (%rax), %rax
+	pop %rdi
+	movb %al, (%rdi)
+	movq $1, %rax
+	push %rax
+	leaq -4(%rbp), %rax
+	push %rax
+	movq $1, %rax
+	push %rax
+	leaq -4(%rbp), %rax
+	movslq (%rax), %rax
+	pop %rdi
+	addq %rdi, %rax
+	pop %rdi
+	movl %eax, (%rdi)
+	pop %rdi
+	subq %rdi, %rax
+	jmp .L.while.start.2
+.L.while.end.2:
 	leave
 	ret
 .data

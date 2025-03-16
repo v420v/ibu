@@ -20,15 +20,6 @@
 - The compiler is written in itself
 - Default args don't have to be on the end (WIP)
 
-```
-#include "std/header.ibu"
-
-func main() i32 {
-    printf("Hello, world!\n");
-    return 0;
-}
-```
-
 > [!IMPORTANT]
 > Supports x86-64 Linux only
 
@@ -60,20 +51,6 @@ $ make init
 $ ./ibuc <filename>.ibu
 ```
 
-Currently, the compiler outputs assembly to stdout.
-
-### Example: Compile Hello world!
-```zsh
-$ ./ibuc main.ibu | as - -o main.o
-$ as -o lib/runtime.o lib/runtime.s
-$ ./ibuc lib/linux-syscall/linux-syscall.ibu | as - -o lib/linux-syscall.o
-$ ./ibuc lib/std/std.ibu                     | as - -o lib/std.o
-$ ld -o main main.o lib/runtime.o lib/linux-syscall.o lib/std.o
-$ ./main
-```
-
-[📜 The Ibu Programming Language Documentation](docs/docs.md)
-
 ## Compiler implementation
 | File | Content |
 |-----------|------------------------|
@@ -81,10 +58,10 @@ $ ./main
 | `src/tokenizer/tokenizer.ibu` | Lexical analyzer |
 | `src/preprocessor/preprocessor.ibu` | Preprocessor |
 | `src/parser/parser.ibu` | Parser |
-| `src/codegen/codegen.ibu` | Code generator |
-| `lib/linux-syscall/linux-syscall.ibu` | Linux system call library |
-| `lib/std/std.ibu` | Standard library |
-| `lib/runtime/runtime.ibu` | Runtime library |
+| `src/codegen/codegen.ibu` | Assembly code generator |
+| `src/linux-syscall/linux-syscall.ibu` | Linux system call |
+| `src/runtime.s` | Syscall function in assembly |
+| `src/common/common.ibu` | Other |
 
 ### Contribution
 contribution is welcome!

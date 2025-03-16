@@ -1,7 +1,7 @@
 
 #include "header.ibu"
-#include "std/header.ibu"
-#include "linux-syscall/header.ibu"
+#include "../common/header.ibu"
+#include "../linux-syscall/header.ibu"
 
 func add_type(p *Parser, node *Node) u0;
 func parse_ty(p *Parser) *Type;
