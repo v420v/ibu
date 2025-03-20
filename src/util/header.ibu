@@ -34,7 +34,7 @@ struct Stat {
 }
 
 func alloc(size i32) *u8;
-func strcmp(a *u8, b *u8) bool;
+func str_equal(a *u8, b *u8) bool;
 func new_vec(cap i32) *Vec;
 func vec_realloc(vec *Vec) u0;
 func vec_get(vec *Vec, i i32) *u8;

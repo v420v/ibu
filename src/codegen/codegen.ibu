@@ -516,7 +516,7 @@ func assign_local_var_offset(g *Gen, obj *Object) i32 {
 
 func has_main(object *Object) bool {
     while object != nil {
-        if strcmp(object.name, "main") {
+        if str_equal(object.name, "main") {
             return true;
         }
         object = object.next;
