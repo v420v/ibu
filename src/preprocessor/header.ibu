@@ -1,6 +1,6 @@
 
 #include "../tokenizer/header.ibu"
-#include "../common/header.ibu"
+#include "../util/header.ibu"
 
 #define MAX_PATH_LENGTH 4096
 

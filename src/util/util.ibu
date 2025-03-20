@@ -1,6 +1,6 @@
 
-#include "../linux-syscall/header.ibu"
 #include "header.ibu"
+#include "../linux-syscall/header.ibu"
 
 #define HEAP_SIZE 2147483647
 

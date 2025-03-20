@@ -1,5 +1,5 @@
 
-#include "../common/header.ibu"
+#include "../util/header.ibu"
 #include "../tokenizer/header.ibu"
 
 #define NodeKind			i32

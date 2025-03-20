@@ -61,7 +61,7 @@ $ ./ibuc <filename>.ibu
 | `src/codegen/codegen.ibu` | Assembly code generator |
 | `src/linux-syscall/linux-syscall.ibu` | Linux system call |
 | `src/runtime.s` | Syscall function in assembly |
-| `src/common/common.ibu` | Other |
+| `src/util/util.ibu` | Other |
 
 ### Contribution
 contribution is welcome!

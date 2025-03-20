@@ -1,6 +1,6 @@
 
 #include "header.ibu"
-#include "../common/header.ibu"
+#include "../util/header.ibu"
 #include "../linux-syscall/header.ibu"
 
 func new_preprocessor() *Preprocessor {
