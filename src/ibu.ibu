@@ -45,7 +45,7 @@ func main(argc i32, argv **u8) i32 {
     let tokens *Token = tokenize(t);
 
     let preprocessor *Preprocessor = new_preprocessor();
-    preprocess(tokens, preprocessor);
+    preprocess(preprocessor, tokens);
 
     let p *Parser = new_parser(tokens);
     parse(p);

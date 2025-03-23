@@ -16,5 +16,5 @@ struct Preprocessor {
 }
 
 func new_preprocessor() *Preprocessor;
-func preprocess(tok *Token, p *Preprocessor) u0;
+func preprocess(p *Preprocessor, tok *Token) u0;
 

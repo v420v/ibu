@@ -18,7 +18,7 @@ func new_macro(name *u8, tok *Token) *Macro {
     return macro;
 }
 
-func find_macro(name *u8, p *Preprocessor) *Macro {
+func find_macro(p *Preprocessor, name *u8) *Macro {
     for let m *Macro = p.macros; m != nil; m = m.next {
         if str_equal(m.name, name) {
             return m;
@@ -84,7 +84,7 @@ func fd_get_file_full_path(fd i32) *u8 {
     return result;
 }
 
-func preprocess(tok *Token, p *Preprocessor) u0 {
+func preprocess(p *Preprocessor, tok *Token) u0 {
     let start_folder_name *u8 = dirname(strndup(tok.file_name, strlen(tok.file_name)));
 
     while {
@@ -152,7 +152,7 @@ func preprocess(tok *Token, p *Preprocessor) u0 {
                 close(fd);
 
                 let tokens *Token = tokenize(new_tokenizer(new_file_name, buf));
-                preprocess(tokens, p);
+                preprocess(p, tokens);
 
                 *get_eof_from_tokens(tokens) = *tok.next.next.next;
                 *tok = *tokens;
@@ -167,13 +167,13 @@ func preprocess(tok *Token, p *Preprocessor) u0 {
 
 break:
 
-    let m *Macro = find_macro(tok.lit, p);
+    let m *Macro = find_macro(p, tok.lit);
     if m != nil {
         copy_token(m.tok, tok);
     }
 
     if tok.next != nil {
-        preprocess(tok.next, p);
+        preprocess(p, tok.next);
     }
 }
 
