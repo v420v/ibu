@@ -556,7 +556,7 @@ find_macro:
 	subq $16, %rsp
 	leaq -8(%rbp), %rax
 	push %rax
-	leaq 24(%rbp), %rax
+	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
 	movq (%rax), %rax
@@ -573,7 +573,7 @@ find_macro:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.while.end.11
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -581,7 +581,7 @@ find_macro:
 	addq $0, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -663,7 +663,7 @@ preprocess:
 	subq $240, %rsp
 	leaq -236(%rbp), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $8, %rax
 	movq (%rax), %rax
@@ -674,7 +674,7 @@ preprocess:
 	callq *%r10
 	addq $8, %rsp
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $8, %rax
 	movq (%rax), %rax
@@ -698,7 +698,7 @@ preprocess:
 	jne .L.while.end.13
 	movq $0, %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -715,12 +715,12 @@ preprocess:
 .text
 	leaq .L.str.5(%rip), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -747,14 +747,14 @@ preprocess:
 .text
 	leaq .L.str.6(%rip), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -771,7 +771,7 @@ preprocess:
 	jne .L.else.14
 	leaq -228(%rbp), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -780,7 +780,7 @@ preprocess:
 	addq $64, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -800,13 +800,13 @@ preprocess:
 	movq (%rax), %rax
 	addq $16, %rax
 	push %rax
-	leaq 24(%rbp), %rax
+	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq 24(%rbp), %rax
+	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
 	push %rax
@@ -814,10 +814,10 @@ preprocess:
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -976,7 +976,7 @@ preprocess:
 .L.else.14:
 	movq $0, %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -993,12 +993,12 @@ preprocess:
 .text
 	leaq .L.str.7(%rip), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1026,14 +1026,14 @@ preprocess:
 .text
 	leaq .L.str.8(%rip), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1050,7 +1050,7 @@ preprocess:
 	jne .L.else.17
 	leaq -220(%rbp), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -1335,7 +1335,7 @@ preprocess:
 	pop %rdi
 	movl %eax, (%rdi)
 .L.while.start.23:
-	leaq 24(%rbp), %rax
+	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $8, %rax
 	movq (%rax), %rax
@@ -1355,7 +1355,7 @@ preprocess:
 	leaq -188(%rbp), %rax
 	movslq (%rax), %rax
 	push %rax
-	leaq 24(%rbp), %rax
+	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $8, %rax
 	movq (%rax), %rax
@@ -1373,7 +1373,7 @@ preprocess:
 	leaq -200(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1415,7 +1415,7 @@ preprocess:
 	leaq -200(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq 24(%rbp), %rax
+	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	addq $8, %rax
 	movq (%rax), %rax
@@ -1628,10 +1628,10 @@ preprocess:
 	addq $8, %rsp
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq 24(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq -16(%rbp), %rax
+	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
 	leaq preprocess(%rip), %rax
@@ -1648,7 +1648,7 @@ preprocess:
 	callq *%r10
 	addq $8, %rsp
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -1801,7 +1801,7 @@ preprocess:
 	movb %r8b, 70(%rdi)
 	movb 71(%rax), %r8b
 	movb %r8b, 71(%rdi)
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
 	leaq -16(%rbp), %rax
@@ -1961,10 +1961,10 @@ preprocess:
 	movq $0, %rax
 	callq *%r10
 	addq $8, %rsp
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -2130,10 +2130,10 @@ preprocess:
 	push %rax
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
+	addq $32, %rax
+	movq (%rax), %rax
 	push %rax
 	leaq 16(%rbp), %rax
-	movq (%rax), %rax
-	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
 	leaq find_macro(%rip), %rax
@@ -2153,7 +2153,7 @@ preprocess:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.else.28
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
 	leaq -8(%rbp), %rax
@@ -2171,7 +2171,7 @@ preprocess:
 .L.end.28:
 	movq $0, %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
@@ -2183,10 +2183,10 @@ preprocess:
 	jne .L.else.29
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
+	addq $64, %rax
+	movq (%rax), %rax
 	push %rax
 	leaq 16(%rbp), %rax
-	movq (%rax), %rax
-	addq $64, %rax
 	movq (%rax), %rax
 	push %rax
 	leaq preprocess(%rip), %rax

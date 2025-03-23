@@ -3267,8 +3267,8 @@ new_vec:
 	ret
 	leave
 	ret
-.global strcmp
-strcmp:
+.global str_equal
+str_equal:
 	push %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp

@@ -556,7 +556,7 @@ parse_func:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -961,7 +961,7 @@ parse_function_params:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1018,7 +1018,7 @@ parse_function_params:
 	leaq -32(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1040,7 +1040,7 @@ parse_function_params:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1399,7 +1399,7 @@ parse_function_params:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1424,7 +1424,7 @@ parse_function_params:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1459,7 +1459,7 @@ parse_function_params:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1666,7 +1666,7 @@ parse_struct:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1741,7 +1741,7 @@ parse_struct:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2188,7 +2188,7 @@ parse_logor:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2268,7 +2268,7 @@ parse_logand:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2347,7 +2347,7 @@ parse_or:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2426,7 +2426,7 @@ parse_and:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2509,7 +2509,7 @@ parse_equality:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2633,7 +2633,7 @@ parse_equality:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2790,7 +2790,7 @@ parse_relational:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2883,7 +2883,7 @@ parse_relational:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2975,7 +2975,7 @@ parse_relational:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -3067,7 +3067,7 @@ parse_relational:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -3722,7 +3722,7 @@ parse_shift:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -3778,7 +3778,7 @@ parse_shift:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -3866,7 +3866,7 @@ parse_add:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -3921,7 +3921,7 @@ parse_add:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -4009,7 +4009,7 @@ parse_mul:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -4064,7 +4064,7 @@ parse_mul:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -4119,7 +4119,7 @@ parse_mul:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -4601,7 +4601,7 @@ search_struct_member:
 	addq $8, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -4745,7 +4745,7 @@ parse_number:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -4808,7 +4808,7 @@ parse_number:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -4872,7 +4872,7 @@ parse_number:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -4939,7 +4939,7 @@ parse_number:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -5043,7 +5043,7 @@ parse_number:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -5107,7 +5107,7 @@ parse_number:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -5474,7 +5474,7 @@ parse_func_call_args:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -5516,7 +5516,7 @@ parse_func_call_args:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -5651,7 +5651,7 @@ parse_params_types:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -5678,7 +5678,7 @@ parse_params_types:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -5766,7 +5766,7 @@ parse_params_types:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -6481,7 +6481,7 @@ parse_while:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -6587,7 +6587,7 @@ parse_for:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -6620,7 +6620,7 @@ parse_for:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -6668,7 +6668,7 @@ parse_for:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -6722,7 +6722,7 @@ parse_for:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -6783,7 +6783,7 @@ parse_for:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -6896,7 +6896,7 @@ parse_return:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -7039,7 +7039,7 @@ parse_if:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -7263,7 +7263,7 @@ parse_let:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -7330,7 +7330,7 @@ parse_let:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -7542,7 +7542,7 @@ initializer:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -7689,7 +7689,7 @@ initializer:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -7893,7 +7893,7 @@ initializer:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8093,7 +8093,7 @@ find_locals_current_scope:
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8217,7 +8217,7 @@ cmp_func_param:
 	addq $0, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8271,7 +8271,7 @@ parse_unary:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8306,7 +8306,7 @@ parse_unary:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8341,7 +8341,7 @@ parse_unary:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8392,7 +8392,7 @@ parse_unary:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8809,7 +8809,7 @@ parse_unary:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8893,7 +8893,7 @@ parse_unary:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -8976,7 +8976,7 @@ parse_unary:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9227,7 +9227,7 @@ parse_unary:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9710,7 +9710,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9748,7 +9748,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9785,7 +9785,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9823,7 +9823,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9859,7 +9859,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9896,7 +9896,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9935,7 +9935,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9975,7 +9975,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10010,7 +10010,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10061,7 +10061,7 @@ parse_stmt:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10162,7 +10162,7 @@ parse_block:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10353,7 +10353,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10383,7 +10383,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10413,7 +10413,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10442,7 +10442,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10472,7 +10472,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10502,7 +10502,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10532,7 +10532,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10561,7 +10561,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10590,7 +10590,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10621,7 +10621,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10649,7 +10649,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10690,7 +10690,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -10803,7 +10803,7 @@ parse_ty:
 	leaq -40(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -11184,7 +11184,7 @@ parse_expr:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -12241,7 +12241,7 @@ parser_skip:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -12517,7 +12517,7 @@ find_locals:
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -12591,7 +12591,7 @@ find_globals:
 	addq $0, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -12828,7 +12828,7 @@ get_user_defined_type:
 	addq $8, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -13010,7 +13010,7 @@ parse:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -13044,7 +13044,7 @@ parse:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -13081,7 +13081,7 @@ parse:
 	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -13806,7 +13806,7 @@ cmp_type:
 	addq $8, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10

@@ -103,7 +103,7 @@ main:
 	leaq -212(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -426,10 +426,10 @@ main:
 	addq $0, %rsp
 	pop %rdi
 	movq %rax, (%rdi)
-	leaq -24(%rbp), %rax
+	leaq -32(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq -32(%rbp), %rax
+	leaq -24(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
 	leaq preprocess(%rip), %rax

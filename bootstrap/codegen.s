@@ -30,7 +30,7 @@ has_main:
 	addq $0, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq strcmp(%rip), %rax
+	leaq str_equal(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
