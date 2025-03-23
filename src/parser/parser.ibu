@@ -1,7 +1,7 @@
 
 #include "header.ibu"
-#include "std/header.ibu"
-#include "linux-syscall/header.ibu"
+#include "../util/header.ibu"
+#include "../linux-syscall/header.ibu"
 
 func add_type(p *Parser, node *Node) u0;
 func parse_ty(p *Parser) *Type;
@@ -9,6 +9,669 @@ func parse_expr(p *Parser) *Node;
 func parse_stmt(p *Parser) *Node;
 func cmp_type(ty1 *Type, ty2 *Type) bool;
 func parse_unary(p *Parser) *Node;
+
+func cmp_func_param(p1 *Object, p2 *Object) bool {
+    return str_equal(p1.name, p2.name) && cmp_type(p1.ty, p2.ty);
+}
+
+func cmp_func_params(p1 *Vec, p2 *Vec) bool {
+    if p1.len != p2.len {
+        return false;
+    }
+
+    for let i i32 = 0; i < p1.len; i++ {
+        if !cmp_func_param(vec_get(p1, i), vec_get(p2, i)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+func find_globals(p *Parser, name *u8) *Object {
+    for let object *Object = p.globals; object != nil; object = object.next {
+        if str_equal(object.name, name) {
+            return object;
+        }
+    }
+
+    return nil;
+}
+
+func check_local_object_already_exist(p *Parser, name *u8, tok *Token) i32 {
+    let obj *Object = find_locals(p, name);
+    if obj != nil {
+        print_error_with_code(tok, "name already exist");
+        exit(1);
+    }
+    return 0;
+}
+
+func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token, is_func_param bool) *Object {
+    check_local_object_already_exist(p, name, tok);
+
+    let obj *Object = alloc(typesize(Object));
+    if obj == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+
+    obj.kind = kind;
+    obj.name = name;
+    obj.ty = ty;
+    obj.is_func_param = is_func_param;
+
+    obj.next = p.locals;
+    p.locals = obj;
+
+    scope_push_obj(p, name, obj);
+
+    return obj;
+}
+
+func enter_scope(p *Parser) u0 {
+    let new_scope *Scope = alloc(typesize(Scope));
+    new_scope.outer = p.scope;
+    p.scope = new_scope;
+}
+
+func leave_scope(p *Parser) u0 {
+    p.scope = p.scope.outer;
+}
+
+func find_locals(p *Parser, name *u8) *Object {
+    for let scope *Scope = p.scope; scope != nil; scope = scope.outer {
+        let var_scope *VarScope = scope.var_scope;
+        while var_scope != nil {
+            if str_equal(name, var_scope.name) {
+                return var_scope.obj;
+            }
+            var_scope = var_scope.outer;
+        }
+    }
+    return nil;
+}
+
+func find_locals_current_scope(p *Parser, name *u8) *Object {
+    for let var_scope *VarScope = p.scope.var_scope; var_scope != nil; var_scope = var_scope.outer {
+        if str_equal(name, var_scope.name) {
+            return var_scope.obj;
+        }
+    }
+    return nil;
+}
+
+func scope_push_obj(p *Parser, name *u8, obj *Object) *VarScope {
+    let var_scope *VarScope = alloc(typesize(VarScope));
+    var_scope.name = name;
+    var_scope.obj = obj;
+    var_scope.outer = p.scope.var_scope;
+    p.scope.var_scope = var_scope;
+    return var_scope;
+}
+
+func find_object(p *Parser, name *u8) *Object {
+    let obj *Object = find_locals(p, name);
+    if obj == nil {
+        obj = find_globals(p, name);
+    }
+    return obj;
+}
+
+func initializer(p *Parser, lhs *Node) *Node {
+    let nodes *Vec = new_vec(10);
+
+    if lhs.ty.kind != TY_ARRAY && lhs.ty.kind != TY_STRUCT {
+        print_error(p.tokens, "unexpected initializer");
+    }
+
+    parser_skip(p, "{");
+
+    if str_equal(p.tokens.lit, "}") {
+        let expr *Node = new_node(ND_MEMZERO);
+        expr.lhs = lhs;
+        vec_append(nodes, expr);
+    } else if lhs.ty.kind == TY_ARRAY {
+        let i i32 = 0;
+        while i < lhs.ty.array_len {
+            let deref_lhs *Node = new_node(ND_DEREF);
+            deref_lhs.lhs = new_binop(ND_ADD, lhs, new_node_num(lhs.ty.pointer_to.size * i));
+            add_type(p, deref_lhs);
+
+            if str_equal(p.tokens.lit, "{") {
+                vec_append(nodes, initializer(p, deref_lhs));
+            } else {
+                vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, parse_expr(p)));
+            }
+
+            i++;
+
+            if i < lhs.ty.array_len {
+                parser_skip(p, ",");
+            }
+        }
+    } else if lhs.ty.kind == TY_STRUCT {
+        let i i32 = 0;
+        while i < lhs.ty.members.len {
+            let struct_member *Member = vec_get(lhs.ty.members, i);
+
+            let deref_lhs *Node = new_struct_access_node(ND_MEMBER_ACCESS, lhs, struct_member.offset, struct_member.ty);
+
+            if str_equal(p.tokens.lit, "{") {
+                vec_append(nodes, initializer(p, deref_lhs));
+            } else {
+                vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, parse_expr(p)));
+            }
+
+            i++;
+
+            if i < lhs.ty.members.len {
+                parser_skip(p, ",");
+            }
+        }
+    } else {}
+
+    parser_skip(p, "}");
+
+    let node *Node = new_node(ND_BLOCK);
+    node.body = nodes;
+    add_type(p, node);
+
+    return node;
+}
+
+func parse_let(p *Parser) *Node {
+    let node *Node;
+
+    parser_skip(p, "let");
+
+    let var_name_tok *Token = p.tokens;
+    parser_next(p);
+
+    let var_ty *Type = parse_ty(p);
+    let obj *Object = new_local_object(p, OBJ_VAR, var_name_tok.lit, var_ty, var_name_tok, false);
+
+    if str_equal(p.tokens.lit, "=") {
+        parser_skip(p, "=");
+
+        let node_var *Node = new_node(ND_VAR);
+        node_var.obj = obj;
+        add_type(p, node_var);
+
+        if str_equal(p.tokens.lit, "{") {
+            node = initializer(p, node_var);
+            parser_skip(p, ";");
+        } else {
+            node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
+        }
+
+        return node;
+    } else {
+        parser_skip(p, ";");
+        return nil;
+    }
+}
+
+func parse_goto(p *Parser) *Node {
+    parser_skip(p, "goto");
+
+    let label_name *u8 = p.tokens.lit;
+    parser_next(p);
+
+    parser_skip(p, ";");
+
+    let node *Node = new_node(ND_GOTO);
+    node.label_name = label_name;
+    return node;
+}
+
+func parse_if(p *Parser) *Node {
+    parser_skip(p, "if");
+
+    let node *Node = new_node(ND_IF);
+    node.cond = parse_expr(p);
+    node.then_block = parse_block(p);
+
+    if str_equal(p.tokens.lit, "else") {
+        parser_next(p);
+        node.else_block = parse_stmt(p);
+    } else {
+        node.else_block = new_node(ND_EMPTY);
+    }
+
+    return node;
+}
+
+func parse_return(p *Parser) *Node {
+    parser_skip(p, "return");
+    if str_equal(p.tokens.lit, ";") {
+        parser_skip(p, ";");
+        return new_node(ND_RETURN);
+    }
+    let node *Node = new_node(ND_RETURN);
+    node.lhs = parse_expr_stmt(p);
+    return node;
+}
+
+func parse_for(p *Parser) *Node {
+    parser_skip(p, "for");
+    let node *Node = new_node(ND_FOR);
+
+    if !str_equal(p.tokens.lit, "{") {
+        enter_scope(p);
+        if str_equal(p.tokens.lit, ";") {
+            node.init = nil;
+            parser_skip(p, ";");
+        } else if str_equal(p.tokens.lit, "let") {
+            node.init = parse_let(p);
+        } else {
+            node.init = parse_expr_stmt(p);
+        }
+
+        if str_equal(p.tokens.lit, ";") {
+            node.cond = nil;
+        } else {
+            node.cond = parse_expr(p);
+        }
+        parser_skip(p, ";");
+
+        if str_equal(p.tokens.lit, "{") {
+            node.inc = nil;
+        } else {
+            node.inc = parse_expr(p);
+        }
+    } else {
+        node.cond = node_true();
+    }
+
+    node.then_block = parse_block(p);
+
+    leave_scope(p);
+
+    return node;
+}
+
+func parse_while(p *Parser) *Node {
+    parser_skip(p, "while");
+    let node *Node = new_node(ND_FOR);
+
+    if !str_equal(p.tokens.lit, "{") {
+        node.cond = parse_expr(p);
+    } else {
+        node.cond = node_true();
+    }
+
+    node.then_block = parse_block(p);
+    return node;
+}
+
+func parse_label(p *Parser) *Node {
+    let node *Node = new_node(ND_LABEL);
+    node.label_name = p.tokens.lit;
+
+    parser_next(p);
+    parser_skip(p, ":");
+
+    return node;
+}
+
+func parse_switch(p *Parser) *Node {
+    if p.current_switch != nil {
+        print_error(p.tokens, "nested switch statements are not supported yet");
+    }
+
+    let switch_tok *Token = p.tokens;
+
+    parser_skip(p, "switch");
+    let node *Node = new_node(ND_SWITCH);
+
+    p.current_switch = node;
+
+    node.cond = parse_expr(p);
+
+    node.cases = new_vec(4);
+
+    node.then_block = parse_block(p);
+
+    if node.cases.len == 0 {
+        print_error(switch_tok, "switch statement must have at least one case");
+    }
+
+    p.current_switch = nil;
+
+    return node;
+}
+
+func parse_case(p *Parser) *Node {
+    if p.current_switch == nil {
+        print_error(p.tokens, "case outside of switch");
+    }
+
+    parser_skip(p, "case");
+    let node *Node = new_node(ND_CASE);
+    let save_cond_tok *Token = p.tokens;
+    node.cond = parse_expr(p);
+    if node.cond.kind != ND_NUM {
+        print_error(save_cond_tok, "case value must be a integer constant");
+    }
+
+    parser_skip(p, ":");
+
+    vec_append(p.current_switch.cases, node);
+
+    return node;
+}
+
+func parse_stmt(p *Parser) *Node {
+    if str_equal(p.tokens.lit, "switch") {
+        return parse_switch(p);
+    }
+    if str_equal(p.tokens.lit, "case") {
+        return parse_case(p);
+    }
+    if str_equal(p.tokens.lit, "let") {
+        return parse_let(p);
+    }
+    if str_equal(p.tokens.lit, "goto") {
+        return parse_goto(p);
+    }
+    if str_equal(p.tokens.lit, "if") {
+        return parse_if(p);
+    }
+    if str_equal(p.tokens.lit, "for") {
+        return parse_for(p);
+    }
+    if str_equal(p.tokens.lit, "while") {
+        return parse_while(p);
+    }
+    if str_equal(p.tokens.lit, "return") {
+        return parse_return(p);
+    }
+    if str_equal(p.tokens.lit, "{") {
+        return parse_block(p);
+    }
+    if p.tokens.kind != TK_EOF {
+        if str_equal(p.tokens.next.lit, ":") {
+            return parse_label(p);
+        }
+    }
+
+    return parse_expr_stmt(p);
+}
+
+func unkown_type_error(types *Vec, tok *Token, msg *u8) u0 {
+    print_error_with_code(tok, msg);
+
+    if types.len == 0 {
+        exit(1);
+    } else if types.len == 1 {
+        eprintf("help: %d possibility:", types.len);
+    } else {
+        eprintf("help: %d possibilities:", types.len);
+    }
+
+    for let i i32 = 0; i < types.len; i++ {
+        let type *Type = vec_get(types, i);
+        if i+1 < types.len {
+            eprintf(" `%s`,", type.name);
+        } else {
+            eprintf(" `%s`\n", type.name);
+        }
+    }
+
+    exit(1);
+}
+
+func get_user_defined_type(p *Parser, name *u8) *Type {
+    for let i i32 = 0; i < p.user_defined_types.len; i++ {
+        let type *Type = vec_get(p.user_defined_types, i);
+        if str_equal(type.name, name) {
+            return type;
+        }
+    }
+    return nil;
+}
+
+func new_builtin_type(kind TypeKind, size i32, name *u8, is_unsigned bool) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = kind;
+    ty.size = size;
+    ty.name = name;
+    ty.pointer_to = nil;
+    ty.is_unsigned = is_unsigned;
+    return ty;
+}
+
+func new_pointer_type(base *Type) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_PTR;
+    ty.size = 8;
+    ty.pointer_to = base;
+    return ty;
+}
+
+func new_array_type(base *Type, len i32) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_ARRAY;
+    ty.size = base.size * len;
+    ty.pointer_to = base;
+    ty.array_len = len;
+    return ty;
+}
+
+func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type {
+    let ty *Type = alloc(typesize(Type));
+    if ty == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    ty.kind = TY_FUNC;
+    ty.size = 8;
+    ty.params = params_types;
+    ty.return_type = return_type;
+    ty.is_variadic = is_variadic;
+    return ty;
+}
+
+func cmp_type_vec(vec1 *Vec, vec2 *Vec) bool {
+    if vec1.len != vec2.len {
+        return false;
+    }
+
+    for let i i32 = 0; i < vec1.len; i++ {
+        if !cmp_type(vec_get(vec1, i), vec_get(vec2, i)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+func cmp_type(ty1 *Type, ty2 *Type) bool {
+    if ty1 == nil || ty2 == nil {
+        eprintf("internal error: this should not happen\n");
+        exit(1);
+    }
+
+    if ty1.kind != ty2.kind {
+        return false;
+    }
+
+    if ty1.kind == TY_FUNC {
+        return cmp_type(ty1.return_type, ty2.return_type) && cmp_type_vec(ty1.params, ty2.params) && ty1.is_variadic == ty2.is_variadic;
+    }
+
+    if ty1.kind == TY_PTR {
+        return cmp_type(ty1.pointer_to, ty2.pointer_to);
+    }
+
+    return ty1.size == ty2.size && ty1.is_unsigned == ty2.is_unsigned && str_equal(ty1.name, ty2.name);
+}
+
+func parse_params_types(p *Parser, types *Vec) bool {
+    while !str_equal(p.tokens.lit, ")") {
+        if str_equal(p.tokens.lit, "...") {
+            parser_next(p);
+            return true;
+        } else {
+            let ty *Type = parse_ty(p);
+            if ty.kind == TY_ARRAY {
+                ty = new_pointer_type(ty.pointer_to);
+            }
+            vec_append(types, ty);
+        }
+        if !str_equal(p.tokens.lit, ",") {
+            goto break;
+        }
+        parser_next(p);
+    }
+
+break:
+
+    return false;
+}
+
+func parse_ty(p *Parser) *Type {
+    let name *u8 = p.tokens.lit;
+    let type_name_tok *Token = p.tokens;
+
+    parser_next(p);
+    let ty *Type;
+
+    if str_equal(name, "i64") { ty = p.ty_i64; }
+    else if str_equal(name, "i32") { ty = p.ty_i32; }
+    else if str_equal(name, "i16") { ty = p.ty_i16; }
+    else if str_equal(name, "i8") { ty = p.ty_i8; }
+    else if str_equal(name, "u64") { ty = p.ty_u64; }
+    else if str_equal(name, "u32") { ty = p.ty_u32; }
+    else if str_equal(name, "u16") { ty = p.ty_u16; }
+    else if str_equal(name, "u8") { ty = p.ty_u8; }
+    else if str_equal(name, "u0") { ty = p.ty_u0; }
+    else if str_equal(name, "bool") { ty = p.ty_bool; }
+    else if str_equal(name, "*") { ty = new_pointer_type(parse_ty(p)); }
+    else if str_equal(name, "func") {
+        // NOTE: A variable or function paramater typed as a function will be treated as a function pointer `*func()`
+        parser_skip(p, "(");
+        let types *Vec = new_vec(4);
+        let is_variadic bool = parse_params_types(p, types);
+        parser_skip(p, ")");
+        ty = new_func_type(types, parse_ty(p), is_variadic);
+        ty = new_pointer_type(ty);
+    } else if str_equal(name, "[") {
+        if p.tokens.kind != TK_NUM {
+            print_error(p.tokens, "expected number");
+        }
+        let array_len i32 = atoi(p.tokens.lit);
+        parser_next(p);
+        parser_skip(p, "]");
+        ty = new_array_type(parse_ty(p), array_len);
+    } else {
+        ty = get_user_defined_type(p, name);
+        if ty == nil {
+            unkown_type_error(p.user_defined_types, type_name_tok, "unkown type found");
+        }
+    }
+
+    return ty;
+}
+
+func add_type_block(p *Parser, nodes *Vec) u0 {
+    if nodes == nil {
+        return;
+    }
+    for let i i32 = 0; i < nodes.len; i++ {
+        let node *Node = vec_get(nodes, i);
+        add_type(p, node);
+    }
+}
+
+func add_type(p *Parser, node *Node) u0 {
+    if node == nil || node.ty != nil {
+        return;
+    }
+
+    add_type(p, node.lhs);
+    add_type(p, node.rhs);
+    add_type(p, node.init);
+    add_type(p, node.cond);
+    add_type(p, node.inc);
+
+    add_type_block(p, node.body);
+    add_type(p, node.then_block);
+    add_type(p, node.else_block);
+
+    add_type_block(p, node.args);
+
+    if node.kind == ND_STR {
+        node.ty = new_pointer_type(p.ty_i8);
+        return;
+    }
+
+    if node.kind == ND_FUNC_CALL {
+        if node.lhs.ty.kind == TY_PTR {
+            node.ty = node.lhs.ty.pointer_to.return_type;
+        } else {
+            node.ty = node.lhs.ty.return_type;
+        }
+        return;
+    }
+
+    if (node.kind == ND_ADD || node.kind == ND_SUB
+        || node.kind == ND_MUL || node.kind == ND_DIV
+        || node.kind == ND_MOD || node.kind == ND_ASSIGN
+        || node.kind == ND_SHL || node.kind == ND_SHR || node.kind == ND_MEMZERO) {
+        node.ty = node.lhs.ty;
+        return;
+    }
+
+    if (node.kind == ND_NOT || node.kind == ND_EQ
+        || node.kind == ND_NE || node.kind == ND_LE
+        || node.kind == ND_LT || node.kind == ND_GT
+        || node.kind == ND_GE || node.kind == ND_LOGAND
+        || node.kind == ND_LOGOR || node.kind == ND_NUM
+        || node.kind == ND_AND || node.kind == ND_OR) {
+        node.ty = p.ty_i32;
+        return;
+    }
+
+    if node.kind == ND_VAR {
+        node.ty = node.obj.ty;
+        return;
+    }
+
+    if node.kind == ND_REF {
+        if node.lhs.ty.kind == TY_ARRAY {
+            node.ty = new_pointer_type(node.lhs.ty.pointer_to);
+        } else {
+            node.ty = new_pointer_type(node.lhs.ty);
+        }
+        return;
+    }
+
+    if node.kind == ND_DEREF {
+        node.ty = node.lhs.ty.pointer_to;
+        return;
+    }
+
+    if node.kind == ND_EXPR_STMT {
+        node.ty = node.lhs.ty;
+        return;
+    }
+
+    return;
+}
 
 func unexpected_token_error(expected *u8, tok *Token, msg *u8) u0 {
     print_error_with_code(tok, msg);
@@ -84,7 +747,7 @@ func new_node(kind NodeKind) *Node {
 }
 
 func parser_skip(p *Parser, str *u8) u0 {
-    if strcmp(p.tokens.lit, str) {
+    if str_equal(p.tokens.lit, str) {
         parser_next(p);
         return;
     }
@@ -94,9 +757,9 @@ func parser_skip(p *Parser, str *u8) u0 {
 func parse_func_call_args(p *Parser) *Vec {
     let args *Vec = new_vec(4);
 
-    while !strcmp(p.tokens.lit, ")") {
+    while !str_equal(p.tokens.lit, ")") {
         vec_append(args, parse_expr(p));
-        if !strcmp(p.tokens.lit, ",") {
+        if !str_equal(p.tokens.lit, ",") {
             goto break;
         }
         parser_next(p);
@@ -153,33 +816,33 @@ func parse_number(p *Parser) *Node {
         node = new_node(ND_STR);
         node.str_val = p.tokens.str_val;
         parser_next(p);
-    } else if strcmp(p.tokens.lit, "nil") {
+    } else if str_equal(p.tokens.lit, "nil") {
         parser_next(p);
         node = new_node(ND_NUM);
         node.ty = p.ty_i32;
         node.int_val = 0;
-    } else if strcmp(p.tokens.lit, "true") {
+    } else if str_equal(p.tokens.lit, "true") {
         parser_next(p);
         node = new_node(ND_NUM);
         node.ty = p.ty_bool;
         node.int_val = 1;
-    } else if strcmp(p.tokens.lit, "false") {
+    } else if str_equal(p.tokens.lit, "false") {
         parser_next(p);
         node = new_node(ND_NUM);
         node.ty = p.ty_bool;
         node.int_val = 0;
-    } else if strcmp(p.tokens.lit, "typesize") {
+    } else if str_equal(p.tokens.lit, "typesize") {
         node = new_node(ND_NUM);
         parser_next(p);
         parser_skip(p, "(");
         node.int_val = parse_ty(p).size;
         node.ty = p.ty_i32;
         parser_skip(p, ")");
-    } else if strcmp(p.tokens.lit, "sizeof") {
+    } else if str_equal(p.tokens.lit, "sizeof") {
         node = parse_sizeof(p);
     } else if p.tokens.kind == TK_IDENT {
         node = parse_ident(p);
-    } else if strcmp(p.tokens.lit, "(") {
+    } else if str_equal(p.tokens.lit, "(") {
         parser_next(p);
         node = parse_expr(p);
         parser_skip(p, ")");
@@ -193,7 +856,7 @@ func parse_number(p *Parser) *Node {
 func search_struct_member(members *Vec, exp_member_name *u8) *Member {
     for let i i32 = 0; i < members.len; i++ {
         let member *Member = vec_get(members, i);
-        if strcmp(member.name, exp_member_name) {
+        if str_equal(member.name, exp_member_name) {
             return member;
         }
     }
@@ -273,20 +936,20 @@ func get_function_pointer_type(node *Node) *Type {
 }
 
 func parse_unary(p *Parser) *Node {
-    if strcmp(p.tokens.lit, "*") {
+    if str_equal(p.tokens.lit, "*") {
         return parse_deref(p);
     }
-    if strcmp(p.tokens.lit, "&") {
+    if str_equal(p.tokens.lit, "&") {
         return parse_ref(p);
     }
-    if strcmp(p.tokens.lit, "!") {
+    if str_equal(p.tokens.lit, "!") {
         return parse_not(p);
     }
 
     let node *Node = parse_number(p);
 
     while {
-        if strcmp(p.tokens.lit, "(") {
+        if str_equal(p.tokens.lit, "(") {
             let lpar_tok *Token = p.tokens;
             parser_skip(p, "(");
 
@@ -319,17 +982,17 @@ func parse_unary(p *Parser) *Node {
             goto continue;
         }
         let access_tok *Token = p.tokens;
-        if strcmp(p.tokens.lit, "++") {
+        if str_equal(p.tokens.lit, "++") {
             parser_next(p);
             node = new_binop(ND_SUB, new_binop(ND_ASSIGN, node, new_binop(ND_ADD, node, new_node_num(1))), new_node_num(1));
             goto continue;
         }
-        if strcmp(p.tokens.lit, "--") {
+        if str_equal(p.tokens.lit, "--") {
             parser_next(p);
             node = new_binop(ND_ADD, new_binop(ND_ASSIGN, node, new_binop(ND_SUB, node, new_node_num(1))), new_node_num(1));
             goto continue;
         }
-        if strcmp(p.tokens.lit, "[") {
+        if str_equal(p.tokens.lit, "[") {
             add_type(p, node);
             parser_next(p);
             let index_number_node *Node = parse_expr(p);
@@ -349,7 +1012,7 @@ func parse_unary(p *Parser) *Node {
             node = new_struct_access_node(ND_DEREF, node, 0, nil);
             goto continue;
         }
-        if strcmp(p.tokens.lit, ".") {
+        if str_equal(p.tokens.lit, ".") {
             parser_next(p);
 
             let member_name *u8 = p.tokens.lit;
@@ -395,13 +1058,13 @@ func parse_mul(p *Parser) *Node {
     let node *Node = parse_unary(p);
 
     while {
-        if strcmp(p.tokens.lit, "*") {
+        if str_equal(p.tokens.lit, "*") {
             parser_next(p);
             node = new_binop(ND_MUL, node, parse_unary(p));
-        } else if strcmp(p.tokens.lit, "/") {
+        } else if str_equal(p.tokens.lit, "/") {
             parser_next(p);
             node = new_binop(ND_DIV, node, parse_unary(p));
-        } else if strcmp(p.tokens.lit, "%") {
+        } else if str_equal(p.tokens.lit, "%") {
             parser_next(p);
             node = new_binop(ND_MOD, node, parse_unary(p));
         } else {
@@ -417,10 +1080,10 @@ func parse_add(p *Parser) *Node {
     let node *Node = parse_mul(p);
 
     while {
-        if strcmp(p.tokens.lit, "+") {
+        if str_equal(p.tokens.lit, "+") {
             parser_next(p);
             node = new_binop(ND_ADD, node, parse_mul(p));
-        } else if strcmp(p.tokens.lit, "-") {
+        } else if str_equal(p.tokens.lit, "-") {
             parser_next(p);
             node = new_binop(ND_SUB, node, parse_mul(p));
         } else {
@@ -436,10 +1099,10 @@ func parse_shift(p *Parser) *Node {
     let node *Node = parse_add(p);
 
     while {
-        if strcmp(p.tokens.lit, "<<") {
+        if str_equal(p.tokens.lit, "<<") {
             parser_next(p);
             node = new_binop(ND_SHL, node, parse_add(p));
-        } else if strcmp(p.tokens.lit, ">>") {
+        } else if str_equal(p.tokens.lit, ">>") {
             parser_next(p);
             node = new_binop(ND_SHR, node, parse_add(p));
         } else {
@@ -513,7 +1176,7 @@ func parse_relational(p *Parser) *Node {
     let rhs *Node;
 
     while {
-        if strcmp(p.tokens.lit, "<=") {
+        if str_equal(p.tokens.lit, "<=") {
             parser_next(p);
             rhs = parse_shift(p);
             if is_comparison_node(node) {
@@ -521,7 +1184,7 @@ func parse_relational(p *Parser) *Node {
             } else {
                 node = new_binop(ND_LE, node, rhs);
             }
-        } else if strcmp(p.tokens.lit, ">=") {
+        } else if str_equal(p.tokens.lit, ">=") {
             parser_next(p);
             rhs = parse_shift(p);
             if is_comparison_node(node) {
@@ -529,7 +1192,7 @@ func parse_relational(p *Parser) *Node {
             } else {
                 node = new_binop(ND_GE, node, rhs);
             }
-        } else if strcmp(p.tokens.lit, "<") {
+        } else if str_equal(p.tokens.lit, "<") {
             parser_next(p);
             rhs = parse_shift(p);
             if is_comparison_node(node) {
@@ -537,7 +1200,7 @@ func parse_relational(p *Parser) *Node {
             } else {
                 node = new_binop(ND_LT, node, rhs);
             }
-        } else if strcmp(p.tokens.lit, ">") {
+        } else if str_equal(p.tokens.lit, ">") {
             parser_next(p);
             rhs = parse_shift(p);
             if is_comparison_node(node) {
@@ -559,7 +1222,7 @@ func parse_equality(p *Parser) *Node {
     let rhs *Node;
 
     while {
-        if strcmp(p.tokens.lit, "==") {
+        if str_equal(p.tokens.lit, "==") {
             parser_next(p);
             rhs = parse_relational(p);
             if is_comparison_node(rhs) {
@@ -569,7 +1232,7 @@ func parse_equality(p *Parser) *Node {
             } else {
                 node = new_binop(ND_EQ, node, rhs);
             }
-        } else if strcmp(p.tokens.lit, "!=") {
+        } else if str_equal(p.tokens.lit, "!=") {
             parser_next(p);
             rhs = parse_relational(p);
             if is_comparison_node(rhs) {
@@ -590,7 +1253,7 @@ break:
 
 func parse_and(p *Parser) *Node {
     let node *Node = parse_equality(p);
-    while strcmp(p.tokens.lit, "&") {
+    while str_equal(p.tokens.lit, "&") {
         parser_next(p);
         node = new_binop(ND_AND, node, parse_equality(p));
     }
@@ -599,7 +1262,7 @@ func parse_and(p *Parser) *Node {
 
 func parse_or(p *Parser) *Node {
     let node *Node = parse_and(p);
-    while strcmp(p.tokens.lit, "|") {
+    while str_equal(p.tokens.lit, "|") {
         parser_next(p);
         node = new_binop(ND_OR, node, parse_and(p));
     }
@@ -608,7 +1271,7 @@ func parse_or(p *Parser) *Node {
 
 func parse_logand(p *Parser) *Node {
     let node *Node = parse_or(p);
-    while strcmp(p.tokens.lit, "&&") {
+    while str_equal(p.tokens.lit, "&&") {
         parser_next(p);
         node = new_binop(ND_LOGAND, node, parse_or(p));
     }
@@ -617,7 +1280,7 @@ func parse_logand(p *Parser) *Node {
 
 func parse_logor(p *Parser) *Node {
     let node *Node = parse_logand(p);
-    while strcmp(p.tokens.lit, "||") {
+    while str_equal(p.tokens.lit, "||") {
         parser_next(p);
         node = new_binop(ND_LOGOR, node, parse_logand(p));
     }
@@ -626,7 +1289,7 @@ func parse_logor(p *Parser) *Node {
 
 func parse_expr(p *Parser) *Node {
     let node *Node = parse_logor(p);
-    if strcmp(p.tokens.lit, "=") {
+    if str_equal(p.tokens.lit, "=") {
         parser_next(p);
         node = new_binop(ND_ASSIGN, node, parse_expr(p));
     }
@@ -649,7 +1312,7 @@ func parse_block(p *Parser) *Node {
 
     enter_scope(p);
 
-    while !strcmp(p.tokens.lit, "}") {
+    while !str_equal(p.tokens.lit, "}") {
         let stmt *Node = parse_stmt(p);
         if stmt != nil {
             add_type(p, stmt);
@@ -713,14 +1376,14 @@ func parse_struct(p *Parser) u0 {
         vec_append(p.user_defined_types, ty);
     }
 
-    if strcmp(p.tokens.lit, ";") {
+    if str_equal(p.tokens.lit, ";") {
         if user_defined_struct == nil {
             ty.is_declaration = true;
         }
         parser_skip(p, ";");
     } else {
         parser_skip(p, "{");
-        while !strcmp(p.tokens.lit, "}") {
+        while !str_equal(p.tokens.lit, "}") {
             let member_name *u8 = p.tokens.lit;
             parser_next(p);
             vec_append(members, new_member(member_name, parse_ty(p)));
@@ -748,15 +1411,15 @@ func parse_function_params(p *Parser, types *Vec, params *Vec) bool {
 
     parser_skip(p, "(");
 
-    while !strcmp(p.tokens.lit, ")") {
+    while !str_equal(p.tokens.lit, ")") {
         let params_name *u8 = p.tokens.lit;
         let params_name_tok *Token = p.tokens;
         parser_next(p);
 
         let ty *Type;
         let ty_tok *Token = p.tokens;
-        if strcmp(params_name, "...") {
-            if !strcmp(p.tokens.lit, ")") {
+        if str_equal(params_name, "...") {
+            if !str_equal(p.tokens.lit, ")") {
                 print_error(params_name_tok, "must be at the end of the paramaters");
             }
             is_variadic = true;
@@ -778,9 +1441,9 @@ func parse_function_params(p *Parser, types *Vec, params *Vec) bool {
             vec_append(types, ty);
             vec_append(params, new_local_object(p, OBJ_VAR, params_name, ty, params_name_tok, true));
 
-            if !strcmp(p.tokens.lit, ")") && !strcmp(p.tokens.lit, ",") {
+            if !str_equal(p.tokens.lit, ")") && !str_equal(p.tokens.lit, ",") {
                 goto break;
-            } else if !strcmp(p.tokens.lit, ")") {
+            } else if !str_equal(p.tokens.lit, ")") {
                 parser_skip(p, ",");
             }
         }
@@ -829,7 +1492,7 @@ func parse_func(p *Parser) u0 {
 
     let is_declaration bool = false;
 
-    if strcmp(p.tokens.lit, ";") {
+    if str_equal(p.tokens.lit, ";") {
         parser_skip(p, ";");
         is_declaration = true;
     }
@@ -882,11 +1545,11 @@ func parse_global_let(p *Parser) u0 {
 
 func parse(p *Parser) u0 {
     while p.tokens.kind != TK_EOF {
-        if strcmp(p.tokens.lit, "func") {
+        if str_equal(p.tokens.lit, "func") {
             parse_func(p);
-        } else if strcmp(p.tokens.lit, "let") {
+        } else if str_equal(p.tokens.lit, "let") {
             parse_global_let(p);
-        } else if strcmp(p.tokens.lit, "struct") {
+        } else if str_equal(p.tokens.lit, "struct") {
             parse_struct(p);
         } else {
             print_error(p.tokens, "non-declaration statement outside function body");

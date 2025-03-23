@@ -1,6 +1,6 @@
 
-#include "std/header.ibu"
-#include "linux-syscall/header.ibu"
+#include "../util/header.ibu"
+#include "../linux-syscall/header.ibu"
 
 #define STB_LOCAL     0
 #define STB_GLOBAL    1

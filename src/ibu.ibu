@@ -1,5 +1,5 @@
 
-#include "std/header.ibu"
+#include "util/header.ibu"
 #include "linux-syscall/header.ibu"
 #include "tokenizer/header.ibu"
 #include "parser/header.ibu"
@@ -15,7 +15,7 @@ func main(argc i32, argv **u8) i32 {
     let file_name *u8 = argv[1];
 
     let fd i32 = 0;
-    if strcmp(file_name, "-") {
+    if str_equal(file_name, "-") {
         fd = STDIN;
     } else {
         fd = open(file_name, 0, 420);
@@ -45,7 +45,7 @@ func main(argc i32, argv **u8) i32 {
     let tokens *Token = tokenize(t);
 
     let preprocessor *Preprocessor = new_preprocessor();
-    preprocess(tokens, preprocessor);
+    preprocess(preprocessor, tokens);
 
     let p *Parser = new_parser(tokens);
     parse(p);

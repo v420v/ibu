@@ -1,7 +1,7 @@
 
 #include "header.ibu"
-#include "std/header.ibu"
-#include "linux-syscall/header.ibu"
+#include "../util/header.ibu"
+#include "../linux-syscall/header.ibu"
 
 func gen_expr(g *Gen, node *Node) i32;
 func gen_stmt(g *Gen, node *Node) i32;
@@ -151,61 +151,51 @@ func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
 
 func gen_expr(g *Gen, node *Node) i32 {
     let c i32 = 0;
-    if node.kind == ND_EMPTY {
+    switch node.kind {
+    case ND_EMPTY:
         return 0;
-    }
-    if node.kind == ND_MEMBER_ACCESS {
+    case ND_MEMBER_ACCESS:
         gen_addr(g, node);
         gen_load(g, node.ty);
         return 0;
-    }
-    if node.kind == ND_STR {
+    case ND_STR:
         c = g.str_label_count++;
         printf(".data\n");
         printf(".L.str.%d:\n", c);
-
         let str *u8 = node.str_val;
         while *str != nil {
             printf("\t.byte %d\n", *str);
             str++;
         }
         printf("\t.byte 0\n");
-
         printf(".text\n");
         printf("\tleaq .L.str.%d(%%rip), %%rax\n", c);
         return 0;
-    }
-    if node.kind == ND_NUM {
+    case ND_NUM:
         printf("\tmovq $%d, %%rax\n", node.int_val);
         return 0;
-    }
-    if node.kind == ND_ASSIGN {
+    case ND_ASSIGN:
         gen_addr(g, node.lhs);
         gen_push(g, "%rax");
         gen_expr(g, node.rhs);
         gen_pop(g, "%rdi");
         gen_store(node.ty);
         return 0;
-    }
-    if node.kind == ND_VAR {
+    case ND_VAR:
         gen_addr(g, node);
         gen_load(g, node.ty);
         return 0;
-    }
-    if node.kind == ND_FUNC_CALL {
+    case ND_FUNC_CALL:
         let node_function_type *Type = node.lhs.ty;
         if node_function_type.kind == TY_PTR {
             node_function_type = node.lhs.ty.pointer_to;
         }
         let stack i32 = func_call_args_to_stack(g, node.args, node_function_type);
-
         gen_expr(g, node.lhs);
         printf("\tmovq %%rax, %%r10\n");
         printf("\tmovq $0, %%rax\n");
-
         printf("\tcallq *%%r10\n");
         gen_pop_size(g, stack);
-
         if node.ty.kind == TY_BOOL {
             printf("\tmovzx %%al, %%rax\n");
         } else if node.ty.kind == TY_I8 {
@@ -217,69 +207,56 @@ func gen_expr(g *Gen, node *Node) i32 {
         } else if node.ty.kind == TY_U16 {
             printf("\tmovzwq %%ax, %%rax\n");
         } else {}
-
         return 0;
-    }
-    if node.kind == ND_EXPR_STMT {
+    case ND_EXPR_STMT:
         gen_expr(g, node.lhs);
         return 0;
-    }
-    if node.kind == ND_REF {
+    case ND_REF:
         gen_addr(g, node.lhs);
         return 0;
-    }
-    if node.kind == ND_DEREF {
+    case ND_DEREF:
         gen_expr(g, node.lhs);
         gen_load(g, node.ty);
         return 0;
-    }
-    if node.kind == ND_NOT {
+    case ND_NOT:
         gen_expr(g, node.lhs);
         printf("\tcmpq $0, %%rax\n");
         printf("\tsete %%al\n");
         printf("\tmovzbq %%al, %%rax\n");
         return 0;
-    }
-    if node.kind == ND_ADD {
+    case ND_ADD:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\taddq %%rdi, %%rax\n");
         return 0;
-    }
-    if node.kind == ND_SHL {
+    case ND_SHL:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tmovq %%rdi, %%rcx\n");
         printf("\tshl %%cl, %%rax\n");
         return 0;
-    }
-    if node.kind == ND_SHR {
+    case ND_SHR:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tmovq %%rdi, %%rcx\n");
         printf("\tshr %%cl, %%rax\n");
         return 0;
-    }
-    if node.kind == ND_SUB {
+    case ND_SUB:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tsubq %%rdi, %%rax\n");
         return 0;
-    }
-    if node.kind == ND_AND {
+    case ND_AND:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tandq %%rdi, %%rax\n");
         return 0;
-    }
-    if node.kind == ND_OR {
+    case ND_OR:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\torq %%rdi, %%rax\n");
         return 0;
-    }
-    if node.kind == ND_MUL {
+    case ND_MUL:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\timulq %%rdi, %%rax\n");
         return 0;
-    }
-    if node.kind == ND_DIV || node.kind == ND_MOD {
+    case ND_DIV:
+    case ND_MOD:
         gen_lhs_rhs(g, node.lhs, node.rhs);
-
         if node.ty.is_unsigned {
             printf("\tmov $0, %%rdx\n");
             printf("\tdivq %%rdi\n");
@@ -291,22 +268,19 @@ func gen_expr(g *Gen, node *Node) i32 {
             printf("\tmovq %%rdx, %%rax\n");
         }
         return 0;
-    }
-    if node.kind == ND_EQ {
+    case ND_EQ:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tcmpq %%rdi, %%rax\n");
         printf("\tsete %%al\n");
         gen_condition_store(node.ty);
         return 0;
-    }
-    if node.kind == ND_NE {
+    case ND_NE:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tcmpq %%rdi, %%rax\n");
         printf("\tsetne %%al\n");
         gen_condition_store(node.ty);
         return 0;
-    }
-    if node.kind == ND_LOGAND {
+    case ND_LOGAND:
         c = g.label_count++;
         gen_expr(g, node.lhs);
         printf("\tcmpq $0, %%rax\n");
@@ -320,8 +294,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         printf("\tmovq $0, %%rax\n");
         printf(".L.end.%d:\n", c);
         return 0;
-    }
-    if node.kind == ND_LOGOR {
+    case ND_LOGOR:
         c = g.label_count++;
         gen_expr(g, node.lhs);
         printf("\tcmpq $0, %%rax\n");
@@ -335,8 +308,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         printf("\tmov $1, %%rax\n");
         printf(".L.end.%d:\n", c);
         return 0;
-    }
-    if node.kind == ND_GE {
+    case ND_GE:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tcmpq %%rdi, %%rax\n");
         if node.lhs.ty.is_unsigned {
@@ -346,8 +318,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         }
         gen_condition_store(node.ty);
         return 0;
-    }
-    if node.kind == ND_GT {
+    case ND_GT:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tcmpq %%rdi, %%rax\n");
         if node.lhs.ty.is_unsigned {
@@ -357,8 +328,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         }
         gen_condition_store(node.ty);
         return 0;
-    }
-    if node.kind == ND_LE {
+    case ND_LE:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tcmpq %%rdi, %%rax\n");
         if node.lhs.ty.is_unsigned {
@@ -368,8 +338,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         }
         gen_condition_store(node.ty);
         return 0;
-    }
-    if node.kind == ND_LT {
+    case ND_LT:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tcmpq %%rdi, %%rax\n");
         if node.lhs.ty.is_unsigned {
@@ -434,18 +403,16 @@ func gen_jmp_table(g *Gen, node *Node, unique_label_count i32) i32 {
 
 func gen_stmt(g *Gen, node *Node) i32 {
     let c i32 = 0;
-    if node.kind == ND_EMPTY {
+    switch node.kind {
+    case ND_EMPTY:
         return 0;
-    }
-    if node.kind == ND_BLOCK {
+    case ND_BLOCK:
         gen_node_block(g, node.body);
         return 0;
-    }
-    if node.kind == ND_EXPR_STMT {
+    case ND_EXPR_STMT:
         gen_expr(g, node.lhs);
         return 0;
-    }
-    if node.kind == ND_SWITCH {
+    case ND_SWITCH:
         sort_switch_cases(node);
         let unique_label_count i32 = g.label_count++;
         let min i32 = gen_jmp_table(g, node, unique_label_count);
@@ -453,31 +420,26 @@ func gen_stmt(g *Gen, node *Node) i32 {
         printf("\tsubq $%d, %%rax\n", min);
         printf("\tmovq .L.jump_table.%d(, %%rax, 8), %%rax\n", unique_label_count);
         printf("\tjmp *%%rax\n");
-
         gen_stmt(g, node.then_block);
         return 0;
-    }
-    if node.kind == ND_CASE {
+    case ND_CASE:
         printf("%s:\n", node.label_name);
         return 0;
-    }
-    if node.kind == ND_MEMZERO {
+    case ND_MEMZERO:
         gen_expr(g, node.lhs);
         printf("\tmovq %%rax, %%rdi\n");
         printf("\tmovq $%d, %%rcx\n", node.ty.size);
         printf("\tmov $0, %%al\n");
         printf("\trep stosb\n");
         return 0;
-    }
-    if node.kind == ND_RETURN {
+    case ND_RETURN:
         if node.lhs != nil {
             gen_expr(g, node.lhs);
         }
         printf("\tleave\n");
         printf("\tret\n");
         return 0;
-    }
-    if node.kind == ND_IF {
+    case ND_IF:
         c = g.label_count++;
         gen_expr(g, node.cond);
         printf("\tcmpq $1, %%rax\n");
@@ -490,16 +452,13 @@ func gen_stmt(g *Gen, node *Node) i32 {
         }
         printf(".L.end.%d:\n", c);
         return 0;
-    }
-    if node.kind == ND_GOTO {
+    case ND_GOTO:
         printf("\tjmp .L.%s.%s\n", g.cur_func_name, node.label_name);
         return 0;
-    }
-    if node.kind == ND_LABEL {
+    case ND_LABEL:
         printf(".L.%s.%s:\n", g.cur_func_name, node.label_name);
         return 0;
-    }
-    if node.kind == ND_FOR {
+    case ND_FOR:
         c = g.label_count++;
         if node.init != nil {
             gen_stmt(g, node.init);
@@ -515,8 +474,7 @@ func gen_stmt(g *Gen, node *Node) i32 {
         printf("\tjmp .L.while.start.%d\n", c);
         printf(".L.while.end.%d:\n", c);
         return 0;
-    }
-    if node.kind == ND_ASSIGN {
+    case ND_ASSIGN:
         gen_addr(g, node.lhs);
         gen_push(g, "%rax");
         gen_expr(g, node.rhs);
@@ -558,7 +516,7 @@ func assign_local_var_offset(g *Gen, obj *Object) i32 {
 
 func has_main(object *Object) bool {
     while object != nil {
-        if strcmp(object.name, "main") {
+        if str_equal(object.name, "main") {
             return true;
         }
         object = object.next;

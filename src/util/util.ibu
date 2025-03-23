@@ -1,8 +1,6 @@
 
-#include "linux-syscall/header.ibu"
-#include "std/header.ibu"
-
-#define CHUNK_SIZE 16384 // 16KB
+#include "header.ibu"
+#include "../linux-syscall/header.ibu"
 
 #define HEAP_SIZE 2147483647
 
@@ -10,13 +8,9 @@ let heap_head *u8;
 let heap_current *u8;
 let heap_tail *u8;
 
-func heap_init() u0 {
-    heap_head = brk(0);
-    heap_tail = brk(heap_head + HEAP_SIZE * 2);
-    if (heap_head % 8) == 0 {
-        heap_current = heap_head;
-    } else {
-        heap_current = heap_head + (8 - (heap_head % 8));
+func memset(ptr *u8, val u8, n i32) u0 {
+    for let i i32 = 0; i < n; i++ {
+        ptr[i] = val;
     }
 }
 
@@ -24,9 +18,23 @@ func fstat(fd i32, buf *Stat) i64 {
     return syscall(SYS_FSTAT, fd, buf, 0);
 }
 
-func memset(ptr *u8, val u8, n i32) u0 {
-    for let i i32 = 0; i < n; i++ {
-        ptr[i] = val;
+func str_equal(a *u8, b *u8) bool {
+    for let i i32 = 0; a[i] == b[i]; i++ {
+        if a[i] == '\0' {
+            return true;
+        }
+    }
+    return false;
+}
+
+// memory allocator
+func heap_init() u0 {
+    heap_head = brk(0);
+    heap_tail = brk(heap_head + HEAP_SIZE * 2);
+    if (heap_head % 8) == 0 {
+        heap_current = heap_head;
+    } else {
+        heap_current = heap_head + (8 - (heap_head % 8));
     }
 }
 
@@ -46,15 +54,7 @@ func alloc(size i32) *u8 {
     return result;
 }
 
-func strcmp(a *u8, b *u8) bool {
-    for let i i32 = 0; a[i] == b[i]; i++ {
-        if a[i] == '\0' {
-            return true;
-        }
-    }
-    return false;
-}
-
+// dynamic array
 func new_vec(cap i32) *Vec {
     let vec *Vec = alloc(typesize(Vec));
     vec.ptr = alloc(typesize(*u8) * cap);
