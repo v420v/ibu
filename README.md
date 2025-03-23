@@ -5,6 +5,8 @@
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
+A language designed for the enjoyment of programming.
+
 ## Key Features of Ibu
 - No strict type checker
 - No C-like pointer arithmetic
@@ -14,7 +16,7 @@
 - No libc dependency
 - No hidden control flow
 - No hidden memory allocations
-- Allows `13 <= age < 20` instead of `13 <= age && age < 20`
+- Allows syntax like `13 <= age < 20`
 - Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
 - All values are extended to 64-bit when accessed
 - The compiler is written in itself
