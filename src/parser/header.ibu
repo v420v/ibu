@@ -91,15 +91,6 @@ struct Type {
     tok *Token,
 }
 
-func new_builtin_type(kind TypeKind, size i32, name *u8, is_unsigned bool) *Type;
-func unexpected_token_error(expected *u8, tok *Token, msg *u8) u0;
-func unkown_type_error(types *Vec, tok *Token, msg *u8) u0;
-func unkown_member_error(members *Vec, tok *Token, msg *u8) u0;
-func new_pointer_type(base *Type) *Type;
-func new_array_type(base *Type, len i32, is_unsized_array bool, has_array_len bool) *Type;
-func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type;
-func cmp_type(ty1 *Type, ty2 *Type) bool;
-
 #define ObjectKind	i32
 #define OBJ_FUNC	0
 #define OBJ_VAR		1
@@ -188,25 +179,3 @@ struct Parser {
 
 func new_parser(tokens *Token) *Parser;
 func parse(p *Parser) u0;
-func find_object(p *Parser, name *u8) *Object;
-func enter_scope(p *Parser) u0;
-func leave_scope(p *Parser) u0;
-func get_user_defined_type(p *Parser, name *u8) *Type;
-func new_local_object(p *Parser, kind ObjectKind, name *u8, ty *Type, tok *Token, is_func_param bool) *Object;
-func find_globals(p *Parser, name *u8) *Object;
-func find_locals(p *Parser, name *u8) *Object;
-func cmp_func_params(p1 *Vec, p2 *Vec) bool;
-func scope_push_obj(p *Parser, name *u8, obj *Object) *VarScope;
-func parser_skip(p *Parser, str *u8) u0;
-func new_node(kind NodeKind) *Node;
-func new_binop(kind NodeKind, lhs *Node, rhs *Node) *Node;
-func new_node_num(n i32) *Node;
-func add_type(p *Parser, node *Node) u0;
-func parse_expr(p *Parser) *Node;
-func new_struct_access_node(kind NodeKind, lhs *Node, offset i32, ty *Type) *Node;
-func parser_next(p *Parser) u0;
-func parse_ty(p *Parser) *Type;
-func parse_expr_stmt(p *Parser) *Node;
-func parse_block(p *Parser) *Node;
-func parse_stmt(p *Parser) *Node;
-func node_true() *Node;

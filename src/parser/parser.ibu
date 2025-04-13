@@ -9,6 +9,19 @@ func parse_expr(p *Parser) *Node;
 func parse_stmt(p *Parser) *Node;
 func cmp_type(ty1 *Type, ty2 *Type) bool;
 func parse_unary(p *Parser) *Node;
+func find_locals(p *Parser, name *u8) *Object;
+func scope_push_obj(p *Parser, name *u8, obj *Object) *VarScope;
+func parser_skip(p *Parser, str *u8) u0;
+func new_node(kind NodeKind) *Node;
+func new_binop(kind NodeKind, lhs *Node, rhs *Node) *Node;
+func new_node_num(n i32) *Node;
+func new_struct_access_node(kind NodeKind, lhs *Node, offset i32, ty *Type) *Node;
+func parser_next(p *Parser) u0;
+func add_type(p *Parser, node *Node) u0;
+func parse_expr(p *Parser) *Node;
+func parse_expr_stmt(p *Parser) *Node;
+func parse_block(p *Parser) *Node;
+func node_true() *Node;
 
 func internal_error() u0 {
     eprintf("internal error: this should not happen, please report a bug here https://github.com/v420v/vas/issues\n");
