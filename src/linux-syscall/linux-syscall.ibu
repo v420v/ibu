@@ -27,3 +27,7 @@ func readlink(path *u8, buf *u8, buf_size i64) i64 {
 func brk(addr *u8) i64 {
     return syscall(SYS_BRK, addr, 0, 0);
 }
+
+func fstat(fd i32, buf *u8) i64 {
+    return syscall(SYS_FSTAT, fd, buf, 0);
+}

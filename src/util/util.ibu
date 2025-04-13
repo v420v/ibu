@@ -14,10 +14,6 @@ func memset(ptr *u8, val u8, n i32) u0 {
     }
 }
 
-func fstat(fd i32, buf *Stat) i64 {
-    return syscall(SYS_FSTAT, fd, buf, 0);
-}
-
 func str_equal(a *u8, b *u8) bool {
     for let i i32 = 0; a[i] == b[i]; i++ {
         if a[i] == '\0' {
