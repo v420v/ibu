@@ -118,66 +118,219 @@ func find_object(p *Parser, name *u8) *Object {
     return obj;
 }
 
-func initializer(p *Parser, lhs *Node) *Node {
-    let nodes *Vec = new_vec(10);
+#define InitKind i32
+#define InitKindNode 1
+#define InitKindChildren 2
 
-    if lhs.ty.kind != TY_ARRAY && lhs.ty.kind != TY_STRUCT {
-        print_error(p.tokens, "unexpected initializer");
+struct Initializer;
+struct Initializer {
+    kind InitKind, 
+    node *Node, // for InitKindNode
+    children *Vec, // for InitKindChildren
+}
+
+func new_initializer_node(node *Node) *Initializer {
+    let initializer *Initializer = alloc(typesize(Initializer));
+    if initializer == nil {
+        eprintf("allocation faile\n");
+        exit(1);
     }
 
+    initializer.node = node;
+    initializer.kind = InitKindNode;
+
+    return initializer;
+}
+
+func parse_initializer(p *Parser) u0 {
     parser_skip(p, "{");
 
-    if str_equal(p.tokens.lit, "}") {
-        let expr *Node = new_node(ND_MEMZERO);
-        expr.lhs = lhs;
-        vec_append(nodes, expr);
-    } else if lhs.ty.kind == TY_ARRAY {
-        let i i32 = 0;
-        while i < lhs.ty.array_len {
-            let deref_lhs *Node = new_node(ND_DEREF);
-            deref_lhs.lhs = new_binop(ND_ADD, lhs, new_node_num(lhs.ty.pointer_to.size * i));
-            add_type(p, deref_lhs);
+    let children *Vec = new_vec(10);
 
-            if str_equal(p.tokens.lit, "{") {
-                vec_append(nodes, initializer(p, deref_lhs));
-            } else {
-                vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, parse_expr(p)));
-            }
+    let initializer *Initializer = alloc(typesize(Initializer));
+    if initializer == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    initializer.kind = InitKindChildren;
 
-            i++;
-
-            if i < lhs.ty.array_len {
-                parser_skip(p, ",");
-            }
+    while !str_equal(p.tokens.lit, "}") {
+        if str_equal(p.tokens.lit, "{") {
+            vec_append(children, parse_initializer(p));
+        } else {
+           let node *Node = parse_expr(p);
+           add_type(p, node);
+           vec_append(children, new_initializer_node(node));
         }
-    } else if lhs.ty.kind == TY_STRUCT {
-        let i i32 = 0;
-        while i < lhs.ty.members.len {
-            let struct_member *Member = vec_get(lhs.ty.members, i);
 
-            let deref_lhs *Node = new_struct_access_node(ND_MEMBER_ACCESS, lhs, struct_member.offset, struct_member.ty);
-
-            if str_equal(p.tokens.lit, "{") {
-                vec_append(nodes, initializer(p, deref_lhs));
-            } else {
-                vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, parse_expr(p)));
-            }
-
-            i++;
-
-            if i < lhs.ty.members.len {
-                parser_skip(p, ",");
-            }
+        if str_equal(p.tokens.lit, ",") {
+            parser_skip(p, ",");
+        } else {
+            goto break;
         }
-    } else {}
-
+    }
+break:
     parser_skip(p, "}");
+
+    initializer.children = children;
+    return initializer;
+}
+
+func initializer(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
+    let nodes *Vec = new_vec(10);
+
+    if initializer_data.kind == InitKindChildren {
+        let children *Vec = initializer_data.children;
+        if lhs.ty.kind == TY_ARRAY {
+            for let i i32 = 0; i < lhs.ty.array_len; i++ {
+                let deref_lhs *Node = new_node(ND_DEREF);
+                deref_lhs.lhs = new_binop(ND_ADD, lhs, new_node_num(lhs.ty.pointer_to.size * i));
+                add_type(p, deref_lhs);
+
+                if i >= children.len {
+                    goto break;
+                }
+
+                let child_initializer *Initializer = vec_get(children, i);
+                if child_initializer.kind == InitKindChildren {
+                    vec_append(nodes, initializer(p, deref_lhs, child_initializer));
+                } else if child_initializer.kind == InitKindNode {
+                    vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_initializer.node));
+                } else {
+                    eprintf("unreachable");
+                    exit(1);
+                }
+            }
+        } else if lhs.ty.kind == TY_STRUCT {    
+            for let i i32 = 0; i < lhs.ty.members.len; i++ {
+                let struct_member *Member = vec_get(lhs.ty.members, i);
+
+                let deref_lhs *Node = new_struct_access_node(ND_MEMBER_ACCESS, lhs, struct_member.offset, struct_member.ty);
+
+                if i >= children.len {
+                    goto break;
+                }
+                
+                let child_initializer *Initializer = vec_get(children, i);
+                if child_initializer.kind == InitKindChildren {
+                    vec_append(nodes, initializer(p, deref_lhs, child_initializer));
+                } else if child_initializer.kind == InitKindNode {
+                    vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_initializer.node));
+                } else {
+                    eprintf("unreachable");
+                    exit(1);
+                }
+            }
+        } else {
+            eprintf("unraachable");
+            exit(1);
+        }
+    break:
+    } else {
+        eprintf("found none children initializer\n");
+        eprintf("not supported yet\n");
+        exit(1);
+    }
 
     let node *Node = new_node(ND_BLOCK);
     node.body = nodes;
     add_type(p, node);
 
     return node;
+}
+
+func get_max_len_initializer(initializers *Vec) *Initializer {
+    let maxInitializer *Initializer = nil;
+    let max i32 = 0;
+    for let i i32 = 0; i < initializers.len; i++ {
+        let initializer *Initializer = vec_get(initializers, i);
+        if initializer.kind == InitKindChildren {
+            if max < initializer.children.len {
+                maxInitializer = initializer;
+            }
+        }
+    }
+  return maxInitializer;
+}
+
+func resolve_variable_length_array_type(ty *Type, initializer *Initializer) i32 {
+    if ty.kind == TY_ARRAY && ty.is_variadic_array {
+        if initializer.kind == InitKindChildren {
+            if ty.pointer_to.kind == TY_ARRAY {
+                let initializer_child *Initializer = get_max_len_initializer(initializer.children);
+                if initializer_child == nil {
+                    eprintf("not implemeted yet 1\n");
+                    exit(1);
+                }
+                let length i32 = initializer.children.len;
+                if ty.array_len != 0 {
+                    // TODO: add a flag to Type struct that indecates that array_len is specified on declaration
+                    length = ty.array_len;
+                }
+                let child_size i32 = resolve_variable_length_array_type(ty.pointer_to, initializer_child);
+                let size i32 = length * child_size;
+                ty.size = size;
+                ty.array_len = length;
+                return ty.size;
+            } else {
+                let length i32 = initializer.children.len;
+                if ty.array_len != 0 {
+                    // TODO: add a flag to Type struct that indecates that array_len is specified on declaration
+                    length = ty.array_len;
+                }
+                let child_size i32 = ty.pointer_to.size;
+                let size i32 = length * child_size;
+                ty.size = size;
+                ty.array_len = length;
+                return ty.size;
+            }
+        } else {
+            eprintf("not implemeted yet 2\n");
+            exit(1);
+        }
+    } else {
+        return ty.size;
+    }
+}
+
+func debug_types(ty *Type) u0;
+func debug_types(ty *Type) u0 {
+    if ty.kind == TY_ARRAY {
+        eprintf("ty: TY_ARRAY\n");
+        eprintf("size: %d\n", ty.size);
+        eprintf("is_variadic_array: %d\n", ty.is_variadic_array);
+        eprintf("-------------------------\n");
+        debug_types(ty.pointer_to);
+    } else {
+        switch ty.kind {
+            case TY_I8:
+              eprintf("ty: TY_I8\n");
+              goto break;
+            case TY_I16:
+              eprintf("ty: TY_I16\n");
+              goto break;
+            case TY_I32:
+              eprintf("ty: TY_I32\n");
+              goto break;
+            case TY_I64:
+              eprintf("ty: TY_I64\n");
+              goto break;
+            case TY_U8:
+              eprintf("ty: TY_U8\n");
+              goto break;
+            case TY_U16:
+              eprintf("ty: TY_U16\n");
+              goto break;
+            case TY_U32:
+              eprintf("ty: TY_U32\n");
+              goto break;
+            case TY_U64:
+              eprintf("ty: TY_U64\n");
+              goto break;
+        }
+    break:
+        eprintf("size: %d\n", ty.size);
+    }
 }
 
 func parse_let(p *Parser) *Node {
@@ -199,7 +352,14 @@ func parse_let(p *Parser) *Node {
         add_type(p, node_var);
 
         if str_equal(p.tokens.lit, "{") {
-            node = initializer(p, node_var);
+            let initializer_data *Initializer = parse_initializer(p);
+            if node_var.ty.is_variadic_array {
+                resolve_variable_length_array_type(node_var.ty, initializer_data);
+            }
+            //debug_types(node_var.ty);
+            //eprintf("\n");
+            //exit(1);
+            node = initializer(p, node_var, initializer_data);
             parser_skip(p, ";");
         } else {
             node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
@@ -458,7 +618,7 @@ func new_pointer_type(base *Type) *Type {
     return ty;
 }
 
-func new_array_type(base *Type, len i32) *Type {
+func new_array_type(base *Type, len i32, is_variadic_array bool) *Type {
     let ty *Type = alloc(typesize(Type));
     if ty == nil {
         eprintf("memory allocation failed\n");
@@ -468,6 +628,7 @@ func new_array_type(base *Type, len i32) *Type {
     ty.size = base.size * len;
     ty.pointer_to = base;
     ty.array_len = len;
+    ty.is_variadic_array = is_variadic_array || base.is_variadic_array;
     return ty;
 }
 
@@ -571,12 +732,15 @@ func parse_ty(p *Parser) *Type {
         ty = new_pointer_type(ty);
     } else if str_equal(name, "[") {
         if p.tokens.kind != TK_NUM {
-            print_error(p.tokens, "expected number");
+            parser_skip(p, "]");
+            ty = new_array_type(parse_ty(p), 0, true);
+            ty.is_variadic_array = true;
+        } else {
+            let array_len i32 = atoi(p.tokens.lit);
+            parser_next(p);
+            parser_skip(p, "]");
+            ty = new_array_type(parse_ty(p), array_len, false);        
         }
-        let array_len i32 = atoi(p.tokens.lit);
-        parser_next(p);
-        parser_skip(p, "]");
-        ty = new_array_type(parse_ty(p), array_len);
     } else {
         ty = get_user_defined_type(p, name);
         if ty == nil {
