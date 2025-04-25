@@ -242,6 +242,7 @@ func initializer(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
 func get_max_len_initializer(initializers *Vec) *Initializer {
     let maxInitializer *Initializer = nil;
     let max i32 = 0;
+
     for let i i32 = 0; i < initializers.len; i++ {
         let initializer *Initializer = vec_get(initializers, i);
         if initializer.kind == InitKindChildren {
@@ -250,7 +251,8 @@ func get_max_len_initializer(initializers *Vec) *Initializer {
             }
         }
     }
-  return maxInitializer;
+
+    return maxInitializer;
 }
 
 func resolve_variable_length_array_type(ty *Type, initializer *Initializer) i32 {
@@ -293,46 +295,6 @@ func resolve_variable_length_array_type(ty *Type, initializer *Initializer) i32 
     }
 }
 
-func debug_types(ty *Type) u0;
-func debug_types(ty *Type) u0 {
-    if ty.kind == TY_ARRAY {
-        eprintf("ty: TY_ARRAY\n");
-        eprintf("size: %d\n", ty.size);
-        eprintf("is_variadic_array: %d\n", ty.is_variadic_array);
-        eprintf("-------------------------\n");
-        debug_types(ty.pointer_to);
-    } else {
-        switch ty.kind {
-            case TY_I8:
-              eprintf("ty: TY_I8\n");
-              goto break;
-            case TY_I16:
-              eprintf("ty: TY_I16\n");
-              goto break;
-            case TY_I32:
-              eprintf("ty: TY_I32\n");
-              goto break;
-            case TY_I64:
-              eprintf("ty: TY_I64\n");
-              goto break;
-            case TY_U8:
-              eprintf("ty: TY_U8\n");
-              goto break;
-            case TY_U16:
-              eprintf("ty: TY_U16\n");
-              goto break;
-            case TY_U32:
-              eprintf("ty: TY_U32\n");
-              goto break;
-            case TY_U64:
-              eprintf("ty: TY_U64\n");
-              goto break;
-        }
-    break:
-        eprintf("size: %d\n", ty.size);
-    }
-}
-
 func parse_let(p *Parser) *Node {
     let node *Node;
 
@@ -356,9 +318,6 @@ func parse_let(p *Parser) *Node {
             if node_var.ty.is_variadic_array {
                 resolve_variable_length_array_type(node_var.ty, initializer_data);
             }
-            //debug_types(node_var.ty);
-            //eprintf("\n");
-            //exit(1);
             node = initializer(p, node_var, initializer_data);
             parser_skip(p, ";");
         } else {
