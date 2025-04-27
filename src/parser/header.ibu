@@ -80,7 +80,10 @@ struct Type {
     // pointer type
     pointer_to *Type,
 
+    // array type
     array_len i32,
+    has_array_len bool,
+    is_unsized_array i32,
 
     is_unsigned bool,
     is_declaration bool,
@@ -93,7 +96,7 @@ func unexpected_token_error(expected *u8, tok *Token, msg *u8) u0;
 func unkown_type_error(types *Vec, tok *Token, msg *u8) u0;
 func unkown_member_error(members *Vec, tok *Token, msg *u8) u0;
 func new_pointer_type(base *Type) *Type;
-func new_array_type(base *Type, len i32) *Type;
+func new_array_type(base *Type, len i32, is_unsized_array bool, has_array_len bool) *Type;
 func new_func_type(params_types *Vec, return_type *Type, is_variadic bool) *Type;
 func cmp_type(ty1 *Type, ty2 *Type) bool;
 
