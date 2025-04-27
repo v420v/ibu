@@ -10,6 +10,11 @@ func parse_stmt(p *Parser) *Node;
 func cmp_type(ty1 *Type, ty2 *Type) bool;
 func parse_unary(p *Parser) *Node;
 
+func internal_error() u0 {
+    eprintf("internal error: this should not happen, please report a bug here https://github.com/v420v/vas/issues\n");
+    exit(1);
+}
+
 func cmp_func_param(p1 *Object, p2 *Object) bool {
     return str_equal(p1.name, p2.name) && cmp_type(p1.ty, p2.ty);
 }
@@ -124,7 +129,7 @@ func find_object(p *Parser, name *u8) *Object {
 
 struct Initializer;
 struct Initializer {
-    kind InitKind, 
+    kind InitKind,
     node *Node, // for InitKindNode
     children *Vec, // for InitKindChildren
 }
@@ -197,11 +202,10 @@ func initializer(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
                 } else if child_initializer.kind == InitKindNode {
                     vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_initializer.node));
                 } else {
-                    eprintf("unreachable");
-                    exit(1);
+                    internal_error();
                 }
             }
-        } else if lhs.ty.kind == TY_STRUCT {    
+        } else if lhs.ty.kind == TY_STRUCT {
             for let i i32 = 0; i < lhs.ty.members.len; i++ {
                 let struct_member *Member = vec_get(lhs.ty.members, i);
 
@@ -210,26 +214,22 @@ func initializer(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
                 if i >= children.len {
                     goto break;
                 }
-                
+
                 let child_initializer *Initializer = vec_get(children, i);
                 if child_initializer.kind == InitKindChildren {
                     vec_append(nodes, initializer(p, deref_lhs, child_initializer));
                 } else if child_initializer.kind == InitKindNode {
                     vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_initializer.node));
                 } else {
-                    eprintf("unreachable");
-                    exit(1);
+                    internal_error();
                 }
             }
         } else {
-            eprintf("unraachable");
-            exit(1);
+            internal_error();
         }
     break:
     } else {
-        eprintf("found none children initializer\n");
-        eprintf("not supported yet\n");
-        exit(1);
+        internal_error();
     }
 
     let node *Node = new_node(ND_BLOCK);
@@ -296,8 +296,7 @@ func resolve_variable_length_array_type(ty *Type, initializer *Initializer) i32 
                 return ty.size;
             }
         } else {
-            eprintf("internal error: this should not happen, please report a bug here https://github.com/v420v/vas/issues\n");
-            exit(1);
+            internal_error();
         }
     } else {
         return ty.size;
