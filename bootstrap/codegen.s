@@ -1425,7 +1425,7 @@ gen_load:
 	jne .L.else.25
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
-	addq $60, %rax
+	addq $68, %rax
 	movslq (%rax), %rax
 	cmpq $1, %rax
 	jne .L.else.26
@@ -1516,7 +1516,7 @@ gen_load:
 	jne .L.else.27
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
-	addq $60, %rax
+	addq $68, %rax
 	movslq (%rax), %rax
 	cmpq $1, %rax
 	jne .L.else.28
@@ -5268,7 +5268,7 @@ gen_expr:
 	movq (%rax), %rax
 	addq $112, %rax
 	movq (%rax), %rax
-	addq $60, %rax
+	addq $68, %rax
 	movslq (%rax), %rax
 	cmpq $1, %rax
 	jne .L.else.51
@@ -6265,7 +6265,7 @@ gen_expr:
 	movq (%rax), %rax
 	addq $112, %rax
 	movq (%rax), %rax
-	addq $60, %rax
+	addq $68, %rax
 	movslq (%rax), %rax
 	cmpq $1, %rax
 	jne .L.else.53
@@ -6386,7 +6386,7 @@ gen_expr:
 	movq (%rax), %rax
 	addq $112, %rax
 	movq (%rax), %rax
-	addq $60, %rax
+	addq $68, %rax
 	movslq (%rax), %rax
 	cmpq $1, %rax
 	jne .L.else.54
@@ -6505,7 +6505,7 @@ gen_expr:
 	movq (%rax), %rax
 	addq $112, %rax
 	movq (%rax), %rax
-	addq $60, %rax
+	addq $68, %rax
 	movslq (%rax), %rax
 	cmpq $1, %rax
 	jne .L.else.55
@@ -6626,7 +6626,7 @@ gen_expr:
 	movq (%rax), %rax
 	addq $112, %rax
 	movq (%rax), %rax
-	addq $60, %rax
+	addq $68, %rax
 	movslq (%rax), %rax
 	cmpq $1, %rax
 	jne .L.else.56
