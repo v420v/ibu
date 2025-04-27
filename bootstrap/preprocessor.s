@@ -1425,11 +1425,6 @@ preprocess:
 	movq $0, %rax
 	callq *%r10
 	addq $16, %rsp
-	leaq -176(%rbp), %rax
-	movq %rax, %rdi
-	movq $144, %rcx
-	mov $0, %al
-	rep stosb
 	leaq -32(%rbp), %rax
 	push %rax
 	leaq -176(%rbp), %rax

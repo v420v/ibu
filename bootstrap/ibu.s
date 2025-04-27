@@ -208,11 +208,6 @@ main:
 .L.else.3:
 .L.end.3:
 .L.end.2:
-	leaq -200(%rbp), %rax
-	movq %rax, %rdi
-	movq $144, %rcx
-	mov $0, %al
-	rep stosb
 	leaq -56(%rbp), %rax
 	push %rax
 	leaq -200(%rbp), %rax

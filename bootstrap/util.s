@@ -154,30 +154,6 @@ heap_current:
 heap_head:
 	.zero 8
 .text
-.global fstat
-fstat:
-	push %rbp
-	movq %rsp, %rbp
-	subq $0, %rsp
-	movq $0, %rax
-	push %rax
-	leaq 24(%rbp), %rax
-	movq (%rax), %rax
-	push %rax
-	leaq 16(%rbp), %rax
-	movslq (%rax), %rax
-	push %rax
-	movq $5, %rax
-	push %rax
-	leaq syscall(%rip), %rax
-	movq %rax, %r10
-	movq $0, %rax
-	callq *%r10
-	addq $32, %rsp
-	leave
-	ret
-	leave
-	ret
 .global strndup
 strndup:
 	push %rbp

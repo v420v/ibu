@@ -2572,11 +2572,6 @@ tokenize:
 	push %rbp
 	movq %rsp, %rbp
 	subq $96, %rsp
-	leaq -96(%rbp), %rax
-	movq %rax, %rdi
-	movq $72, %rcx
-	mov $0, %al
-	rep stosb
 	leaq -24(%rbp), %rax
 	push %rax
 	leaq -96(%rbp), %rax
