@@ -4,7 +4,6 @@
 #include "../linux-syscall/header.ibu"
 
 func copy_token(source *Token, dest *Token) u0 {
-    // dest.lit = source.lit;
     dest.start = source.start;
     dest.len = source.len;
     dest.kind = source.kind;
@@ -170,7 +169,6 @@ func tokenize_punct(t *Tokenizer) *Token {
         if starts_with(t.program, t.puncts[i]) {
             let tok *Token = new_token(t, TK_PUNCT);
             tok.len = strlen(t.puncts[i]);
-            // tok.lit = strndup(t.puncts[i], tok.len);
             tok.start = punct_start;
             tokenizer_next_n(t, tok.len);
             return tok;
@@ -280,7 +278,6 @@ func tokenize_hex_number(t *Tokenizer) *Token {
         tokenizer_next(t);
     }
 
-    // tok.lit = strndup(hex_start, t.program - hex_start);
     tok.start = hex_start;
     tok.len = t.program - hex_start;
     tok.int_val = d;
@@ -330,7 +327,6 @@ func tokenize_char(t *Tokenizer) *Token {
     }
     tokenizer_next_n(t, 2);
 
-    // tok.lit = strndup(char_start, t.program - char_start);
     tok.start = char_start;
     tok.len = t.program - char_start;
     tok.int_val = c;
@@ -366,7 +362,6 @@ func tokenize_string(t *Tokenizer) *Token {
 
     tokenizer_next(t); // skip end `"`
 
-    // tok.lit = strndup(string_start, t.program - string_start);
     tok.start = string_start;
     tok.len = t.program - string_start;
 
@@ -383,7 +378,6 @@ func tokenize_ident(t *Tokenizer) *Token {
         tokenizer_next(t);
     }
 
-    // tok.lit = strndup(ident_start, t.program-ident_start);
     tok.start = ident_start;
     tok.len = t.program-ident_start;
 
@@ -417,7 +411,6 @@ func tokenize(t *Tokenizer) *Token {
                 cur = cur.next = tok;
             } else {
                 let invalid_tok *Token = new_token(t, TK_UNKOWN);
-                // invalid_tok.lit = strndup(t.program, 1);
                 invalid_tok.start = t.program;
                 invalid_tok.len = 1;
                 print_error(invalid_tok, "unkown character found");
@@ -426,9 +419,7 @@ func tokenize(t *Tokenizer) *Token {
     }
 
     cur = cur.next = new_token(t, TK_EOF);
-    // cur.lit = "EOF";
     cur.len = 1;
 
     return head.next;
 }
-

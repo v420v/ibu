@@ -679,7 +679,6 @@ break:
 }
 
 func parse_ty(p *Parser) *Type {
-    //let name *u8 = p.tokens.lit;
     let type_name_tok *Token = p.tokens;
 
     parser_next(p);
