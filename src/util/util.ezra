@@ -1,6 +1,6 @@
 
-#include "header.ibu"
-#include "../linux-syscall/header.ibu"
+#include "header.ezra"
+#include "../linux-syscall/header.ezra"
 
 #define HEAP_SIZE 2147483647
 

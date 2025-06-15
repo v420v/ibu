@@ -1,6 +1,6 @@
 
-#include "../tokenizer/header.ibu"
-#include "../util/header.ibu"
+#include "../tokenizer/header.ezra"
+#include "../util/header.ezra"
 
 #define MAX_PATH_LENGTH 4096
 

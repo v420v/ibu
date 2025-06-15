@@ -12,14 +12,14 @@ up:
 down:
 	docker compose down
 
-.PHONY: ibu
-ibu:
-	docker compose exec ibulang bash
+.PHONY: ezra
+ezra:
+	docker compose exec ezra bash
 
 .PHONY: init
 init:
 	@printf "\033[1m\033[34mStarting the build process...\033[0m\n\n"
-	as -o bootstrap/ibu.o bootstrap/ibu.s
+	as -o bootstrap/ezra.o bootstrap/ezra.s
 	as -o bootstrap/tokenizer.o         bootstrap/tokenizer.s
 	as -o bootstrap/parser.o            bootstrap/parser.s
 	as -o bootstrap/codegen.o           bootstrap/codegen.s
@@ -27,44 +27,33 @@ init:
 	as -o bootstrap/linux-syscall.o     bootstrap/linux-syscall.s
 	as -o bootstrap/util.o            bootstrap/util.s
 	as -o bootstrap/runtime.o           bootstrap/runtime.s
-	ld -o ibuc bootstrap/ibu.o bootstrap/tokenizer.o bootstrap/parser.o bootstrap/codegen.o bootstrap/preprocessor.o bootstrap/linux-syscall.o bootstrap/util.o bootstrap/runtime.o
-
-	@printf "\n"
-	@printf "___________________________________________________0/____________\n"
-	@printf "                                                   0\\           \n"
+	ld -o ezrac bootstrap/ezra.o bootstrap/tokenizer.o bootstrap/parser.o bootstrap/codegen.o bootstrap/preprocessor.o bootstrap/linux-syscall.o bootstrap/util.o bootstrap/runtime.o
 	@printf "\033[1m\033[32mBuild process completed successfully!\033[0m\n"
-	@printf "\n"
-	@echo "    ______"
-	@echo "   /  _/ /_  __  __"
-	@echo "   / // __ \\/ / / /"
-	@echo " _/ // /_/ / /_/ /"
-	@echo "/___/_.___/\__,_/  v0.1.0"
-	@printf "The Ibu programming language\n"
 
 .PHONY: self
 self:
-	./ibuc src/ibu.ibu                         | as - -o src/ibu.o
-	./ibuc src/tokenizer/tokenizer.ibu         | as - -o src/tokenizer.o
-	./ibuc src/preprocessor/preprocessor.ibu   | as - -o src/preprocessor.o
-	./ibuc src/linux-syscall/linux-syscall.ibu | as - -o src/linux-syscall.o
-	./ibuc src/util/util.ibu                     | as - -o src/util.o
-	./ibuc src/codegen/codegen.ibu             | as - -o src/codegen.o
-	./ibuc src/parser/parser.ibu               | as - -o src/parser.o
+	./ezrac src/ezra.ezra                         | as - -o src/ezra.o
+	./ezrac src/tokenizer/tokenizer.ezra         | as - -o src/tokenizer.o
+	./ezrac src/preprocessor/preprocessor.ezra   | as - -o src/preprocessor.o
+	./ezrac src/linux-syscall/linux-syscall.ezra | as - -o src/linux-syscall.o
+	./ezrac src/util/util.ezra                     | as - -o src/util.o
+	./ezrac src/codegen/codegen.ezra             | as - -o src/codegen.o
+	./ezrac src/parser/parser.ezra               | as - -o src/parser.o
 	as -o src/runtime.o src/runtime.s
-	ld -o ibuc src/tokenizer.o src/parser.o src/codegen.o src/preprocessor.o src/ibu.o src/util.o src/runtime.o src/linux-syscall.o
+	ld -o ezrac src/tokenizer.o src/parser.o src/codegen.o src/preprocessor.o src/ezra.o src/util.o src/runtime.o src/linux-syscall.o
 
 .PHONY: update_bootstrap
 update_bootstrap:
-	./ibuc src/ibu.ibu                         > bootstrap/ibu.s
-	./ibuc src/tokenizer/tokenizer.ibu         > bootstrap/tokenizer.s
-	./ibuc src/preprocessor/preprocessor.ibu   > bootstrap/preprocessor.s
-	./ibuc src/linux-syscall/linux-syscall.ibu > bootstrap/linux-syscall.s
-	./ibuc src/util/util.ibu                     > bootstrap/util.s
-	./ibuc src/codegen/codegen.ibu             > bootstrap/codegen.s
-	./ibuc src/parser/parser.ibu               > bootstrap/parser.s
+	./ezrac src/ezra.ezra                         > bootstrap/ezra.s
+	./ezrac src/tokenizer/tokenizer.ezra         > bootstrap/tokenizer.s
+	./ezrac src/preprocessor/preprocessor.ezra   > bootstrap/preprocessor.s
+	./ezrac src/linux-syscall/linux-syscall.ezra > bootstrap/linux-syscall.s
+	./ezrac src/util/util.ezra                     > bootstrap/util.s
+	./ezrac src/codegen/codegen.ezra             > bootstrap/codegen.s
+	./ezrac src/parser/parser.ezra               > bootstrap/parser.s
 	cp src/runtime.s bootstrap/runtime.s
 
 .PHONY: clean
 clean:
-	rm *.o ibuc bootstrap/*.o src/*.o
+	rm *.o ezrac bootstrap/*.o src/*.o
 
