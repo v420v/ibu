@@ -573,15 +573,15 @@ find_macro:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.while.end.11
-	leaq 24(%rbp), %rax
-	movq (%rax), %rax
-	push %rax
 	leaq -8(%rbp), %rax
 	movq (%rax), %rax
 	addq $0, %rax
 	movq (%rax), %rax
 	push %rax
-	leaq str_equal(%rip), %rax
+	leaq 24(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq is_token(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -616,6 +616,18 @@ new_macro:
 	push %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp
+	leaq -16(%rbp), %rax
+	push %rax
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq get_token_lit(%rip), %rax
+	movq %rax, %r10
+	movq $0, %rax
+	callq *%r10
+	addq $8, %rsp
+	pop %rdi
+	movq %rax, (%rdi)
 	leaq -8(%rbp), %rax
 	push %rax
 	movq $24, %rax
@@ -631,7 +643,7 @@ new_macro:
 	movq (%rax), %rax
 	addq $0, %rax
 	push %rax
-	leaq 16(%rbp), %rax
+	leaq -16(%rbp), %rax
 	movq (%rax), %rax
 	pop %rdi
 	movq %rax, (%rdi)
@@ -717,10 +729,8 @@ preprocess:
 	push %rax
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
-	addq $32, %rax
-	movq (%rax), %rax
 	push %rax
-	leaq str_equal(%rip), %rax
+	leaq is_token(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -751,10 +761,8 @@ preprocess:
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
-	addq $32, %rax
-	movq (%rax), %rax
 	push %rax
-	leaq str_equal(%rip), %rax
+	leaq is_token(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -785,8 +793,6 @@ preprocess:
 	addq $64, %rax
 	movq (%rax), %rax
 	addq $64, %rax
-	movq (%rax), %rax
-	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
 	leaq new_macro(%rip), %rax
@@ -995,10 +1001,8 @@ preprocess:
 	push %rax
 	leaq 24(%rbp), %rax
 	movq (%rax), %rax
-	addq $32, %rax
-	movq (%rax), %rax
 	push %rax
-	leaq str_equal(%rip), %rax
+	leaq is_token(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -1030,10 +1034,8 @@ preprocess:
 	movq (%rax), %rax
 	addq $64, %rax
 	movq (%rax), %rax
-	addq $32, %rax
-	movq (%rax), %rax
 	push %rax
-	leaq str_equal(%rip), %rax
+	leaq is_token(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -2124,8 +2126,6 @@ preprocess:
 	leaq -8(%rbp), %rax
 	push %rax
 	leaq 24(%rbp), %rax
-	movq (%rax), %rax
-	addq $32, %rax
 	movq (%rax), %rax
 	push %rax
 	leaq 16(%rbp), %rax
