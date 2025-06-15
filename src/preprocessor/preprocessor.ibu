@@ -10,7 +10,13 @@ func new_preprocessor() *Preprocessor {
     return p;
 }
 
-func new_macro(name *u8, tok *Token) *Macro {
+func new_macro(name_tok *Token, tok *Token) *Macro {
+    let name *u8 = get_token_lit(name_tok);
+    if name == nil {
+        eprintf("buy more ram");
+        exit(1);
+    }
+
     let macro *Macro = alloc(typesize(Macro));
     macro.name = name;
     macro.tok = tok;
@@ -18,9 +24,9 @@ func new_macro(name *u8, tok *Token) *Macro {
     return macro;
 }
 
-func find_macro(p *Preprocessor, name *u8) *Macro {
+func find_macro(p *Preprocessor, tok *Token) *Macro {
     for let m *Macro = p.macros; m != nil; m = m.next {
-        if str_equal(m.name, name) {
+        if is_token(tok, m.name) {
             return m;
         }
     }
@@ -88,12 +94,12 @@ func preprocess(p *Preprocessor, tok *Token) u0 {
     let start_folder_name *u8 = dirname(strndup(tok.file_name, strlen(tok.file_name)));
 
     while {
-        if tok.next != nil && str_equal(tok.lit, "#") && str_equal(tok.next.lit, "define") {
-            let macro *Macro = new_macro(tok.next.next.lit, tok.next.next.next);
+        if tok.next != nil && is_token(tok, "#") && is_token(tok.next, "define") {
+            let macro *Macro = new_macro(tok.next.next, tok.next.next.next);
             macro.next = p.macros;
             p.macros = macro;
             *tok = *tok.next.next.next.next;
-        } else if tok.next != nil && str_equal(tok.lit, "#") && str_equal(tok.next.lit, "include") {
+        } else if tok.next != nil && is_token(tok, "#") && is_token(tok.next, "include") {
             let file_name_tok *Token = tok.next.next;
 
             if file_name_tok.kind != TK_STR {
@@ -167,7 +173,7 @@ func preprocess(p *Preprocessor, tok *Token) u0 {
 
 break:
 
-    let m *Macro = find_macro(p, tok.lit);
+    let m *Macro = find_macro(p, tok);
     if m != nil {
         copy_token(m.tok, tok);
     }
