@@ -1,5 +1,4 @@
 <div align="center">
-    <img src="https://emoji2svg.deno.dev/api/🕊️" alt="eyecatch" height="100">
     <h1>The Ezra programming language</h1>
 </div>
 
