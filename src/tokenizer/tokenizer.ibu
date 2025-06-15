@@ -4,12 +4,33 @@
 #include "../linux-syscall/header.ibu"
 
 func copy_token(source *Token, dest *Token) u0 {
-    dest.lit = source.lit;
+    dest.start = source.start;
+    dest.len = source.len;
     dest.kind = source.kind;
     dest.file_name = source.file_name;
     dest.line = source.line;
     dest.col = source.col;
     dest.int_val = source.int_val;
+}
+
+func is_token(tok *Token, lit *u8) bool {
+    if tok == nil {
+        return false;
+    }
+
+    let lit_len i32 = strlen(lit);
+
+    if lit_len != tok.len {
+        return false;
+    }
+
+    for let i i32 = 0; i < tok.len; i++ {
+        if lit[i] != tok.start[i] {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 func frepeat_str(fd i32, str *u8, n i32) i32 {
@@ -53,6 +74,30 @@ func print_error_with_code(tok *Token, msg *u8) u0 {
 func print_error(tok *Token, msg *u8) u0 {
     print_error_with_code(tok, msg);
     exit(1);
+}
+
+func get_token_lit(tok *Token) *u8 {
+    let start_offset i32 = 0;
+    let end_offset i32 = 0;
+
+    if tok.kind == TK_STR {
+        start_offset = 1;
+        end_offset = 1;
+    }
+
+    if tok.kind == TK_CHAR {
+        start_offset = 1;
+        end_offset = 1;
+    }
+
+    let lit *u8 = strndup(tok.start + start_offset, tok.len - end_offset);
+
+    if lit == nil {
+        eprintf("error: memory allocation failed\n");
+        exit(1);
+    }
+
+    return lit;
 }
 
 func new_tokenizer(file_name *u8, program *u8) *Tokenizer {
@@ -116,21 +161,25 @@ func new_token(t *Tokenizer, kind TokenKind) *Token {
     tok.col = t.col;
     tok.file_name = t.file_name;
     tok.kind = kind;
+    tok.start = t.program;
     tok.program = t.cur_line;
 
     return tok;
 }
 
 func tokenize_punct(t *Tokenizer) *Token {
+    let punct_start *u8 = t.program;
+
     for let i i32 = 0; i < 34; i++ {
         if starts_with(t.program, t.puncts[i]) {
             let tok *Token = new_token(t, TK_PUNCT);
             tok.len = strlen(t.puncts[i]);
-            tok.lit = strndup(t.puncts[i], tok.len);
+            tok.start = punct_start;
             tokenizer_next_n(t, tok.len);
             return tok;
         }
     }
+
     return nil;
 }
 
@@ -234,7 +283,7 @@ func tokenize_hex_number(t *Tokenizer) *Token {
         tokenizer_next(t);
     }
 
-    tok.lit = strndup(hex_start, t.program - hex_start);
+    tok.start = hex_start;
     tok.len = t.program - hex_start;
     tok.int_val = d;
 
@@ -249,9 +298,10 @@ func tokenize_decimal_number(t *Tokenizer) *Token {
         tokenizer_next(t);
     }
 
-    tok.lit = strndup(digit_start, t.program - digit_start);
+    let int_val i64 = strndup(digit_start, t.program - digit_start);
+    tok.start = digit_start;
     tok.len = t.program - digit_start;
-    tok.int_val = atoi(tok.lit);
+    tok.int_val = atoi(int_val);
 
     return tok;
 }
@@ -282,7 +332,7 @@ func tokenize_char(t *Tokenizer) *Token {
     }
     tokenizer_next_n(t, 2);
 
-    tok.lit = strndup(char_start, t.program - char_start);
+    tok.start = char_start;
     tok.len = t.program - char_start;
     tok.int_val = c;
 
@@ -317,7 +367,7 @@ func tokenize_string(t *Tokenizer) *Token {
 
     tokenizer_next(t); // skip end `"`
 
-    tok.lit = strndup(string_start, t.program - string_start);
+    tok.start = string_start;
     tok.len = t.program - string_start;
 
     tok.str_val = buf;
@@ -333,7 +383,7 @@ func tokenize_ident(t *Tokenizer) *Token {
         tokenizer_next(t);
     }
 
-    tok.lit = strndup(ident_start, t.program-ident_start);
+    tok.start = ident_start;
     tok.len = t.program-ident_start;
 
     return tok;
@@ -366,7 +416,7 @@ func tokenize(t *Tokenizer) *Token {
                 cur = cur.next = tok;
             } else {
                 let invalid_tok *Token = new_token(t, TK_UNKOWN);
-                invalid_tok.lit = strndup(t.program, 1);
+                invalid_tok.start = t.program;
                 invalid_tok.len = 1;
                 print_error(invalid_tok, "unkown character found");
             }
@@ -374,9 +424,7 @@ func tokenize(t *Tokenizer) *Token {
     }
 
     cur = cur.next = new_token(t, TK_EOF);
-    cur.lit = "EOF";
     cur.len = 1;
 
     return head.next;
 }
-

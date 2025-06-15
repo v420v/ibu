@@ -14,7 +14,7 @@ struct Token {
     program *u8,
     line i32,
     col i32,
-    lit *u8,
+    start *u8,
     len i32,
     str_val *u8,
     int_val i32,
@@ -30,6 +30,8 @@ struct Tokenizer {
     puncts [34]*u8,
 }
 
+func get_token_lit(tok *Token) *u8;
+func is_token(tok *Token, lit *u8) bool; 
 func copy_token(source *Token, dest *Token) u0;
 func print_error_with_code(tok *Token, msg *u8) u0;
 func print_error(tok *Token, msg *u8) u0;
