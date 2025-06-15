@@ -1,4 +1,4 @@
-#include "header.ibu"
+#include "header.ezra"
 
 func open(file_name *u8, flags i32, mode i32) i64 {
     return syscall(SYS_OPEN, file_name, flags, mode);

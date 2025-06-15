@@ -1,13 +1,13 @@
 <div align="center">
     <img src="https://emoji2svg.deno.dev/api/🕊️" alt="eyecatch" height="100">
-    <h1>The Ibu programming language</h1>
+    <h1>The Ezra programming language</h1>
 </div>
 
-[![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
+[![CI](https://github.com/v420v/ezra/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ezra/actions/workflows/ci.yml)
 
 A language designed for the enjoyment of programming.
 
-## Key Features of Ibu
+## Key Features of Ezra
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
@@ -27,43 +27,43 @@ A language designed for the enjoyment of programming.
 
 ## Build the language
 ```zsh
-$ git clone git@github.com:v420v/ibu.git
-$ cd ibu
+$ git clone git@github.com:v420v/ezra.git
+$ cd ezra
 $ make init
 ```
 
 ## Build the language with docker
 ```zsh
-$ git clone git@github.com:v420v/ibu.git
-$ cd ibu
+$ git clone git@github.com:v420v/ezra.git
+$ cd ezra
 $ make up
-$ make ibu
+$ make ezra
 $ make init
 ```
 
 | Command | Execution |
 |-----------|------------------------|
 | `make up` | `docker compose up -d` |
-| `make ibu` | `docker compose exec ibulang bash` |
+| `make ezra` | `docker compose exec ezra bash` |
 | `make down` | `docker compose down` |
 
 ## Usage
 
 ```
-$ ./ibuc <filename>.ibu
+$ ./ezrac <filename>.ezra
 ```
 
 ## Compiler implementation
 | File | Content |
 |-----------|------------------------|
-| `src/ibu.ibu` | Entry point |
-| `src/tokenizer/tokenizer.ibu` | Lexical analyzer |
-| `src/preprocessor/preprocessor.ibu` | Preprocessor |
-| `src/parser/parser.ibu` | Parser |
-| `src/codegen/codegen.ibu` | Assembly code generator |
-| `src/linux-syscall/linux-syscall.ibu` | Linux system call |
+| `src/ezra.ezra` | Entry point |
+| `src/tokenizer/tokenizer.ezra` | Lexical analyzer |
+| `src/preprocessor/preprocessor.ezra` | Preprocessor |
+| `src/parser/parser.ezra` | Parser |
+| `src/codegen/codegen.ezra` | Assembly code generator |
+| `src/linux-syscall/linux-syscall.ezra` | Linux system call |
 | `src/runtime.s` | Syscall function in assembly |
-| `src/util/util.ibu` | Other |
+| `src/util/util.ezra` | Other |
 
 ### Contribution
 contribution is welcome!

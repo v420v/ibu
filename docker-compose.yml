@@ -1,5 +1,5 @@
 services:
-  ibulang:
+  ezra:
     build:
       context: .
       dockerfile: Dockerfile

@@ -1,7 +1,7 @@
 
-#include "header.ibu"
-#include "../util/header.ibu"
-#include "../linux-syscall/header.ibu"
+#include "header.ezra"
+#include "../util/header.ezra"
+#include "../linux-syscall/header.ezra"
 
 func new_preprocessor() *Preprocessor {
     let p *Preprocessor = alloc(typesize(Preprocessor));

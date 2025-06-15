@@ -1,6 +1,6 @@
 
-#include "../util/header.ibu"
-#include "../tokenizer/header.ibu"
+#include "../util/header.ezra"
+#include "../tokenizer/header.ezra"
 
 #define NodeKind			i32
 #define ND_ADD				0
