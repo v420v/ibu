@@ -12,11 +12,6 @@ func new_preprocessor() *Preprocessor {
 
 func new_macro(name_tok *Token, tok *Token) *Macro {
     let name *u8 = get_token_lit(name_tok);
-    if name == nil {
-        eprintf("error: memory allocation failed\n");
-        exit(1);
-    }
-
     let macro *Macro = alloc(typesize(Macro));
     macro.name = name;
     macro.tok = tok;

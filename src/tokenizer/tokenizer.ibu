@@ -92,6 +92,11 @@ func get_token_lit(tok *Token) *u8 {
 
     let lit *u8 = strndup(tok.start + start_offset, tok.len - end_offset);
 
+    if lit == nil {
+        eprintf("error: memory allocation failed\n");
+        exit(1);
+    }
+
     return lit;
 }
 
