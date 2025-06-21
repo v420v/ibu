@@ -1,5 +1,5 @@
 
-#include "../parser/header.ezra"
+#include "../parser/header.ibu"
 
 struct Gen {
     label_count i32,

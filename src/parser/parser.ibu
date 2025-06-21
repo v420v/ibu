@@ -1,7 +1,7 @@
 
-#include "header.ezra"
-#include "../util/header.ezra"
-#include "../linux-syscall/header.ezra"
+#include "header.ibu"
+#include "../util/header.ibu"
+#include "../linux-syscall/header.ibu"
 
 func add_type(p *Parser, node *Node) u0;
 func parse_ty(p *Parser) *Type;

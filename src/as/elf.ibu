@@ -1,6 +1,6 @@
 
-#include "../util/header.ezra"
-#include "../linux-syscall/header.ezra"
+#include "../util/header.ibu"
+#include "../linux-syscall/header.ibu"
 
 #define STB_LOCAL     0
 #define STB_GLOBAL    1

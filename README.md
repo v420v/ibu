@@ -1,12 +1,12 @@
 <div align="center">
-    <h1>The Ezra programming language</h1>
+    <h1>The ibu programming language</h1>
 </div>
 
-[![CI](https://github.com/v420v/ezra/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ezra/actions/workflows/ci.yml)
+[![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
-A language designed for the enjoyment of programming.
+最低限のルールで最大限の制御を与え、曖昧さをなくすことに価値を置く。
 
-## Key Features of Ezra
+## Key Features of ibu
 - No strict type checker
 - No C-like pointer arithmetic
 - No function-like macros
@@ -19,50 +19,49 @@ A language designed for the enjoyment of programming.
 - Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
 - All values are extended to 64-bit when accessed
 - The compiler is written in itself
-- Default args don't have to be on the end (WIP)
 
 > [!IMPORTANT]
 > Supports x86-64 Linux only
 
 ## Build the language
 ```zsh
-$ git clone git@github.com:v420v/ezra.git
-$ cd ezra
+$ git clone git@github.com:v420v/ibu.git
+$ cd ibu
 $ make init
 ```
 
 ## Build the language with docker
 ```zsh
-$ git clone git@github.com:v420v/ezra.git
-$ cd ezra
+$ git clone git@github.com:v420v/ibu.git
+$ cd ibu
 $ make up
-$ make ezra
+$ make ibu
 $ make init
 ```
 
 | Command | Execution |
 |-----------|------------------------|
 | `make up` | `docker compose up -d` |
-| `make ezra` | `docker compose exec ezra bash` |
+| `make ibu` | `docker compose exec ibu bash` |
 | `make down` | `docker compose down` |
 
 ## Usage
 
 ```
-$ ./ezrac <filename>.ezra
+$ ./ibuc <filename>.ibu
 ```
 
 ## Compiler implementation
 | File | Content |
 |-----------|------------------------|
-| `src/ezra.ezra` | Entry point |
-| `src/tokenizer/tokenizer.ezra` | Lexical analyzer |
-| `src/preprocessor/preprocessor.ezra` | Preprocessor |
-| `src/parser/parser.ezra` | Parser |
-| `src/codegen/codegen.ezra` | Assembly code generator |
-| `src/linux-syscall/linux-syscall.ezra` | Linux system call |
+| `src/ibu.ibu` | Entry point |
+| `src/tokenizer/tokenizer.ibu` | Lexical analyzer |
+| `src/preprocessor/preprocessor.ibu` | Preprocessor |
+| `src/parser/parser.ibu` | Parser |
+| `src/codegen/codegen.ibu` | Assembly code generator |
+| `src/linux-syscall/linux-syscall.ibu` | Linux system call |
 | `src/runtime.s` | Syscall function in assembly |
-| `src/util/util.ezra` | Other |
+| `src/util/util.ibu` | Other |
 
 ### Contribution
 contribution is welcome!
