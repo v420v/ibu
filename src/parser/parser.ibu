@@ -1,7 +1,18 @@
-
 #include "header.ibu"
 #include "../util/header.ibu"
 #include "../linux-syscall/header.ibu"
+
+#define InitKind i32
+#define InitKindNode 1
+#define InitKindChildren 2
+
+struct Initializer;
+struct Initializer {
+    kind InitKind,
+    node *Node, // for InitKindNode
+    children *Vec, // for InitKindChildren
+    tok *Token,
+}
 
 func add_type(p *Parser, node *Node) u0;
 func parse_ty(p *Parser) *Type;
@@ -127,17 +138,6 @@ func find_object(p *Parser, tok *Token) *Object {
     return obj;
 }
 
-#define InitKind i32
-#define InitKindNode 1
-#define InitKindChildren 2
-
-struct Initializer;
-struct Initializer {
-    kind InitKind,
-    node *Node, // for InitKindNode
-    children *Vec, // for InitKindChildren
-}
-
 func new_initializer_node(node *Node) *Initializer {
     let initializer *Initializer = alloc(typesize(Initializer));
     if initializer == nil {
@@ -152,6 +152,7 @@ func new_initializer_node(node *Node) *Initializer {
 }
 
 func parse_initializer(p *Parser) u0 {
+    let initializer_start_token *Token = p.tokens;
     parser_skip(p, "{");
 
     let children *Vec = new_vec(10);
@@ -162,6 +163,7 @@ func parse_initializer(p *Parser) u0 {
         exit(1);
     }
     initializer.kind = InitKindChildren;
+    initializer.tok = initializer_start_token;
 
     while !is_token(p.tokens, "}") {
         if is_token(p.tokens, "{") {
@@ -229,7 +231,7 @@ func initializer(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
                 }
             }
         } else {
-            internal_error();
+            print_error(initializer_data.tok, "initializer can only be used with array or struct types");
         }
     break:
     } else {
@@ -477,7 +479,7 @@ func parse_switch(p *Parser) *Node {
 
 func parse_case(p *Parser) *Node {
     if p.current_switch == nil {
-        print_error(p.tokens, "case outside of switch");
+        print_error(p.tokens, "'case' used outside of a switch statement");
     }
 
     parser_skip(p, "case");
@@ -1137,7 +1139,7 @@ func parse_unary(p *Parser) *Node {
             parser_skip(p, "]");
 
             if node.ty.kind != TY_PTR && node.ty.kind != TY_ARRAY {
-                print_error(access_tok, "`[]` cannot access to none pointer type.");
+                print_error(access_tok, "'[]' cannot be used on non-pointer type");
             }
 
             let base_number_node *Node = new_node(ND_NUM);
@@ -1163,7 +1165,7 @@ func parse_unary(p *Parser) *Node {
 
             if node.ty.kind == TY_PTR {
                 if node.ty.pointer_to.kind != TY_STRUCT {
-                    print_error(access_tok, "cannot access from none struct type");
+                    print_error(access_tok, "cannot access member of non-struct type");
                 }
                 member = search_struct_member(node.ty.pointer_to.members, member_name);
                 if member == nil {
@@ -1175,7 +1177,7 @@ func parse_unary(p *Parser) *Node {
                 node = new_struct_access_node(ND_DEREF, node, 0, node.ty.pointer_to);
             } else {
                 if node.ty.kind != TY_STRUCT {
-                    print_error(access_tok, "cannot access from none struct type");
+                    print_error(access_tok, "cannot access member of non-struct type");
                 }
                 member = search_struct_member(node.ty.members, member_name);
                 if member == nil {
@@ -1576,7 +1578,7 @@ func parse_function_params(p *Parser, types *Vec, params *Vec) bool {
         } else {
             ty = parse_ty(p);
             if ty.kind == TY_STRUCT {
-                print_error(ty_tok, "unsupported feature: function parameter of struct");
+                print_error(ty_tok, "unsupported feature: struct as function parameter");
             }
             if ty.kind == TY_ARRAY {
                 ty = new_pointer_type(ty.pointer_to);
@@ -1622,10 +1624,10 @@ func parse_func(p *Parser) u0 {
 
     if fn != nil {
         if !cmp_func_params(fn.params, params) {
-            print_error(name_tok, "arguments doesn't match to prototype");
+            print_error(name_tok, "function arguments do not match the prototype");
         }
         if !cmp_type(return_ty, fn.ty.return_type) {
-            print_error(name_tok, "return type doesn't match to prototype");
+            print_error(name_tok, "function return type does not match the prototype");
         }
     }
 
