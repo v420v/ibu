@@ -50,10 +50,9 @@ main:
 	.byte 101
 	.byte 62
 	.byte 46
-	.byte 101
-	.byte 122
-	.byte 114
-	.byte 97
+	.byte 105
+	.byte 98
+	.byte 117
 	.byte 10
 	.byte 0
 .text
