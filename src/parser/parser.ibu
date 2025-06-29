@@ -187,7 +187,7 @@ break:
     return initializer;
 }
 
-func initializer(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
+func build_initializer_node(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
     let nodes *Vec = new_vec(10);
 
     if initializer_data.kind == InitKindChildren {
@@ -204,7 +204,7 @@ func initializer(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
 
                 let child_initializer *Initializer = vec_get(children, i);
                 if child_initializer.kind == InitKindChildren {
-                    vec_append(nodes, initializer(p, deref_lhs, child_initializer));
+                    vec_append(nodes, build_initializer_node(p, deref_lhs, child_initializer));
                 } else if child_initializer.kind == InitKindNode {
                     vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_initializer.node));
                 } else {
@@ -223,7 +223,7 @@ func initializer(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
 
                 let child_initializer *Initializer = vec_get(children, i);
                 if child_initializer.kind == InitKindChildren {
-                    vec_append(nodes, initializer(p, deref_lhs, child_initializer));
+                    vec_append(nodes, build_initializer_node(p, deref_lhs, child_initializer));
                 } else if child_initializer.kind == InitKindNode {
                     vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_initializer.node));
                 } else {
@@ -333,7 +333,7 @@ func parse_let(p *Parser) *Node {
             if node_var.ty.is_unsized_array {
                 resolve_variable_length_array_type(node_var.ty, initializer_data);
             }
-            node = initializer(p, node_var, initializer_data);
+            node = build_initializer_node(p, node_var, initializer_data);
             parser_skip(p, ";");
         } else {
             node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
