@@ -8553,7 +8553,7 @@ parse_let:
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq initializer(%rip), %rax
+	leaq build_initializer_node(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9065,8 +9065,8 @@ get_max_len_initializer:
 	ret
 	leave
 	ret
-.global initializer
-initializer:
+.global build_initializer_node
+build_initializer_node:
 	push %rbp
 	movq %rsp, %rbp
 	subq $80, %rsp
@@ -9207,7 +9207,7 @@ initializer:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.else.148
-	jmp .L.initializer.break
+	jmp .L.build_initializer_node.break
 	jmp .L.end.148
 .L.else.148:
 .L.end.148:
@@ -9247,7 +9247,7 @@ initializer:
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq initializer(%rip), %rax
+	leaq build_initializer_node(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9419,7 +9419,7 @@ initializer:
 	movzbq %al, %rax
 	cmpq $1, %rax
 	jne .L.else.153
-	jmp .L.initializer.break
+	jmp .L.build_initializer_node.break
 	jmp .L.end.153
 .L.else.153:
 .L.end.153:
@@ -9459,7 +9459,7 @@ initializer:
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
-	leaq initializer(%rip), %rax
+	leaq build_initializer_node(%rip), %rax
 	movq %rax, %r10
 	movq $0, %rax
 	callq *%r10
@@ -9611,7 +9611,7 @@ initializer:
 	addq $16, %rsp
 .L.end.151:
 .L.end.146:
-.L.initializer.break:
+.L.build_initializer_node.break:
 	jmp .L.end.145
 .L.else.145:
 	leaq internal_error(%rip), %rax
