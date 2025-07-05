@@ -138,32 +138,32 @@ func find_object(p *Parser, tok *Token) *Object {
     return obj;
 }
 
-func new_initializer_node(node *Node) *Initializer {
-    let initializer *Initializer = alloc(typesize(Initializer));
-    if initializer == nil {
+func new_initializer(node *Node) *Initializer {
+    let init *Initializer = alloc(typesize(Initializer));
+    if init == nil {
         eprintf("allocation faile\n");
         exit(1);
     }
 
-    initializer.node = node;
-    initializer.kind = InitKindNode;
+    init.node = node;
+    init.kind = InitKindNode;
 
-    return initializer;
+    return init;
 }
 
 func parse_initializer(p *Parser) u0 {
-    let initializer_start_token *Token = p.tokens;
+    let init_start_token *Token = p.tokens;
     parser_skip(p, "{");
 
     let children *Vec = new_vec(10);
 
-    let initializer *Initializer = alloc(typesize(Initializer));
-    if initializer == nil {
+    let init *Initializer = alloc(typesize(Initializer));
+    if init == nil {
         eprintf("memory allocation failed\n");
         exit(1);
     }
-    initializer.kind = InitKindChildren;
-    initializer.tok = initializer_start_token;
+    init.kind = InitKindChildren;
+    init.tok = init_start_token;
 
     while !is_token(p.tokens, "}") {
         if is_token(p.tokens, "{") {
@@ -171,7 +171,7 @@ func parse_initializer(p *Parser) u0 {
         } else {
            let node *Node = parse_expr(p);
            add_type(p, node);
-           vec_append(children, new_initializer_node(node));
+           vec_append(children, new_initializer(node));
         }
 
         if is_token(p.tokens, ",") {
@@ -183,15 +183,15 @@ func parse_initializer(p *Parser) u0 {
 break:
     parser_skip(p, "}");
 
-    initializer.children = children;
-    return initializer;
+    init.children = children;
+    return init;
 }
 
-func build_initializer_node(p *Parser, lhs *Node, initializer_data *Initializer) *Node {
+func build_initializer_node(p *Parser, lhs *Node, init_data *Initializer) *Node {
     let nodes *Vec = new_vec(10);
 
-    if initializer_data.kind == InitKindChildren {
-        let children *Vec = initializer_data.children;
+    if init_data.kind == InitKindChildren {
+        let children *Vec = init_data.children;
         if lhs.ty.kind == TY_ARRAY {
             for let i i32 = 0; i < lhs.ty.array_len; i++ {
                 let deref_lhs *Node = new_node(ND_DEREF);
@@ -202,11 +202,11 @@ func build_initializer_node(p *Parser, lhs *Node, initializer_data *Initializer)
                     goto break;
                 }
 
-                let child_initializer *Initializer = vec_get(children, i);
-                if child_initializer.kind == InitKindChildren {
-                    vec_append(nodes, build_initializer_node(p, deref_lhs, child_initializer));
-                } else if child_initializer.kind == InitKindNode {
-                    vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_initializer.node));
+                let child_init *Initializer = vec_get(children, i);
+                if child_init.kind == InitKindChildren {
+                    vec_append(nodes, build_initializer_node(p, deref_lhs, child_init));
+                } else if child_init.kind == InitKindNode {
+                    vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_init.node));
                 } else {
                     internal_error();
                 }
@@ -221,17 +221,17 @@ func build_initializer_node(p *Parser, lhs *Node, initializer_data *Initializer)
                     goto break;
                 }
 
-                let child_initializer *Initializer = vec_get(children, i);
-                if child_initializer.kind == InitKindChildren {
-                    vec_append(nodes, build_initializer_node(p, deref_lhs, child_initializer));
-                } else if child_initializer.kind == InitKindNode {
-                    vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_initializer.node));
+                let child_init *Initializer = vec_get(children, i);
+                if child_init.kind == InitKindChildren {
+                    vec_append(nodes, build_initializer_node(p, deref_lhs, child_init));
+                } else if child_init.kind == InitKindNode {
+                    vec_append(nodes, new_binop(ND_ASSIGN, deref_lhs, child_init.node));
                 } else {
                     internal_error();
                 }
             }
         } else {
-            print_error(initializer_data.tok, "initializer can only be used with array or struct types");
+            print_error(init_data.tok, "initializer can only be used with array or struct types");
         }
     break:
     } else {
@@ -245,42 +245,43 @@ func build_initializer_node(p *Parser, lhs *Node, initializer_data *Initializer)
     return node;
 }
 
-func get_max_len_initializer(initializers *Vec) *Initializer {
-    let maxInitializer *Initializer = nil;
+// inits Vec<Initializer>
+func get_max_len_initializer(inits *Vec) *Initializer {
+    let max_init *Initializer = nil;
     let max i32 = 0;
 
-    for let i i32 = 0; i < initializers.len; i++ {
-        let initializer *Initializer = vec_get(initializers, i);
-        if initializer.kind == InitKindChildren {
-            if max < initializer.children.len {
-                maxInitializer = initializer;
+    for let i i32 = 0; i < inits.len; i++ {
+        let init *Initializer = vec_get(inits, i);
+        if init.kind == InitKindChildren {
+            if max < init.children.len {
+                max_init = init;
             }
         }
     }
 
     if max == 0 {
-        if initializers.len != 0 {
-            return vec_get(initializers, 1); // if the max length was zero, just return the first one, this should work
+        if inits.len != 0 {
+            return vec_get(inits, 1); // if the max length was zero, just return the first one, this should work
         }
     }
 
-    return maxInitializer;
+    return max_init;
 }
 
-func resolve_variable_length_array_type(ty *Type, initializer *Initializer) i32 {
+func resolve_variable_length_array_type(ty *Type, init *Initializer) i32 {
     if ty.kind == TY_ARRAY && ty.is_unsized_array {
-        if initializer.kind == InitKindChildren {
+        if init.kind == InitKindChildren {
             if ty.pointer_to.kind == TY_ARRAY {
-                let initializer_child *Initializer = get_max_len_initializer(initializer.children);
+                let init_child *Initializer = get_max_len_initializer(init.children);
                 let length i32 = ty.array_len;
                 let child_size i32 = 0;
                 let size i32 = 0;
-                if initializer_child != nil {
-                    length = initializer.children.len;
+                if init_child != nil {
+                    length = init.children.len;
                     if ty.has_array_len {
                         length = ty.array_len;
                     }
-                    child_size = resolve_variable_length_array_type(ty.pointer_to, initializer_child);
+                    child_size = resolve_variable_length_array_type(ty.pointer_to, init_child);
                     size = length * child_size;
                 } else {
                     if ty.has_array_len {
@@ -291,7 +292,7 @@ func resolve_variable_length_array_type(ty *Type, initializer *Initializer) i32 
                 ty.array_len = length;
                 return ty.size;
             } else {
-                let length i32 = initializer.children.len;
+                let length i32 = init.children.len;
                 if ty.has_array_len {
                     length = ty.array_len;
                 }
@@ -329,11 +330,11 @@ func parse_let(p *Parser) *Node {
         add_type(p, node_var);
 
         if is_token(p.tokens, "{") {
-            let initializer_data *Initializer = parse_initializer(p);
+            let init_data *Initializer = parse_initializer(p);
             if node_var.ty.is_unsized_array {
-                resolve_variable_length_array_type(node_var.ty, initializer_data);
+                resolve_variable_length_array_type(node_var.ty, init_data);
             }
-            node = build_initializer_node(p, node_var, initializer_data);
+            node = build_initializer_node(p, node_var, init_data);
             parser_skip(p, ";");
         } else {
             node = new_binop(ND_ASSIGN, node_var, parse_expr_stmt(p));
