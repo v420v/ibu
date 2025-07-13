@@ -62,6 +62,7 @@ struct Member {
     ty *Type,
     name *u8,
     offset i32,
+    padding i32,
 }
 
 struct Type {
@@ -111,6 +112,10 @@ struct Object {
     locals *Object,
     stack_size i32,
 
+    // global variable
+    gvar_mem *u8,
+    str_relocs *Vec,
+
     is_declaration bool,
     is_func_param bool,
     is_global bool,
@@ -137,6 +142,19 @@ struct Node {
     func_name *u8,
     offset i32,
     args *Vec,
+}
+
+#define RelocKind i32
+#define RELOC_STR 1
+#define RELOC_VAR 2
+
+struct Relocation {
+    kind i32,
+    pos i32,
+    label_unique_num i32,
+    node *Node,
+    addend i64,
+    next *Relocation,
 }
 
 struct VarScope;

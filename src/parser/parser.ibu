@@ -255,13 +255,8 @@ func get_max_len_initializer(inits *Vec) *Initializer {
         if init.kind == InitKindChildren {
             if max < init.children.len {
                 max_init = init;
+                max = init.children.len;
             }
-        }
-    }
-
-    if max == 0 {
-        if inits.len != 0 {
-            return vec_get(inits, 1); // if the max length was zero, just return the first one, this should work
         }
     }
 
@@ -1494,7 +1489,9 @@ func calc_sizof_struct_members(members *Vec) i32 {
     for let i i32 = 0; i < members.len; i++ {
         let member *Member = vec_get(members, i);
         if member.ty.size <= 8 && align_to(offset, 8) < align_to(offset + member.ty.size, 8) {
-            offset = align_to(offset, 8);
+            let new_offset i32 = align_to(offset, 8);
+            member.padding = new_offset - offset;
+            offset = new_offset;
         }
         member.offset = offset;
         offset = offset + member.ty.size;
@@ -1672,6 +1669,190 @@ func parse_func(p *Parser) u0 {
     leave_scope(p);
 }
 
+func new_gvar_relocation_str(node *Node, pos i32) *Relocation {
+    let rel *Relocation = alloc(typesize(Relocation));
+    if rel == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    rel.kind = RELOC_STR;
+    rel.pos = pos;
+    rel.node = node;
+    rel.addend = 0;
+    return rel;
+}
+
+func new_gvar_relocation_var(node *Node, pos i32) *Relocation {
+    let rel *Relocation = alloc(typesize(Relocation));
+    if rel == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    rel.kind = RELOC_VAR;
+    rel.pos = pos;
+    rel.node = node;
+    rel.addend = 0;
+    return rel;
+}
+
+func write_buf(buf *u8, val u64, size i32) u0 {
+    if size == 1 {
+        *buf = val;
+    } else if size == 2 {
+        let buf2 *u16 = buf;
+        *buf2 = val;
+    } else if size == 4 {
+        let buf2 *u32 = buf;
+        *buf2 = val;
+    } else if size == 8 {
+        let buf2 *u64 = buf;
+        *buf2 = val;
+    } else {
+        eprintf("internal error\n");
+        exit(1);
+    }
+}
+
+func eval2(node *Node, str_reloc **Relocation, pos i32) i64 {
+    if node.kind == ND_VAR {
+        *str_reloc = new_gvar_relocation_var(node, pos);
+        return 0;
+    }
+    if node.kind == ND_MEMBER_ACCESS {
+        eval2(node.lhs, str_reloc, pos);
+        if *str_reloc == nil {
+            eprintf("internal error\n");
+            exit(1);
+        }
+        (*str_reloc).addend = (*str_reloc).addend + node.offset;
+        return 0;
+    }
+    eprintf("internal error\n");
+    exit(1);
+}
+
+func eval(node *Node, str_reloc **Relocation, pos i32) i64 {
+    switch node.kind {
+    case ND_NUM:
+        return node.int_val;
+    case ND_STR:
+        if *str_reloc {
+            eprintf("error: gvar init expected constant; todo: error message\n");
+            exit(1);
+        }
+        *str_reloc = new_gvar_relocation_str(node, pos);
+        return 0;
+    case ND_VAR:
+        if *str_reloc {
+            eprintf("error: gvar init expected constant; todo: error message\n");
+            exit(1);
+        }
+        if node.obj.ty.kind != TY_ARRAY && node.obj.ty.kind != TY_FUNC {
+            eprintf("invalid initializer ty.kind %d\n", node.obj.ty.kind);
+            exit(1);
+        }
+
+        *str_reloc = new_gvar_relocation_var(node, pos);
+        return 0;
+    case ND_REF:
+        if node.lhs.kind == ND_VAR {
+            *str_reloc = new_gvar_relocation_var(node.lhs, pos);
+            return 0;
+        }
+        if node.lhs.kind == ND_MEMBER_ACCESS {
+            eval2(node.lhs, str_reloc, pos);
+            return 0;
+        }
+
+        eprintf("internal error\n");
+        exit(1);
+    case ND_ADD:
+        return eval(node.lhs, str_reloc, pos) + eval(node.rhs, str_reloc, pos);
+    case ND_SUB:
+        return eval(node.lhs, str_reloc, pos) - eval(node.rhs, str_reloc, pos);
+    case ND_DIV:
+        return eval(node.lhs, str_reloc, pos) / eval(node.rhs, str_reloc, pos);
+    case ND_MUL:
+        return eval(node.lhs, str_reloc, pos) * eval(node.rhs, str_reloc, pos);
+    case ND_MOD:
+        return eval(node.lhs, str_reloc, pos) % eval(node.rhs, str_reloc, pos);
+    case ND_EQ:
+        return eval(node.lhs, str_reloc, pos) == eval(node.rhs, str_reloc, pos);
+    case ND_NE:
+        return eval(node.lhs, str_reloc, pos) != eval(node.rhs, str_reloc, pos);
+    case ND_LT:
+        return eval(node.lhs, str_reloc, pos) < eval(node.rhs, str_reloc, pos);
+    case ND_LE:
+        return eval(node.lhs, str_reloc, pos) <= eval(node.rhs, str_reloc, pos);
+    case ND_NOT:
+        return !eval(node.lhs, str_reloc, pos);
+    case ND_LOGOR:
+        return eval(node.lhs, str_reloc, pos) || eval(node.rhs, str_reloc, pos);
+    }
+    eprintf("error: gvar init expected constant; todo: error message\n");
+    exit(1);
+}
+
+func gvar_build_init_node(ty *Type, mem *u8, init_data *Initializer, str_relocs *Vec, pos i32) u0 {
+    if init_data.kind == InitKindChildren {
+        let children *Vec = init_data.children;
+        if ty.kind == TY_ARRAY {
+            for let i i32 = 0; i < ty.array_len; i++ {
+                let child_init *Initializer = vec_get(children, i);
+                if child_init.kind == InitKindChildren {
+                    gvar_build_init_node(ty.pointer_to, mem, child_init, str_relocs, pos + ty.pointer_to.size * i);
+                } else if child_init.kind == InitKindNode {
+                    let str_reloc *Relocation = nil;
+                    let val u64 = eval(child_init.node, &str_reloc, pos);
+                    if str_reloc != nil {
+                        str_reloc.addend = val + str_reloc.addend;
+                        vec_append(str_relocs, str_reloc);
+                    } else {
+                        write_buf(mem + pos, val, ty.pointer_to.size);
+                    }
+                    pos = pos + ty.pointer_to.size;
+                } else {
+                    internal_error();
+                }
+            }
+        } else if ty.kind == TY_STRUCT {
+            for let i i32 = 0; i < ty.members.len; i++ {
+                if i >= children.len {
+                    goto break;
+                }
+
+                let struct_member *Member = vec_get(ty.members, i);
+
+                pos = struct_member.padding + pos;
+
+                let child_init *Initializer = vec_get(children, i);
+                if child_init.kind == InitKindChildren {
+                    gvar_build_init_node(struct_member.ty, mem, child_init, str_relocs, pos);
+                } else if child_init.kind == InitKindNode {
+                    let str_reloc *Relocation = nil;
+                    let val u64 = eval(child_init.node, &str_reloc, pos);
+
+                    if str_reloc != nil {
+                        str_reloc.addend = val + str_reloc.addend;
+                        vec_append(str_relocs, str_reloc);
+                    } else {
+                        write_buf(mem + pos, val, struct_member.ty.size);
+                    }
+
+                    pos = pos + struct_member.ty.size;
+                } else {
+                    internal_error();
+                }
+            }
+        } else {
+            print_error(init_data.tok, "initializer can only be used with array or struct types");
+        }
+    break:
+    } else {
+        internal_error();
+    }
+}
+
 func parse_global_let(p *Parser) u0 {
     parser_skip(p, "let");
     let name *u8 = get_token_lit(p.tokens);
@@ -1685,6 +1866,38 @@ func parse_global_let(p *Parser) u0 {
     obj.name = name;
     obj.ty = ty;
     obj.is_global = true;
+    if !is_token(p.tokens, ";") {
+        parser_skip(p, "=");
+        if is_token(p.tokens, "{") {
+            let init_data *Initializer = parse_initializer(p);
+            if ty.is_unsized_array {
+                resolve_variable_length_array_type(ty, init_data);
+            }
+            let gvar_mem *u8 = alloc(ty.size);
+            if gvar_mem == nil {
+                eprintf("memory allocation failed\n");
+                exit(1);
+            }
+            let str_relocs *Vec = new_vec(10);
+            gvar_build_init_node(ty, gvar_mem, init_data, str_relocs, 0);
+            obj.gvar_mem = gvar_mem;
+            obj.str_relocs = str_relocs;
+        } else {
+            let gval_expr_node *Node = parse_expr(p);
+            let gvar_mem *u8 = alloc(ty.size);
+            let str_relocs *Vec = new_vec(10);
+            let str_reloc *Relocation = nil;
+            let val u64 = eval(gval_expr_node, &str_reloc, 0);
+            if str_reloc != nil {
+                str_reloc.addend = val;
+                vec_append(str_relocs, str_reloc);
+            } else {
+                write_buf(gvar_mem, val, ty.size);
+            }
+            obj.str_relocs = str_relocs;
+            obj.gvar_mem = gvar_mem;
+        }
+    }
     parser_skip(p, ";");
     add_global_object(p, obj);
 }

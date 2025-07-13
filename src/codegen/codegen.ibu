@@ -149,6 +149,10 @@ func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
     return stack;
 }
 
+func gen_str_label(unique_num i32) u0 {
+    printf(".L.str.%d:\n", unique_num);
+}
+
 func gen_expr(g *Gen, node *Node) i32 {
     let c i32 = 0;
     switch node.kind {
@@ -161,7 +165,7 @@ func gen_expr(g *Gen, node *Node) i32 {
     case ND_STR:
         c = g.str_label_count++;
         printf(".data\n");
-        printf(".L.str.%d:\n", c);
+        gen_str_label(c);
         let str *u8 = node.str_val;
         while *str != nil {
             printf("\t.byte %d\n", *str);
@@ -567,9 +571,47 @@ func gen(g *Gen, object *Object) u0 {
             printf("\tret\n");
         } else if object.kind == OBJ_VAR {
             printf(".data\n");
+            if object.str_relocs != nil {
+                for let i i32 = 0; i < object.str_relocs.len; i++ {
+                    let str_reloc *Relocation = vec_get(object.str_relocs, i);
+                        if str_reloc.kind == RELOC_STR {
+                        let str *u8 = str_reloc.node.str_val;
+                        str_reloc.label_unique_num = g.str_label_count++;
+                        gen_str_label(str_reloc.label_unique_num);
+                        for let j i32 = 0; str[j] != '\0'; j++ {
+                            printf("\t.byte %d\n", str[j]);
+                        }
+                        printf("\t.byte 0\n");
+                    }
+                }
+            }
             printf(".global %s\n", object.name);
             printf("%s:\n", object.name);
-            printf("\t.zero %d\n", object.ty.size);
+
+            if object.gvar_mem != nil {
+                let str_reloc *Relocation = nil;
+                let str_reloc_idx i32 = 0;
+                if object.str_relocs.len != 0 {
+                    str_reloc = vec_get(object.str_relocs, str_reloc_idx++);
+                }
+                let pos i32 = 0;
+                while pos < object.ty.size {
+                    if str_reloc && str_reloc.pos == pos {
+                        if str_reloc.kind == RELOC_STR {
+                            printf("\t.quad .L.str.%d+%d\n", str_reloc.label_unique_num, str_reloc.addend);
+                        } else if str_reloc.kind == RELOC_VAR {
+                            printf("\t.quad %s+%d\n", str_reloc.node.obj.name, str_reloc.addend);
+                        }
+                        pos = pos + 8;
+                        str_reloc = vec_get(object.str_relocs, str_reloc_idx++);
+                    } else {
+                        printf("\t.byte %d\n", object.gvar_mem[pos]);
+                        pos++;
+                    }
+                }
+            } else {
+                printf("\t.zero %d\n", object.ty.size);
+            }
             printf(".text\n");
         }
         object = object.next;
