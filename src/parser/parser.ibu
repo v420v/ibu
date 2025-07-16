@@ -57,6 +57,19 @@ func cmp_func_params(p1 *Vec, p2 *Vec) bool {
     return true;
 }
 
+let unique_label_count i64 = 0;
+
+func new_unique_label() *u8 {
+    // i64 max value is 18446744073709551615 so 20 characters are enough
+    let label *u8 = alloc(strlen(".L..") + 20 + 1);
+    if label == nil {
+        eprintf("memory allocation failed\n");
+        exit(1);
+    }
+    sprintf(label, ".L..%d", unique_label_count++);
+    return label;
+}
+
 func find_globals(p *Parser, tok *Token) *Object {
     for let object *Object = p.globals; object != nil; object = object.next {
         if is_token(tok, object.name) {
@@ -359,6 +372,7 @@ func parse_if(p *Parser) *Node {
     parser_skip(p, "if");
 
     let node *Node = new_node(ND_IF);
+    node.label_name = new_unique_label();
     node.cond = parse_expr(p);
     node.then_block = parse_block(p);
 
@@ -386,6 +400,8 @@ func parse_return(p *Parser) *Node {
 func parse_for(p *Parser) *Node {
     parser_skip(p, "for");
     let node *Node = new_node(ND_FOR);
+
+    node.label_name = new_unique_label();
 
     if !is_token(p.tokens, "{") {
         enter_scope(p);
@@ -425,6 +441,8 @@ func parse_while(p *Parser) *Node {
     parser_skip(p, "while");
     let node *Node = new_node(ND_FOR);
 
+    node.label_name = new_unique_label();
+
     if !is_token(p.tokens, "{") {
         node.cond = parse_expr(p);
     } else {
@@ -456,6 +474,8 @@ func parse_switch(p *Parser) *Node {
     parser_skip(p, "switch");
     let node *Node = new_node(ND_SWITCH);
 
+    node.label_name = new_unique_label();
+
     p.current_switch = node;
 
     node.cond = parse_expr(p);
@@ -485,6 +505,7 @@ func parse_case(p *Parser) *Node {
     if node.cond.kind != ND_NUM {
         print_error(save_cond_tok, "case value must be a integer constant");
     }
+    node.label_name = new_unique_label();
 
     parser_skip(p, ":");
 
@@ -951,6 +972,7 @@ func parse_number(p *Parser) *Node {
     } else if p.tokens.kind == TK_STR {
         node = new_node(ND_STR);
         node.str_val = p.tokens.str_val;
+        node.label_name = new_unique_label();
         parser_next(p);
     } else if is_token(p.tokens, "nil") {
         parser_next(p);
@@ -1027,6 +1049,9 @@ func parse_deref(p *Parser) *Node {
 
 func new_binop(kind NodeKind, lhs *Node, rhs *Node) *Node {
     let node *Node = new_node(kind);
+    if kind == ND_LOGAND || kind == ND_LOGOR {
+        node.label_name = new_unique_label();
+    }
     node.lhs = lhs;
     node.rhs = rhs;
     return node;
@@ -1708,8 +1733,7 @@ func write_buf(buf *u8, val u64, size i32) u0 {
         let buf2 *u64 = buf;
         *buf2 = val;
     } else {
-        eprintf("internal error\n");
-        exit(1);
+        internal_error();
     }
 }
 
@@ -1720,15 +1744,10 @@ func eval2(node *Node, str_reloc **Relocation, pos i32) i64 {
     }
     if node.kind == ND_MEMBER_ACCESS {
         eval2(node.lhs, str_reloc, pos);
-        if *str_reloc == nil {
-            eprintf("internal error\n");
-            exit(1);
-        }
         (*str_reloc).addend = (*str_reloc).addend + node.offset;
         return 0;
     }
-    eprintf("internal error\n");
-    exit(1);
+    internal_error();
 }
 
 func eval(node *Node, str_reloc **Relocation, pos i32) i64 {
@@ -1763,9 +1782,7 @@ func eval(node *Node, str_reloc **Relocation, pos i32) i64 {
             eval2(node.lhs, str_reloc, pos);
             return 0;
         }
-
-        eprintf("internal error\n");
-        exit(1);
+        internal_error();
     case ND_ADD:
         return eval(node.lhs, str_reloc, pos) + eval(node.rhs, str_reloc, pos);
     case ND_SUB:
@@ -1793,63 +1810,55 @@ func eval(node *Node, str_reloc **Relocation, pos i32) i64 {
     exit(1);
 }
 
-func gvar_build_init_node(ty *Type, mem *u8, init_data *Initializer, str_relocs *Vec, pos i32) u0 {
-    if init_data.kind == InitKindChildren {
-        let children *Vec = init_data.children;
-        if ty.kind == TY_ARRAY {
-            for let i i32 = 0; i < ty.array_len; i++ {
-                let child_init *Initializer = vec_get(children, i);
-                if child_init.kind == InitKindChildren {
-                    gvar_build_init_node(ty.pointer_to, mem, child_init, str_relocs, pos + ty.pointer_to.size * i);
-                } else if child_init.kind == InitKindNode {
-                    let str_reloc *Relocation = nil;
-                    let val u64 = eval(child_init.node, &str_reloc, pos);
-                    if str_reloc != nil {
-                        str_reloc.addend = val + str_reloc.addend;
-                        vec_append(str_relocs, str_reloc);
-                    } else {
-                        write_buf(mem + pos, val, ty.pointer_to.size);
-                    }
-                    pos = pos + ty.pointer_to.size;
-                } else {
-                    internal_error();
-                }
-            }
-        } else if ty.kind == TY_STRUCT {
-            for let i i32 = 0; i < ty.members.len; i++ {
-                if i >= children.len {
-                    goto break;
-                }
-
-                let struct_member *Member = vec_get(ty.members, i);
-
-                pos = struct_member.padding + pos;
-
-                let child_init *Initializer = vec_get(children, i);
-                if child_init.kind == InitKindChildren {
-                    gvar_build_init_node(struct_member.ty, mem, child_init, str_relocs, pos);
-                } else if child_init.kind == InitKindNode {
-                    let str_reloc *Relocation = nil;
-                    let val u64 = eval(child_init.node, &str_reloc, pos);
-
-                    if str_reloc != nil {
-                        str_reloc.addend = val + str_reloc.addend;
-                        vec_append(str_relocs, str_reloc);
-                    } else {
-                        write_buf(mem + pos, val, struct_member.ty.size);
-                    }
-
-                    pos = pos + struct_member.ty.size;
-                } else {
-                    internal_error();
-                }
-            }
-        } else {
-            print_error(init_data.tok, "initializer can only be used with array or struct types");
-        }
-    break:
-    } else {
+func gvar_build_init_node(ty *Type, mem *u8, init_data *Initializer, relocs *Vec, pos i32) u0 {
+    if init_data.kind != InitKindChildren {
         internal_error();
+    }
+
+    let children *Vec = init_data.children;
+
+    if ty.kind == TY_ARRAY {
+        for let i i32 = 0; i < ty.array_len && i < children.len; i++ {
+            let child_init *Initializer = vec_get(children, i);
+            if child_init.kind == InitKindChildren {
+                gvar_build_init_node(ty.pointer_to, mem, child_init, relocs, pos + ty.pointer_to.size * i);
+            } else if child_init.kind == InitKindNode {
+                let rel *Relocation = nil;
+                let val u64 = eval(child_init.node, &rel, pos);
+                if rel != nil {
+                    rel.addend = val + rel.addend;
+                    vec_append(relocs, rel);
+                } else {
+                    write_buf(mem + pos, val, ty.pointer_to.size);
+                }
+                pos = pos + ty.pointer_to.size;
+            } else {
+                internal_error();
+            }
+        }
+    } else if ty.kind == TY_STRUCT {
+        for let i i32 = 0; i < ty.members.len && i < children.len; i++ {
+            let member *Member = vec_get(ty.members, i);
+            pos = member.padding + pos;
+            let child_init *Initializer = vec_get(children, i);
+            if child_init.kind == InitKindChildren {
+                gvar_build_init_node(member.ty, mem, child_init, relocs, pos);
+            } else if child_init.kind == InitKindNode {
+                let rel *Relocation = nil;
+                let val u64 = eval(child_init.node, &rel, pos);
+                if rel != nil {
+                    rel.addend = val + rel.addend;
+                    vec_append(relocs, rel);
+                } else {
+                    write_buf(mem + pos, val, member.ty.size);
+                }
+                pos = pos + member.ty.size;
+            } else {
+                internal_error();
+            }
+        }
+    } else {
+        print_error(init_data.tok, "initializer can only be used with array or struct types");
     }
 }
 
@@ -1878,23 +1887,23 @@ func parse_global_let(p *Parser) u0 {
                 eprintf("memory allocation failed\n");
                 exit(1);
             }
-            let str_relocs *Vec = new_vec(10);
-            gvar_build_init_node(ty, gvar_mem, init_data, str_relocs, 0);
+            let relocs *Vec = new_vec(10);
+            gvar_build_init_node(ty, gvar_mem, init_data, relocs, 0);
             obj.gvar_mem = gvar_mem;
-            obj.str_relocs = str_relocs;
+            obj.relocs = relocs;
         } else {
             let gval_expr_node *Node = parse_expr(p);
             let gvar_mem *u8 = alloc(ty.size);
-            let str_relocs *Vec = new_vec(10);
-            let str_reloc *Relocation = nil;
-            let val u64 = eval(gval_expr_node, &str_reloc, 0);
-            if str_reloc != nil {
-                str_reloc.addend = val;
-                vec_append(str_relocs, str_reloc);
+            let relocs *Vec = new_vec(10);
+            let str_rel *Relocation = nil;
+            let val u64 = eval(gval_expr_node, &str_rel, 0);
+            if str_rel != nil {
+                str_rel.addend = val;
+                vec_append(relocs, str_rel);
             } else {
                 write_buf(gvar_mem, val, ty.size);
             }
-            obj.str_relocs = str_relocs;
+            obj.relocs = relocs;
             obj.gvar_mem = gvar_mem;
         }
     }

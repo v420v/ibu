@@ -114,7 +114,7 @@ struct Object {
 
     // global variable
     gvar_mem *u8,
-    str_relocs *Vec,
+    relocs *Vec,
 
     is_declaration bool,
     is_func_param bool,
@@ -150,8 +150,7 @@ struct Node {
 
 struct Relocation {
     kind i32,
-    pos i32,
-    label_unique_num i32,
+    pos i32, // position of the relocation in gvar memory
     node *Node,
     addend i64,
     next *Relocation,
