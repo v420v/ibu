@@ -2,8 +2,6 @@
 #include "../parser/header.ibu"
 
 struct Gen {
-    label_count i32,
-    str_label_count i32,
     cur_func_name *u8,
     stack_depth i32,
     offset i32,
