@@ -4,8 +4,6 @@
 
 [![CI](https://github.com/v420v/ibu/actions/workflows/ci.yml/badge.svg)](https://github.com/v420v/ibu/actions/workflows/ci.yml)
 
-最低限のルールで最大限の制御を与え、曖昧さをなくすことに価値を置く。
-
 ## Key Features of ibu
 - No strict type checker
 - No C-like pointer arithmetic
@@ -15,8 +13,6 @@
 - No libc dependency
 - No hidden control flow
 - No hidden memory allocations
-- Allows syntax like `13 <= age < 20`
-- Variable length args `func(...)` can be accessed with built-in variables `argc i64` and `argv *i64`
 - All values are extended to 64-bit when accessed
 - The compiler is written in itself
 
@@ -58,7 +54,7 @@ $ ./ibuc <filename>.ibu
 | `src/tokenizer/tokenizer.ibu` | Lexical analyzer |
 | `src/preprocessor/preprocessor.ibu` | Preprocessor |
 | `src/parser/parser.ibu` | Parser |
-| `src/codegen/codegen.ibu` | Assembly code generator |
+| `src/codegen/codegen.ibu` | x86-64 Assembly code generator |
 | `src/linux-syscall/linux-syscall.ibu` | Linux system call |
 | `src/runtime.s` | Syscall function in assembly |
 | `src/util/util.ibu` | Other |
