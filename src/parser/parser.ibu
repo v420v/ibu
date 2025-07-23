@@ -465,16 +465,16 @@ func parse_label(p *Parser) *Node {
 }
 
 func parse_switch(p *Parser) *Node {
-    if p.current_switch != nil {
-        print_error(p.tokens, "nested switch statements are not supported yet");
-    }
-
     let switch_tok *Token = p.tokens;
 
     parser_skip(p, "switch");
     let node *Node = new_node(ND_SWITCH);
 
     node.label_name = new_unique_label();
+
+    if p.current_switch != nil {
+        node.outer = p.current_switch;
+    }
 
     p.current_switch = node;
 
@@ -488,7 +488,7 @@ func parse_switch(p *Parser) *Node {
         print_error(switch_tok, "switch statement must have at least one case");
     }
 
-    p.current_switch = nil;
+    p.current_switch = node.outer;
 
     return node;
 }

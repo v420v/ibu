@@ -142,6 +142,7 @@ struct Node {
     func_name *u8,
     offset i32,
     args *Vec,
+    outer *Node, // switch statement outer switch node if exists
 }
 
 #define RelocKind i32
