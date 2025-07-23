@@ -1901,7 +1901,12 @@ func parse_global_let(p *Parser) u0 {
                 str_rel.addend = val;
                 vec_append(relocs, str_rel);
             } else {
-                write_buf(gvar_mem, val, ty.size);
+                if ty.size > 8 {
+                    add_type(p, gval_expr_node);
+                    write_buf(gvar_mem, val, gval_expr_node.ty.size);
+                } else {
+                    write_buf(gvar_mem, val, ty.size);
+                }
             }
             obj.relocs = relocs;
             obj.gvar_mem = gvar_mem;
