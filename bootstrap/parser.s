@@ -442,6 +442,49 @@ parse_global_let:
 	addq $16, %rsp
 	jmp .L..526.ifend
 .L..526.ifelse:
+	movq $8, %rax
+	push %rax
+	leaq -80(%rbp), %rax
+	movq (%rax), %rax
+	addq $4, %rax
+	movslq (%rax), %rax
+	pop %rdi
+	cmpq %rdi, %rax
+	setg %al
+	movzbq %al, %rax
+	cmpq $1, %rax
+	jne .L..527.ifelse
+	leaq -40(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq 16(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq add_type(%rip), %rax
+	movq %rax, %r10
+	movq $0, %rax
+	callq *%r10
+	addq $16, %rsp
+	leaq -40(%rbp), %rax
+	movq (%rax), %rax
+	addq $112, %rax
+	movq (%rax), %rax
+	addq $4, %rax
+	movslq (%rax), %rax
+	push %rax
+	leaq -8(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq -32(%rbp), %rax
+	movq (%rax), %rax
+	push %rax
+	leaq write_buf(%rip), %rax
+	movq %rax, %r10
+	movq $0, %rax
+	callq *%r10
+	addq $24, %rsp
+	jmp .L..527.ifend
+.L..527.ifelse:
 	leaq -80(%rbp), %rax
 	movq (%rax), %rax
 	addq $4, %rax
@@ -458,6 +501,7 @@ parse_global_let:
 	movq $0, %rax
 	callq *%r10
 	addq $24, %rsp
+.L..527.ifend:
 .L..526.ifend:
 	leaq -72(%rbp), %rax
 	movq (%rax), %rax
@@ -480,11 +524,11 @@ parse_global_let:
 .L..518.ifelse:
 .L..518.ifend:
 .data
-.L..527:
+.L..528:
 	.byte 59
 	.byte 0
 .text
-	leaq .L..527(%rip), %rax
+	leaq .L..528(%rip), %rax
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
@@ -18019,7 +18063,7 @@ parse:
 	push %rbp
 	movq %rsp, %rbp
 	subq $0, %rsp
-.L..528.while.start:
+.L..529.while.start:
 	movq $5, %rax
 	push %rax
 	leaq 16(%rbp), %rax
@@ -18033,16 +18077,16 @@ parse:
 	setne %al
 	movzbq %al, %rax
 	cmpq $1, %rax
-	jne .L..528.while.end
+	jne .L..529.while.end
 .data
-.L..530:
+.L..531:
 	.byte 102
 	.byte 117
 	.byte 110
 	.byte 99
 	.byte 0
 .text
-	leaq .L..530(%rip), %rax
+	leaq .L..531(%rip), %rax
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
@@ -18056,7 +18100,7 @@ parse:
 	addq $16, %rsp
 	movzx %al, %rax
 	cmpq $1, %rax
-	jne .L..529.ifelse
+	jne .L..530.ifelse
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
@@ -18065,16 +18109,16 @@ parse:
 	movq $0, %rax
 	callq *%r10
 	addq $8, %rsp
-	jmp .L..529.ifend
-.L..529.ifelse:
+	jmp .L..530.ifend
+.L..530.ifelse:
 .data
-.L..532:
+.L..533:
 	.byte 108
 	.byte 101
 	.byte 116
 	.byte 0
 .text
-	leaq .L..532(%rip), %rax
+	leaq .L..533(%rip), %rax
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
@@ -18088,7 +18132,7 @@ parse:
 	addq $16, %rsp
 	movzx %al, %rax
 	cmpq $1, %rax
-	jne .L..531.ifelse
+	jne .L..532.ifelse
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
@@ -18097,10 +18141,10 @@ parse:
 	movq $0, %rax
 	callq *%r10
 	addq $8, %rsp
-	jmp .L..531.ifend
-.L..531.ifelse:
+	jmp .L..532.ifend
+.L..532.ifelse:
 .data
-.L..534:
+.L..535:
 	.byte 115
 	.byte 116
 	.byte 114
@@ -18109,7 +18153,7 @@ parse:
 	.byte 116
 	.byte 0
 .text
-	leaq .L..534(%rip), %rax
+	leaq .L..535(%rip), %rax
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
@@ -18123,7 +18167,7 @@ parse:
 	addq $16, %rsp
 	movzx %al, %rax
 	cmpq $1, %rax
-	jne .L..533.ifelse
+	jne .L..534.ifelse
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
 	push %rax
@@ -18132,10 +18176,10 @@ parse:
 	movq $0, %rax
 	callq *%r10
 	addq $8, %rsp
-	jmp .L..533.ifend
-.L..533.ifelse:
+	jmp .L..534.ifend
+.L..534.ifelse:
 .data
-.L..535:
+.L..536:
 	.byte 110
 	.byte 111
 	.byte 110
@@ -18185,7 +18229,7 @@ parse:
 	.byte 121
 	.byte 0
 .text
-	leaq .L..535(%rip), %rax
+	leaq .L..536(%rip), %rax
 	push %rax
 	leaq 16(%rbp), %rax
 	movq (%rax), %rax
@@ -18197,11 +18241,11 @@ parse:
 	movq $0, %rax
 	callq *%r10
 	addq $16, %rsp
-.L..533.ifend:
-.L..531.ifend:
-.L..529.ifend:
-	jmp .L..528.while.start
-.L..528.while.end:
+.L..534.ifend:
+.L..532.ifend:
+.L..530.ifend:
+	jmp .L..529.while.start
+.L..529.while.end:
 	leave
 	ret
 .global new_parser
