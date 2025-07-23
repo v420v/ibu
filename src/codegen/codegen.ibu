@@ -415,6 +415,12 @@ func gen_stmt(g *Gen, node *Node) i32 {
     case ND_CASE:
         printf("%s:\n", node.label_name);
         return 0;
+    case ND_CASE_RANGE:
+        for let i i32 = 0; i < node.cases.len; i++ {
+            let case_node *Node = vec_get(node.cases, i);
+            printf("%s:\n", case_node.label_name);
+        }
+        return 0;
     case ND_MEMZERO:
         gen_expr(g, node.lhs);
         printf("\tmovq %%rax, %%rdi\n");

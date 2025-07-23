@@ -40,6 +40,7 @@
 #define ND_OR               34
 #define ND_SWITCH           35
 #define ND_CASE             36
+#define ND_CASE_RANGE       37
 
 #define TypeKind	i32
 #define TY_I64		0
@@ -142,7 +143,7 @@ struct Node {
     func_name *u8,
     offset i32,
     args *Vec,
-    outer *Node, // switch statement outer switch node if exists
+    outer *Node,
 }
 
 #define RelocKind i32
