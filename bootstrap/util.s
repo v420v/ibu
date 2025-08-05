@@ -142,17 +142,38 @@ memset:
 .data
 .global heap_tail
 heap_tail:
-	.zero 8
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
 .text
 .data
 .global heap_current
 heap_current:
-	.zero 8
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
 .text
 .data
 .global heap_head
 heap_head:
-	.zero 8
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
 .text
 .global strndup
 strndup:
