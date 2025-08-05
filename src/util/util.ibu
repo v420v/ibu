@@ -4,9 +4,9 @@
 
 #define HEAP_SIZE 2147483647
 
-let heap_head *u8;
-let heap_current *u8;
-let heap_tail *u8;
+let heap_head *u8 = nil;
+let heap_current *u8 = nil;
+let heap_tail *u8 = nil;
 
 func memset(ptr *u8, val u8, n i32) u0 {
     for let i i32 = 0; i < n; i++ {
