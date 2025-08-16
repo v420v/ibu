@@ -115,10 +115,6 @@ func gen_load(g *Gen, ty *Type) i32 {
     return 0;
 }
 
-func gen_condition_store(ty *Type) i32 {
-    printf("\tmovzbq %%al, %%rax\n");
-}
-
 func func_call_args_to_stack(g *Gen, args *Vec, ty *Type) i32 {
     if args.len == 0 {
         return 0;
@@ -268,13 +264,13 @@ func gen_expr(g *Gen, node *Node) i32 {
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tcmpq %%rdi, %%rax\n");
         printf("\tsete %%al\n");
-        gen_condition_store(node.ty);
+        printf("\tmovzbq %%al, %%rax\n");
         return 0;
     case ND_NE:
         gen_lhs_rhs(g, node.lhs, node.rhs);
         printf("\tcmpq %%rdi, %%rax\n");
         printf("\tsetne %%al\n");
-        gen_condition_store(node.ty);
+        printf("\tmovzbq %%al, %%rax\n");
         return 0;
     case ND_LOGAND:
         gen_expr(g, node.lhs);
@@ -310,7 +306,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         } else {
             printf("\tsetge %%al\n");
         }
-        gen_condition_store(node.ty);
+        printf("\tmovzbq %%al, %%rax\n");
         return 0;
     case ND_GT:
         gen_lhs_rhs(g, node.lhs, node.rhs);
@@ -320,7 +316,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         } else {
             printf("\tsetg %%al\n");
         }
-        gen_condition_store(node.ty);
+        printf("\tmovzbq %%al, %%rax\n");
         return 0;
     case ND_LE:
         gen_lhs_rhs(g, node.lhs, node.rhs);
@@ -330,7 +326,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         } else {
             printf("\tsetle %%al\n");
         }
-        gen_condition_store(node.ty);
+        printf("\tmovzbq %%al, %%rax\n");
         return 0;
     case ND_LT:
         gen_lhs_rhs(g, node.lhs, node.rhs);
@@ -340,7 +336,7 @@ func gen_expr(g *Gen, node *Node) i32 {
         } else {
             printf("\tsetl %%al\n");
         }
-        gen_condition_store(node.ty);
+        printf("\tmovzbq %%al, %%rax\n");
         return 0;
     }
     printf("gen_expr unreachable\n");
